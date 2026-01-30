@@ -10,6 +10,13 @@ const publicServerHostUrl =
 const serverPaths = ['api/', 'public/', 'hls/', 'auth/', 'feed/', 'status', 'login', 'logout', 'init']
 const proxy = Object.fromEntries(serverPaths.map((path) => [`${routerBasePath}/${path}`, { target: process.env.NODE_ENV !== 'production' ? internalServerHostUrl : '/' }]))
 
+// Socket.IO is used with `transports: ['websocket']` so we must enable `ws: true` for the proxy.
+proxy[`${routerBasePath}/socket.io`] = {
+  target: process.env.NODE_ENV !== 'production' ? internalServerHostUrl : '/',
+  ws: true,
+  changeOrigin: true
+}
+
 module.exports = {
   // Disable server-side rendering: https://go.nuxtjs.dev/ssr-mode
   ssr: false,
@@ -67,8 +74,7 @@ module.exports = {
   io: {
     sockets: [
       {
-        name: 'dev',
-        url: publicServerHostUrl
+        name: 'dev'
       },
       {
         name: 'prod'
