@@ -4,6 +4,8 @@ export const state = () => ({
   isMobilePortrait: false,
   showBatchCollectionModal: false,
   showBatchSeriesModal: false,
+  showBatchTagsModal: false,
+  showBatchGenresModal: false,
   showCollectionsModal: false,
   showEditCollectionModal: false,
   showPlaylistsModal: false,
@@ -207,6 +209,12 @@ export const mutations = {
   },
   setShowBatchSeriesModal(state, val) {
     state.showBatchSeriesModal = val
+  },
+  setShowBatchTagsModal(state, val) {
+    state.showBatchTagsModal = val
+  },
+  setShowBatchGenresModal(state, val) {
+    state.showBatchGenresModal = val
   },
   resetSelectedMediaItems(state) {
     state.selectedMediaItems = []

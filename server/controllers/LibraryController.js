@@ -774,9 +774,16 @@ class LibraryController {
   /**
    * GET: /api/libraries/:id/series/:seriesId
    *
-   * Optional includes (e.g. `?include=rssfeed,progress`)
+   * Optional includes (e.g. `?include=rssfeed,progress,items`)
    * rssfeed: adds `rssFeed` to series object if a feed is open
    * progress: adds `progress` to series object with { libraryItemIds:Array<llid>, libraryItemIdsFinished:Array<llid>, isFinished:boolean }
+   * items: adds `libraryItems` array with the books in the series (supports filtering/sorting)
+   *
+   * Optional query params for filtering/sorting (when include=items):
+   * ?search=query - search by title
+   * ?filter=all|finished|in-progress|not-started|not-finished - filter by progress
+   * ?sort=title|publishedYear|addedAt|size|duration|progress|random|sequence - sort by field
+   * ?desc=0|1 - sort descending if 1
    *
    * @param {LibraryControllerRequest} req
    * @param {Response} res - Series
@@ -805,6 +812,55 @@ class LibraryController {
     if (include.includes('rssfeed')) {
       const feedObj = await RssFeedManager.findFeedForEntityId(seriesJson.id)
       seriesJson.rssFeed = feedObj?.toOldJSONMinified() || null
+    }
+
+    // Include library items with filtering and sorting support
+    if (include.includes('items')) {
+      const filterSortOptions = parseFilterSortQuery(req.query)
+      // Default to sequence sort for series (if no sort specified)
+      if (!req.query.sort) {
+        filterSortOptions.sortBy = 'sequence'
+      }
+
+      let items = libraryItemsInSeries
+
+      // Apply filtering and sorting
+      if (filterSortOptions.sortBy === 'sequence') {
+        // Sort by series sequence number
+        items = naturalSort(items).asc((li) => {
+          const seriesEntry = li.media.series?.find((s) => s.id === series.id)
+          return seriesEntry?.bookSeries?.sequence || ''
+        })
+        if (filterSortOptions.sortDesc) {
+          items = items.reverse()
+        }
+        // Apply search and filter without re-sorting
+        if (filterSortOptions.searchQuery || filterSortOptions.filterBy !== 'all') {
+          const filteredItems = filterAndSortLibraryItems(items, {
+            searchQuery: filterSortOptions.searchQuery,
+            filterBy: filterSortOptions.filterBy,
+            sortBy: null, // Don't re-sort
+            user: req.user
+          })
+          items = filteredItems
+        }
+      } else {
+        items = filterAndSortLibraryItems(items, {
+          ...filterSortOptions,
+          user: req.user
+        })
+      }
+
+      // Add sequence info and minify
+      seriesJson.libraryItems = items.map((li) => {
+        const minified = li.toOldJSONMinified()
+        // Add sequence info for this series
+        const seriesEntry = li.media.series?.find((s) => s.id === series.id)
+        if (seriesEntry) {
+          minified.sequence = seriesEntry.bookSeries?.sequence || null
+        }
+        return minified
+      })
     }
 
     res.json(seriesJson)

@@ -245,6 +245,34 @@ function parseFilterString(filterBy) {
 }
 
 /**
+ * Parse one-or-many filters.
+ *
+ * Backwards compatible with the existing single filter format, but also supports
+ * comma-separated filters to allow AND-combinations:
+ * - "genres.<encoded>,tags.<encoded>,progress.<encoded>"
+ *
+ * Notes:
+ * - Filters are applied in-order by the caller (AND semantics via sequential filtering).
+ * - "all" yields an empty list.
+ *
+ * @param {string|string[]|null|undefined} filterBy
+ * @returns {{ filterGroup: string|null, filterValue: string|null }[]}
+ */
+function parseFilters(filterBy) {
+  if (!filterBy) return []
+
+  // Express can parse repeated query params into an array, e.g. ?filter=a&filter=b
+  const rawFilters = Array.isArray(filterBy) ? filterBy : String(filterBy).split(',')
+  const parsed = rawFilters
+    .map((f) => (typeof f === 'string' ? f.trim() : ''))
+    .filter((f) => !!f && f !== 'all')
+    .map((f) => parseFilterString(f))
+    .filter((p) => p.filterGroup && p.filterValue)
+
+  return parsed
+}
+
+/**
  * Apply filtering and sorting to library items
  * @param {Array} libraryItems - Array of library items
  * @param {Object} options - Filter and sort options
@@ -271,20 +299,20 @@ function filterAndSortLibraryItems(libraryItems, options = {}) {
     filtered = applySearchFilter(filtered, searchQuery)
   }
 
-  // Parse filter string
-  const { filterGroup, filterValue } = parseFilterString(filterBy)
-
-  // Apply progress filter (special case)
-  if (filterGroup === 'progress' && user) {
-    filtered = applyProgressFilter(filtered, filterValue, user)
-  }
-  // Apply advanced filters
-  else if (filterGroup && filterValue) {
-    filtered = applyAdvancedFilter(filtered, filterGroup, filterValue)
+  // Parse one-or-many filters and apply them sequentially (AND semantics)
+  const filters = parseFilters(filterBy)
+  for (const { filterGroup, filterValue } of filters) {
+    if (filterGroup === 'progress' && user) {
+      filtered = applyProgressFilter(filtered, filterValue, user)
+    } else if (filterGroup && filterValue) {
+      filtered = applyAdvancedFilter(filtered, filterGroup, filterValue)
+    }
   }
 
-  // Apply sorting
-  filtered = sortLibraryItems(filtered, sortBy, sortDesc, user)
+  // Apply sorting (skip if sortBy is null to preserve existing order)
+  if (sortBy !== null) {
+    filtered = sortLibraryItems(filtered, sortBy, sortDesc, user)
+  }
 
   return filtered
 }
@@ -310,6 +338,7 @@ module.exports = {
   sortLibraryItems,
   filterAndSortLibraryItems,
   parseFilterSortQuery,
+  parseFilters,
   parseFilterString,
   getSortValue
 }
