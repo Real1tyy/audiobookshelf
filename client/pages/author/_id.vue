@@ -1,9 +1,10 @@
 <template>
   <div id="page-wrapper" class="bg-bg page overflow-y-auto p-4 md:p-8" :class="streamLibraryItem ? 'streaming' : ''">
-    <div class="max-w-6xl mx-auto">
-      <div class="flex flex-wrap sm:flex-nowrap justify-center mb-6">
-        <div class="w-48 min-w-48">
-          <div class="w-full h-60">
+    <div>
+      <!-- Author Header -->
+      <div class="flex flex-wrap sm:flex-nowrap justify-center sm:justify-start mb-6">
+        <div class="w-32 min-w-32">
+          <div class="w-full h-40">
             <covers-author-image :author="author" rounded-sm="0" />
           </div>
         </div>
@@ -24,21 +25,31 @@
         </div>
       </div>
 
+      <!-- Books Gallery -->
       <div class="py-4">
-        <widgets-item-slider :items="libraryItems" shelf-id="author-books" :bookshelf-view="$constants.BookshelfView.AUTHOR">
-          <nuxt-link :to="`/library/${currentLibraryId}/bookshelf?filter=authors.${$encode(author.id)}`" class="hover:underline">
-            <h2 class="text-lg">{{ libraryItems.length }} {{ $strings.LabelBooks }}</h2>
-          </nuxt-link>
-        </widgets-item-slider>
+        <nuxt-link :to="`/library/${currentLibraryId}/bookshelf?filter=authors.${$encode(author.id)}`" class="hover:underline">
+          <h2 class="text-lg mb-4">{{ libraryItems.length }} {{ $strings.LabelBooks }}</h2>
+        </nuxt-link>
+        <div class="flex flex-wrap">
+          <div v-for="item in libraryItems" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
+            <cards-lazy-book-card :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" />
+          </div>
+        </div>
       </div>
 
+      <!-- Series Galleries -->
       <div v-for="series in authorSeries" :key="series.id" class="py-4">
-        <widgets-item-slider :items="series.items" :shelf-id="series.id" :bookshelf-view="$constants.BookshelfView.AUTHOR">
+        <div class="flex items-center mb-4">
           <nuxt-link :to="`/library/${currentLibraryId}/series/${series.id}`" class="hover:underline">
             <h2 class="text-lg">{{ series.name }}</h2>
           </nuxt-link>
           <p class="text-white/40 text-base px-2">{{ $strings.LabelSeries }}</p>
-        </widgets-item-slider>
+        </div>
+        <div class="flex flex-wrap">
+          <div v-for="item in series.items" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
+            <cards-lazy-book-card :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" />
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -85,6 +96,25 @@ export default {
     },
     userCanUpdate() {
       return this.$store.getters['user/getUserCanUpdate']
+    },
+    bookCoverAspectRatio() {
+      return this.$store.getters['libraries/getBookCoverAspectRatio']
+    },
+    sizeMultiplier() {
+      return this.$store.getters['user/getSizeMultiplier']
+    },
+    bookCoverHeight() {
+      return 160
+    },
+    coverHeight() {
+      return this.bookCoverHeight * this.sizeMultiplier
+    },
+    cardWidth() {
+      return this.coverHeight / this.bookCoverAspectRatio
+    },
+    cardHeight() {
+      // Cover height + space for title/author text below (approximately 4em = 64px)
+      return this.coverHeight + 64
     }
   },
   methods: {
@@ -94,6 +124,11 @@ export default {
     },
     editAuthor() {
       this.$store.commit('globals/showEditAuthorModal', this.author)
+    },
+    editItem(libraryItem) {
+      const itemIds = this.libraryItems.map((e) => e.id)
+      this.$store.commit('setBookshelfBookIds', itemIds)
+      this.$store.commit('showEditModalOnTab', { libraryItem, tab: 'details' })
     },
     authorUpdated(author) {
       if (author.id === this.author.id) {
