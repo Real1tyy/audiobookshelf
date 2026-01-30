@@ -28,7 +28,9 @@ export const state = () => ({
   openModal: null,
   innerModalOpen: false,
   lastBookshelfScrollData: {},
-  routerBasePath: '/'
+  // IMPORTANT: keep this normalized for URL building. Using '/' leads to
+  // protocol-relative URLs like '//api/...' when interpolated as `${rbp}/api/...`.
+  routerBasePath: ''
 })
 
 export const getters = {
@@ -129,7 +131,8 @@ export const actions = {
 
 export const mutations = {
   setRouterBasePath(state, rbp) {
-    state.routerBasePath = rbp
+    const val = (rbp || '').trim()
+    state.routerBasePath = val && val !== '/' ? val.replace(/\/+$/, '') : ''
   },
   setSource(state, source) {
     state.Source = source
