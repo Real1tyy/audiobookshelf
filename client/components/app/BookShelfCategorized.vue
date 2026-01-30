@@ -466,7 +466,32 @@ export default {
         }
       })
     },
+    clearSelectedEntities() {
+      this.lastItemIndexSelected = -1
+    },
+    selectAllEntities() {
+      // Select all entities from all shelves
+      this.shelves.forEach((shelf) => {
+        if (shelf.type !== 'book' && shelf.type !== 'podcast') return
+
+        shelf.entities.forEach((entity) => {
+          if (!entity) return
+          const isAlreadySelected = this.selectedMediaItems.some((item) => item.id === entity.id)
+          if (!isAlreadySelected) {
+            const mediaItem = {
+              id: entity.id,
+              mediaType: entity.mediaType,
+              hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
+            }
+            this.$store.commit('globals/setMediaItemSelected', { item: mediaItem, selected: true })
+          }
+        })
+      })
+    },
     initListeners() {
+      this.$eventBus.$on('bookshelf_clear_selection', this.clearSelectedEntities)
+      this.$eventBus.$on('bookshelf_select_all', this.selectAllEntities)
+
       if (this.$root.socket) {
         this.$root.socket.on('user_updated', this.userUpdated)
         this.$root.socket.on('author_updated', this.authorUpdated)
@@ -484,6 +509,9 @@ export default {
       }
     },
     removeListeners() {
+      this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)
+      this.$eventBus.$off('bookshelf_select_all', this.selectAllEntities)
+
       if (this.$root.socket) {
         this.$root.socket.off('user_updated', this.userUpdated)
         this.$root.socket.off('author_updated', this.authorUpdated)

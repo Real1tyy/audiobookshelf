@@ -249,6 +249,52 @@ export default {
       this.updateBookSelectionMode(false)
       this.isSelectionMode = false
     },
+    async selectAllEntities() {
+      if (this.entityName !== 'items' && this.entityName !== 'series-books') return
+
+      // Build query string for current filter/sort settings
+      const searchParams = this.buildSearchParams()
+      const sfQueryString = searchParams ? searchParams + '&' : ''
+
+      // Fetch all items matching current filter from API
+      const entityPath = this.entityName === 'series-books' ? 'items' : this.entityName
+      const fullQueryString = `?${sfQueryString}limit=0&minified=1`
+
+      const payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${fullQueryString}`).catch((error) => {
+        console.error('Failed to fetch all items for selection', error)
+        return null
+      })
+
+      if (!payload || !payload.results) return
+
+      // Select all fetched entities that are not collapsed series
+      for (const entity of payload.results) {
+        if (!entity || entity.collapsedSeries) continue
+
+        const isAlreadySelected = this.selectedMediaItems.some((item) => item.id === entity.id)
+        if (!isAlreadySelected) {
+          const mediaItem = {
+            id: entity.id,
+            mediaType: entity.mediaType,
+            hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
+          }
+          this.$store.commit('globals/setMediaItemSelected', { item: mediaItem, selected: true })
+        }
+      }
+
+      // Update UI for mounted entity components
+      for (let i = 0; i < this.entities.length; i++) {
+        if (this.entityComponentRefs[i]) {
+          this.entityComponentRefs[i].selected = true
+        }
+      }
+
+      // Enable selection mode
+      if (!this.isSelectionMode && this.selectedMediaItems.length) {
+        this.isSelectionMode = true
+        this.updateBookSelectionMode(true)
+      }
+    },
     selectEntity(entity, shiftKey) {
       if (this.entityName === 'items' || this.entityName === 'series-books') {
         const indexOf = this.entities.findIndex((ent) => ent && ent.id === entity.id)
@@ -790,6 +836,7 @@ export default {
       })
 
       this.$eventBus.$on('bookshelf_clear_selection', this.clearSelectedEntities)
+      this.$eventBus.$on('bookshelf_select_all', this.selectAllEntities)
       this.$eventBus.$on('user-settings', this.settingsUpdated)
 
       if (this.$root.socket) {
@@ -821,6 +868,7 @@ export default {
       }
 
       this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)
+      this.$eventBus.$off('bookshelf_select_all', this.selectAllEntities)
       this.$eventBus.$off('user-settings', this.settingsUpdated)
 
       if (this.$root.socket) {

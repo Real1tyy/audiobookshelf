@@ -58,6 +58,9 @@
           <span class="material-symbols fill text-2xl -ml-2 pr-1 text-white">play_arrow</span>
           {{ $strings.ButtonPlay }}
         </ui-btn>
+        <ui-tooltip :text="$strings.LabelSelectAll" direction="bottom">
+          <ui-icon-btn :disabled="processingBatch" icon="select_all" class="mx-1.5" @click="selectAll" />
+        </ui-tooltip>
         <ui-tooltip v-if="isBookLibrary" :text="selectedIsFinished ? $strings.MessageMarkAsNotFinished : $strings.MessageMarkAsFinished" direction="bottom">
           <ui-read-icon-btn :disabled="processingBatch" :is-read="selectedIsFinished" @click="toggleBatchRead" class="mx-1.5" />
         </ui-tooltip>
@@ -304,6 +307,10 @@ export default {
       if (this.processingBatch) return
       this.$store.commit('globals/resetSelectedMediaItems', [])
       this.$eventBus.$emit('bookshelf_clear_selection')
+    },
+    selectAll() {
+      if (this.processingBatch) return
+      this.$eventBus.$emit('bookshelf_select_all')
     },
     toggleBatchRead() {
       this.$store.commit('setProcessingBatch', true)
