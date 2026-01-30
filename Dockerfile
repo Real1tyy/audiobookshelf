@@ -5,8 +5,11 @@ ARG NUSQLITE3_PATH="${NUSQLITE3_DIR}/libnusqlite3.so"
 FROM node:20-alpine AS build-client
 
 WORKDIR /client
-COPY /client /client
+# Copy package files first for better layer caching
+COPY /client/package*.json /client/
 RUN npm ci && npm cache clean --force
+# Copy source files after npm install
+COPY /client /client
 RUN npm run generate
 
 ### STAGE 1: Build server ###
