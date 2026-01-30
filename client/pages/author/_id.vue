@@ -32,7 +32,7 @@
         </nuxt-link>
         <div class="flex flex-wrap">
           <div v-for="item in libraryItems" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
-            <cards-lazy-book-card :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" />
+            <cards-lazy-book-card :ref="`book-card-${item.id}`" :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" @select="selectItem" />
           </div>
         </div>
       </div>
@@ -47,7 +47,7 @@
         </div>
         <div class="flex flex-wrap">
           <div v-for="item in series.items" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
-            <cards-lazy-book-card :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" />
+            <cards-lazy-book-card :ref="`book-card-${item.id}`" :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" @select="selectItem" />
           </div>
         </div>
       </div>
@@ -78,7 +78,19 @@ export default {
   data() {
     return {
       isDescriptionClamped: false,
-      showFullDescription: false
+      showFullDescription: false,
+      isSelectionMode: false
+    }
+  },
+  watch: {
+    selectedMediaItems: {
+      handler(newVal) {
+        const newIsSelectionMode = !!newVal.length
+        if (this.isSelectionMode !== newIsSelectionMode) {
+          this.isSelectionMode = newIsSelectionMode
+          this.updateBookSelectionMode(newIsSelectionMode)
+        }
+      }
     }
   },
   computed: {
@@ -115,6 +127,21 @@ export default {
     cardHeight() {
       // Cover height + space for title/author text below (approximately 4em = 64px)
       return this.coverHeight + 64
+    },
+    selectedMediaItems() {
+      return this.$store.state.globals.selectedMediaItems || []
+    },
+    allItems() {
+      // Flatten all library items and series items for selection
+      const items = [...this.libraryItems]
+      this.authorSeries.forEach((series) => {
+        series.items.forEach((item) => {
+          if (!items.find((i) => i.id === item.id)) {
+            items.push(item)
+          }
+        })
+      })
+      return items
     }
   },
   methods: {
@@ -146,6 +173,59 @@ export default {
         console.warn('Author was removed')
         this.$router.replace(`/library/${this.currentLibraryId}/bookshelf/authors`)
       }
+    },
+    getMediaItemFromEntity(entity) {
+      return {
+        id: entity.id,
+        mediaType: entity.mediaType,
+        hasTracks: entity.mediaType === 'podcast' || entity.media?.audioFile || entity.media?.numTracks || (entity.media?.tracks && entity.media.tracks.length)
+      }
+    },
+    getBookCardRef(itemId) {
+      const ref = this.$refs[`book-card-${itemId}`]
+      return ref?.[0] ?? null
+    },
+    selectItem({ entity, shiftKey }) {
+      this.$store.commit('globals/toggleMediaItemSelected', this.getMediaItemFromEntity(entity))
+
+      const newIsSelectionMode = !!this.selectedMediaItems.length
+      if (this.isSelectionMode !== newIsSelectionMode) {
+        this.isSelectionMode = newIsSelectionMode
+        this.updateBookSelectionMode(newIsSelectionMode)
+      }
+    },
+    clearSelectedEntities() {
+      this.isSelectionMode = false
+      this.updateBookSelectionMode(false)
+    },
+    updateBookSelectionMode(isSelectionMode) {
+      this.allItems.forEach((item) => {
+        const cardRef = this.getBookCardRef(item.id)
+        if (cardRef) {
+          cardRef.setSelectionMode(isSelectionMode)
+          if (!isSelectionMode) {
+            cardRef.selected = false
+          }
+        }
+      })
+    },
+    selectAllEntities() {
+      this.allItems.forEach((entity) => {
+        if (!entity) return
+        const isAlreadySelected = this.selectedMediaItems.some((item) => item.id === entity.id)
+        if (!isAlreadySelected) {
+          this.$store.commit('globals/setMediaItemSelected', { item: this.getMediaItemFromEntity(entity), selected: true })
+        }
+        const cardRef = this.getBookCardRef(entity.id)
+        if (cardRef) {
+          cardRef.selected = true
+        }
+      })
+
+      if (!this.isSelectionMode && this.selectedMediaItems.length) {
+        this.isSelectionMode = true
+        this.updateBookSelectionMode(true)
+      }
     }
   },
   mounted() {
@@ -154,10 +234,14 @@ export default {
 
     this.$root.socket.on('author_updated', this.authorUpdated)
     this.$root.socket.on('author_removed', this.authorRemoved)
+    this.$eventBus.$on('bookshelf_clear_selection', this.clearSelectedEntities)
+    this.$eventBus.$on('bookshelf_select_all', this.selectAllEntities)
   },
   beforeDestroy() {
     this.$root.socket.off('author_updated', this.authorUpdated)
     this.$root.socket.off('author_removed', this.authorRemoved)
+    this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)
+    this.$eventBus.$off('bookshelf_select_all', this.selectAllEntities)
   }
 }
 </script>
