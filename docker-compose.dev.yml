@@ -19,7 +19,8 @@ services:
     container_name: abs-dev-server
     working_dir: /app
     command: >
-      sh -lc "if [ ! -x node_modules/.bin/nodemon ]; then npm ci; fi;
+      sh -lc "apk add --no-cache ffmpeg;
+              if [ ! -x node_modules/.bin/nodemon ]; then npm ci; fi;
               npm run dev"
     environment:
       # Keep dev paths consistent with prod (served under /audiobookshelf)

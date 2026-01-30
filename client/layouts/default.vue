@@ -393,7 +393,8 @@ export default {
       // If routerBasePath is '/', `${routerBasePath}/socket.io` becomes `//socket.io`
       // which can break websocket connections depending on the environment.
       const routerBasePath = this.$config.routerBasePath && this.$config.routerBasePath !== '/' ? this.$config.routerBasePath.replace(/\/+$/, '') : ''
-      this.socket = this.$nuxtSocket({
+
+      const socketOpts = {
         name: process.env.NODE_ENV === 'development' ? 'dev' : 'prod',
         persist: 'main',
         teardown: false,
@@ -401,7 +402,23 @@ export default {
         upgrade: false,
         reconnection: true,
         path: `${routerBasePath}/socket.io`
-      })
+      }
+
+      // In development, if accessing from non-localhost, construct URL using browser's hostname
+      // but the server port from the configured serverUrl. This fixes WebSocket connections
+      // when accessing Docker from external IPs.
+      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+        const hostname = window.location.hostname
+        if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+          // Extract port from serverUrl (e.g., "http://localhost:3333/audiobookshelf" -> "3333")
+          const serverUrl = process.env.serverUrl || ''
+          const serverUrlMatch = serverUrl.match(/:(\d+)/)
+          const serverPort = serverUrlMatch ? serverUrlMatch[1] : window.location.port
+          socketOpts.url = `${window.location.protocol}//${hostname}:${serverPort}`
+        }
+      }
+
+      this.socket = this.$nuxtSocket(socketOpts)
       this.$root.socket = this.socket
       this.isSocketAuthenticated = false
       console.log('Socket initialized')

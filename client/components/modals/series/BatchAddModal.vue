@@ -80,8 +80,9 @@ export default {
   methods: {
     loadSeries() {
       this.processing = true
+      // Use a large limit to get all series (limit=0 returns no results due to Sequelize behavior)
       this.$axios
-        .$get(`/api/libraries/${this.currentLibraryId}/series?limit=0`)
+        .$get(`/api/libraries/${this.currentLibraryId}/series?limit=10000`)
         .then((data) => {
           if (data.results) {
             this.$store.commit('libraries/setSeries', data.results || [])
