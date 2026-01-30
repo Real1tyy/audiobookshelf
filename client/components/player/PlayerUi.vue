@@ -43,7 +43,7 @@
         </ui-tooltip>
       </div>
 
-      <player-playback-controls :loading="loading" :seek-loading="seekLoading" :playback-rate.sync="playbackRate" :paused="paused" :hasNextChapter="hasNextChapter" :hasNextItemInQueue="hasNextItemInQueue" @prevChapter="prevChapter" @next="goToNext" @jumpForward="jumpForward" @jumpBackward="jumpBackward" @setPlaybackRate="setPlaybackRate" @playPause="playPause" />
+      <player-playback-controls :loading="loading" :seek-loading="seekLoading" :playback-rate.sync="playbackRate" :paused="paused" :hasNextChapter="hasNextChapter" :hasNextItemInQueue="hasNextItemInQueue" :repeat-mode="repeatMode" @prevChapter="prevChapter" @next="goToNext" @jumpForward="jumpForward" @jumpBackward="jumpBackward" @setPlaybackRate="setPlaybackRate" @playPause="playPause" @cycleRepeatMode="cycleRepeatMode" />
     </div>
 
     <player-track-bar ref="trackbar" :loading="loading" :chapters="chapters" :duration="duration" :current-chapter="currentChapter" :playback-rate="playbackRate" @seek="seek" />
@@ -89,7 +89,11 @@ export default {
     isPodcast: Boolean,
     hideBookmarks: Boolean,
     hideSleepTimer: Boolean,
-    hasNextItemInQueue: Boolean
+    hasNextItemInQueue: Boolean,
+    repeatMode: {
+      type: String,
+      default: 'off'
+    }
   },
   data() {
     return {
@@ -202,6 +206,9 @@ export default {
     },
     jumpForward() {
       this.$emit('jumpForward')
+    },
+    cycleRepeatMode() {
+      this.$emit('cycleRepeatMode')
     },
     increaseVolume() {
       if (this.volume >= 1) return

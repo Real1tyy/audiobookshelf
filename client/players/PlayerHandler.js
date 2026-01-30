@@ -23,6 +23,7 @@ export default class PlayerHandler {
     this.listeningTimeSinceSync = 0
 
     this.playInterval = null
+    this.repeatMode = 'off' // 'off', 'all', 'one'
   }
 
   get isCasting() {
@@ -392,5 +393,16 @@ export default class PlayerHandler {
     if (!this.playerPlaying && shouldSync) {
       this.sendProgressSync(time)
     }
+  }
+
+  setRepeatMode(mode) {
+    this.repeatMode = mode
+    if (this.player && this.player.setRepeatMode) {
+      this.player.setRepeatMode(mode)
+    }
+  }
+
+  getRepeatMode() {
+    return this.repeatMode
   }
 }

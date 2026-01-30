@@ -25,6 +25,11 @@
             <span class="material-symbols text-2xl sm:text-3xl">last_page</span>
           </button>
         </ui-tooltip>
+        <ui-tooltip direction="top" :text="repeatText" class="ml-4 lg:ml-8">
+          <button :aria-label="repeatText" :class="repeatActive ? 'text-success' : 'text-gray-300'" @mousedown.prevent @mouseup.prevent @click.stop="cycleRepeatMode">
+            <span class="material-symbols text-2xl sm:text-3xl">{{ repeatIcon }}</span>
+          </button>
+        </ui-tooltip>
       </template>
       <template v-else>
         <div class="cursor-pointer p-2 shadow-xs bg-accent flex items-center justify-center rounded-full text-primary mx-8 animate-spin">
@@ -42,7 +47,11 @@ export default {
     seekLoading: Boolean,
     paused: Boolean,
     hasNextChapter: Boolean,
-    hasNextItemInQueue: Boolean
+    hasNextItemInQueue: Boolean,
+    repeatMode: {
+      type: String,
+      default: 'off'
+    }
   },
   data() {
     return {}
@@ -60,6 +69,17 @@ export default {
     },
     hasNext() {
       return this.hasNextItemInQueue || this.hasNextChapter
+    },
+    repeatText() {
+      if (this.repeatMode === 'all') return this.$strings.ButtonRepeatAll
+      if (this.repeatMode === 'one') return this.$strings.ButtonRepeatOne
+      return this.$strings.ButtonRepeatOff
+    },
+    repeatIcon() {
+      return this.repeatMode === 'one' ? 'repeat_one' : 'repeat'
+    },
+    repeatActive() {
+      return this.repeatMode !== 'off'
     }
   },
   methods: {
@@ -78,6 +98,9 @@ export default {
     },
     jumpForward() {
       this.$emit('jumpForward')
+    },
+    cycleRepeatMode() {
+      this.$emit('cycleRepeatMode')
     },
     getJumpText(setting, prefix) {
       const amount = this.$store.getters['user/getUserSetting'](setting)

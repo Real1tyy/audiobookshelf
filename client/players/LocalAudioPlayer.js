@@ -18,6 +18,7 @@ export default class LocalAudioPlayer extends EventEmitter {
     this.trackStartTime = 0
     this.playWhenReady = false
     this.defaultPlaybackRate = 1
+    this.repeatMode = 'off' // 'off', 'all', 'one'
 
     this.playableMimeTypes = []
 
@@ -67,16 +68,39 @@ export default class LocalAudioPlayer extends EventEmitter {
     this.emit('buffertimeUpdate', lastBufferTime)
   }
   evtEnded() {
-    if (this.currentTrackIndex < this.audioTracks.length - 1) {
-      console.log(`[LocalPlayer] Track ended - loading next track ${this.currentTrackIndex + 1}`)
-      // Has next track
-      this.currentTrackIndex++
-      this.startTime = this.currentTrack.startOffset
+    const loadAndPlay = () => {
+      this.playWhenReady = true
       this.loadCurrentTrack()
-    } else {
-      console.log(`[LocalPlayer] Ended`)
-      this.emit('finished')
     }
+
+    // Repeat One: replay current track
+    if (this.repeatMode === 'one') {
+      console.log(`[LocalPlayer] Repeat One - replaying current track`)
+      this.startTime = this.currentTrack.startOffset || 0
+      loadAndPlay()
+      return
+    }
+
+    const isLastTrack = this.currentTrackIndex >= this.audioTracks.length - 1
+
+    // Repeat All: advance to next track or loop back to start
+    if (this.repeatMode === 'all') {
+      if (isLastTrack) {
+        console.log(`[LocalPlayer] Repeat All - looping back to start`)
+        this.currentTrackIndex = 0
+        this.startTime = 0
+      } else {
+        console.log(`[LocalPlayer] Repeat All - loading next track ${this.currentTrackIndex + 1}`)
+        this.currentTrackIndex++
+        this.startTime = this.currentTrack.startOffset
+      }
+      loadAndPlay()
+      return
+    }
+
+    // Repeat Off: stop playback
+    console.log(`[LocalPlayer] ${isLastTrack ? 'Ended' : 'Repeat Off - stopping playback'}`)
+    this.emit('finished')
   }
   evtError(error) {
     console.error('Player error', error)
@@ -291,6 +315,14 @@ export default class LocalAudioPlayer extends EventEmitter {
   setVolume(volume) {
     if (!this.player) return
     this.player.volume = volume
+  }
+
+  setRepeatMode(mode) {
+    this.repeatMode = mode
+  }
+
+  getRepeatMode() {
+    return this.repeatMode
   }
 
   // Utils

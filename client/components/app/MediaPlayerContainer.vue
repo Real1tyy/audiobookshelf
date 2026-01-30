@@ -42,6 +42,7 @@
       :sleep-timer-type="sleepTimerType"
       :is-podcast="isPodcast"
       :hasNextItemInQueue="hasNextItemInQueue"
+      :repeat-mode="repeatMode"
       @playPause="playPause"
       @jumpForward="jumpForward"
       @jumpBackward="jumpBackward"
@@ -53,6 +54,7 @@
       @showBookmarks="showBookmarks"
       @showSleepTimer="showSleepTimerModal = true"
       @showPlayerQueueItems="showPlayerQueueItemsModal = true"
+      @cycleRepeatMode="cycleRepeatMode"
     />
 
     <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="bookmarkCurrentTime" :playback-rate="currentPlaybackRate" :library-item-id="libraryItemId" @select="selectBookmark" />
@@ -86,7 +88,8 @@ export default {
       currentPlaybackRate: 1,
       syncFailedToast: null,
       coverAspectRatio: 1,
-      lastChapterId: null
+      lastChapterId: null,
+      repeatMode: 'off' // 'off', 'all', 'one'
     }
   },
   computed: {
@@ -294,6 +297,17 @@ export default {
     },
     seek(time) {
       this.playerHandler.seek(time)
+    },
+    cycleRepeatMode() {
+      // Cycle through: off -> all -> one -> off
+      if (this.repeatMode === 'off') {
+        this.repeatMode = 'all'
+      } else if (this.repeatMode === 'all') {
+        this.repeatMode = 'one'
+      } else {
+        this.repeatMode = 'off'
+      }
+      this.playerHandler.setRepeatMode(this.repeatMode)
     },
     playbackTimeUpdate(time) {
       // When updating progress from another session

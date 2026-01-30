@@ -16,6 +16,7 @@ export default class CastPlayer extends EventEmitter {
     this.currentTime = 0
     this.playWhenReady = false
     this.defaultPlaybackRate = 1
+    this.repeatMode = 'off' // 'off', 'all', 'one'
 
     // TODO: Use canDisplayType on receiver to check mime types
     this.playableMimeTypes = []
@@ -142,5 +143,13 @@ export default class CastPlayer extends EventEmitter {
     if (!this.player) return
     this.player.volumeLevel = volume
     this.playerController.setVolumeLevel()
+  }
+
+  setRepeatMode(mode) {
+    this.repeatMode = mode
+  }
+
+  getRepeatMode() {
+    return this.repeatMode
   }
 }
