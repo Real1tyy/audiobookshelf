@@ -160,6 +160,8 @@ export default {
         .$post(`/api/playlists/${playlist.id}/batch/add`, { items: itemObjects })
         .then((updatedPlaylist) => {
           console.log(`Items added to playlist`, updatedPlaylist)
+          this.$toast.success(this.$strings.ToastPlaylistItemsAdded)
+          this.closeAndClearSelection()
           this.processing = false
         })
         .catch((error) => {
@@ -167,6 +169,13 @@ export default {
           this.$toast.error(this.$strings.ToastFailedToUpdate)
           this.processing = false
         })
+    },
+    closeAndClearSelection() {
+      this.show = false
+      if (this.isBatch) {
+        this.$store.commit('globals/resetSelectedMediaItems')
+        this.$eventBus.$emit('bookshelf_clear_selection')
+      }
     },
     submitCreatePlaylist() {
       if (!this.newPlaylistName || !this.selectedPlaylistItems.length) {
@@ -185,8 +194,10 @@ export default {
         .$post('/api/playlists', newPlaylist)
         .then((data) => {
           console.log('New playlist created', data)
-          this.processing = false
+          this.$toast.success(this.$strings.ToastPlaylistCreateSuccess)
           this.newPlaylistName = ''
+          this.closeAndClearSelection()
+          this.processing = false
         })
         .catch((error) => {
           console.error('Failed to create playlist', error)

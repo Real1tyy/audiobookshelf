@@ -181,6 +181,8 @@ export default {
           .$post(`/api/collections/${collection.id}/batch/add`, { books: this.selectedBookIds })
           .then((updatedCollection) => {
             console.log(`Books added to collection`, updatedCollection)
+            this.$toast.success(this.$strings.ToastCollectionItemsAddSuccess)
+            this.closeAndClearSelection()
             this.processing = false
           })
           .catch((error) => {
@@ -195,6 +197,8 @@ export default {
           .$post(`/api/collections/${collection.id}/book`, { id: this.selectedLibraryItemId })
           .then((updatedCollection) => {
             console.log(`Book added to collection`, updatedCollection)
+            this.$toast.success(this.$strings.ToastCollectionItemsAddSuccess)
+            this.show = false
             this.processing = false
           })
           .catch((error) => {
@@ -202,6 +206,13 @@ export default {
             this.$toast.error(this.$strings.ToastCollectionItemsAddFailed)
             this.processing = false
           })
+      }
+    },
+    closeAndClearSelection() {
+      this.show = false
+      if (this.showBatchCollectionModal) {
+        this.$store.commit('globals/resetSelectedMediaItems')
+        this.$eventBus.$emit('bookshelf_clear_selection')
       }
     },
     submitCreateCollection() {
@@ -221,8 +232,10 @@ export default {
         .$post('/api/collections', newCollection)
         .then((data) => {
           console.log('New Collection Created', data)
-          this.processing = false
+          this.$toast.success(this.$strings.ToastCollectionCreateSuccess)
           this.newCollectionName = ''
+          this.closeAndClearSelection()
+          this.processing = false
         })
         .catch((error) => {
           console.error('Failed to create collection', error)
