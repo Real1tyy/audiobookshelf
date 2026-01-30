@@ -98,6 +98,13 @@
           <p :style="{ fontSize: 0.8 + 'em' }">#{{ seriesSequence }}</p>
         </div>
 
+        <!-- Tags display -->
+        <div cy-id="tagsDisplay" v-if="displayTags.length && !isHovering && !isSelectionMode && !booksInSeries" class="absolute left-0 right-0 z-10 flex flex-wrap" :style="{ bottom: userProgressPercent > 0 ? '0.5em' : '0.3em', padding: '0 0.3em', gap: '0.25em' }">
+          <div v-for="tag in displayTags" :key="tag" class="bg-black/85 text-white font-semibold rounded-sm truncate" :style="{ fontSize: 0.75 + 'em', padding: '0.15em 0.4em', maxWidth: '100%' }">
+            {{ tag }}
+          </div>
+        </div>
+
         <!-- Podcast Episode # -->
         <div cy-id="podcastEpisodeNumber" v-if="recentEpisodeNumber !== null && !isHovering && !isSelectionMode && !processing" class="absolute rounded-lg bg-black/90 box-shadow-md z-10" :style="{ top: 0.375 + 'em', right: 0.375 + 'em', padding: `${0.1}em ${0.25}em` }">
           <p :style="{ fontSize: 0.8 + 'em' }">
@@ -251,6 +258,13 @@ export default {
     },
     ebookFormat() {
       return this.media.ebookFormat
+    },
+    tags() {
+      return this.media.tags || []
+    },
+    displayTags() {
+      // Show maximum 3 tags to avoid cluttering the cover
+      return this.tags.slice(0, 3)
     },
     numTracks() {
       if (this.media.tracks) return this.media.tracks.length
