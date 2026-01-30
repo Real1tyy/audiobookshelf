@@ -24,6 +24,7 @@ const libraryFilters = require('../utils/queries/libraryFilters')
 const libraryItemsPodcastFilters = require('../utils/queries/libraryItemsPodcastFilters')
 const authorFilters = require('../utils/queries/authorFilters')
 const zipHelpers = require('../utils/zipHelpers')
+const { filterAndSortLibraryItems, parseFilterSortQuery } = require('../utils/itemFilters')
 
 /**
  * @typedef RequestUserObject
@@ -597,6 +598,10 @@ class LibraryController {
 
   /**
    * GET /api/libraries/:id/items
+   *
+   * Note: This method uses database-level filtering and sorting via libraryFilters.getFilteredLibraryItems
+   * For in-memory filtering and sorting of already-loaded items, use the shared utility:
+   * const { filterAndSortLibraryItems } = require('../utils/itemFilters')
    *
    * @param {LibraryControllerRequest} req
    * @param {Response} res

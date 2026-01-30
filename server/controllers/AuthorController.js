@@ -11,6 +11,7 @@ const CoverManager = require('../managers/CoverManager')
 const AuthorFinder = require('../finders/AuthorFinder')
 
 const { reqSupportsWebp, isValidASIN } = require('../utils/index')
+const { filterAndSortLibraryItems, parseFilterSortQuery } = require('../utils/itemFilters')
 
 const naturalSort = createNewSortInstance({
   comparer: new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare
@@ -33,18 +34,30 @@ class AuthorController {
 
   /**
    * GET: /api/authors/:id
+   * Optional query params:
+   * ?include=items,series
+   * ?search=query
+   * ?filter=all|finished|in-progress|not-started|not-finished
+   * ?sort=title|publishedYear|addedAt|size|duration|progress|random
+   * ?desc=0|1
    *
    * @param {AuthorControllerRequest} req
    * @param {Response} res
    */
   async findOne(req, res) {
     const include = (req.query.include || '').split(',')
+    const filterSortOptions = parseFilterSortQuery(req.query)
 
     const authorJson = req.author.toOldJSON()
 
     // Used on author landing page to include library items and items grouped in series
     if (include.includes('items')) {
-      const libraryItems = await Database.libraryItemModel.getForAuthor(req.author, req.user)
+      let libraryItems = await Database.libraryItemModel.getForAuthor(req.author, req.user)
+
+      libraryItems = filterAndSortLibraryItems(libraryItems, {
+        ...filterSortOptions,
+        user: req.user
+      })
 
       if (include.includes('series')) {
         const seriesMap = {}
