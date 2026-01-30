@@ -14,7 +14,7 @@
         </div>
 
         <!-- Filter select -->
-        <controls-author-books-filter-select v-if="!isBatchSelecting" v-model="filterBy" class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateFilter" />
+        <controls-library-filter-select v-if="!isBatchSelecting" v-model="filterBy" class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateFilter" />
 
         <!-- Sort select -->
         <controls-author-books-sort-select v-if="!isBatchSelecting" v-model="sortBy" :descending.sync="sortDesc" class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateSort" />

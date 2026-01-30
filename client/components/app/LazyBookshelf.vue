@@ -93,6 +93,15 @@ export default {
       } else if (!this.$route.query.filter && this.filterBy) {
         this.$store.dispatch('user/updateUserSettings', { filterBy: 'all' })
       }
+    },
+    '$route.query.q'() {
+      // Only handle search query for library page
+      if (this.page === '') {
+        const urlSearchQuery = this.$route.query.q || ''
+        if (urlSearchQuery !== this.librarySearchQuery) {
+          this.$store.dispatch('user/updateUserSettings', { librarySearchQuery: urlSearchQuery })
+        }
+      }
     }
   },
   computed: {
@@ -149,6 +158,9 @@ export default {
     },
     filterBy() {
       return this.$store.getters['user/getUserSetting']('filterBy')
+    },
+    librarySearchQuery() {
+      return this.$store.getters['user/getUserSetting']('librarySearchQuery') || ''
     },
     collapseSeries() {
       return this.$store.getters['user/getUserSetting']('collapseSeries')
@@ -520,6 +532,10 @@ export default {
         searchParams.set('sort', this.authorSortBy)
         searchParams.set('desc', this.authorSortDesc ? 1 : 0)
       } else {
+        // Library page - include search query
+        if (this.librarySearchQuery) {
+          searchParams.set('q', this.librarySearchQuery)
+        }
         if (this.filterBy && this.filterBy !== 'all') {
           searchParams.set('filter', this.filterBy)
         }

@@ -14,13 +14,18 @@ export default {
       return redirect('/oops?message=Library not found')
     }
 
-    // Set series sort by
-    if (query.filter || query.sort || query.desc) {
+    // Set series sort by and search query
+    if (query.filter || query.sort || query.desc || query.q) {
       const isSeries = params.id === 'series'
+      const isLibrary = !params.id || params.id === ''
       const settingsUpdate = {
         [isSeries ? 'seriesFilterBy' : 'filterBy']: query.filter || undefined,
         [isSeries ? 'seriesSortBy' : 'orderBy']: query.sort || undefined,
         [isSeries ? 'seriesSortDesc' : 'orderDesc']: query.desc == '0' ? false : query.desc == '1' ? true : undefined
+      }
+      // Add search query for library page
+      if (isLibrary && query.q !== undefined) {
+        settingsUpdate.librarySearchQuery = query.q || ''
       }
       store.dispatch('user/updateUserSettings', settingsUpdate)
     }

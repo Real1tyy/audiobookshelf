@@ -620,6 +620,7 @@ class LibraryController {
       sortBy: req.query.sort,
       sortDesc: req.query.desc === '1',
       filterBy: req.query.filter,
+      searchQuery: req.query.q,
       mediaType: req.library.mediaType,
       minified: req.query.minified === '1',
       collapseseries: req.query.collapseseries === '1',

@@ -141,9 +141,10 @@ module.exports = {
    * @param {string[]} include
    * @param {number} limit
    * @param {number} offset
+   * @param {string|null} searchQuery search query string
    * @returns {Promise<{ libraryItems: import('../../models/LibraryItem')[], count: number }>}
    */
-  async getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, include, limit, offset) {
+  async getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, include, limit, offset, searchQuery = null) {
     const includeRSSFeed = include.includes('rssfeed')
     const includeNumEpisodesIncomplete = include.includes('numepisodesincomplete')
 
@@ -185,6 +186,20 @@ module.exports = {
     const userPermissionPodcastWhere = this.getUserPermissionPodcastWhereQuery(user)
     replacements = { ...replacements, ...userPermissionPodcastWhere.replacements }
     podcastWhere.push(...userPermissionPodcastWhere.podcastWhere)
+
+    // Add search query filter
+    if (searchQuery) {
+      const textSearchQuery = await Database.createTextSearchQuery(searchQuery)
+      const matchTitle = textSearchQuery.matchExpression('podcast.title')
+      const matchAuthor = textSearchQuery.matchExpression('podcast.author')
+
+      podcastWhere.push({
+        [Sequelize.Op.or]: [
+          Sequelize.literal(matchTitle),
+          Sequelize.literal(matchAuthor)
+        ]
+      })
+    }
 
     const findOptions = {
       where: podcastWhere,

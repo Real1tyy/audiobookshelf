@@ -59,6 +59,11 @@
 
         <div class="grow hidden sm:inline-block" />
 
+        <!-- library search input -->
+        <div v-if="isLibraryPage && !isBatchSelecting" class="w-36 sm:w-44 md:w-48 ml-1 sm:ml-4">
+          <ui-text-input v-model="searchQuery" :placeholder="$strings.PlaceholderSearch || 'Search...'" class="w-full h-7.5" @input="onSearchInput" @keydown.enter="onSearchEnter" @blur="onSearchBlur" />
+        </div>
+
         <!-- library filter select -->
         <controls-library-filter-select v-if="isLibraryPage && !isBatchSelecting" v-model="settings.filterBy" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateFilter" />
 
@@ -120,7 +125,9 @@ export default {
       totalEntities: 0,
       processingSeries: false,
       processingIssues: false,
-      processingAuthors: false
+      processingAuthors: false,
+      searchQuery: '',
+      searchDebounceTimeout: null
     }
   },
   computed: {
@@ -590,15 +597,49 @@ export default {
     updateAuthorSort() {
       this.saveSettings()
     },
+    onSearchInput() {
+      // Clear existing timeout
+      if (this.searchDebounceTimeout) {
+        clearTimeout(this.searchDebounceTimeout)
+      }
+      // Set new timeout for debounced search
+      this.searchDebounceTimeout = setTimeout(() => {
+        this.updateSearch()
+      }, 500)
+    },
+    onSearchEnter() {
+      // Clear timeout and perform search immediately
+      if (this.searchDebounceTimeout) {
+        clearTimeout(this.searchDebounceTimeout)
+      }
+      this.updateSearch()
+    },
+    onSearchBlur() {
+      // Perform search on blur if there's a pending change
+      if (this.searchDebounceTimeout) {
+        clearTimeout(this.searchDebounceTimeout)
+        this.updateSearch()
+      }
+    },
+    updateSearch() {
+      this.settings.librarySearchQuery = this.searchQuery.trim()
+      this.saveSettings()
+    },
     saveSettings() {
       this.$store.dispatch('user/updateUserSettings', this.settings)
     },
     init() {
       this.settings = { ...this.$store.state.user.settings }
+      // Initialize search query from settings (which are synced with URL)
+      this.searchQuery = this.settings.librarySearchQuery || ''
     },
     settingsUpdated(settings) {
       for (const key in settings) {
         this.settings[key] = settings[key]
+      }
+      // Update search query if it changed
+      if (settings.librarySearchQuery !== undefined && settings.librarySearchQuery !== this.searchQuery) {
+        this.searchQuery = settings.librarySearchQuery || ''
       }
     },
     setBookshelfTotalEntities(totalEntities) {
@@ -629,6 +670,10 @@ export default {
     this.$eventBus.$off('bookshelf-total-entities', this.setBookshelfTotalEntities)
     this.$root.socket.off('rss_feed_open', this.rssFeedOpen)
     this.$root.socket.off('rss_feed_closed', this.rssFeedClosed)
+    // Clear any pending search timeout
+    if (this.searchDebounceTimeout) {
+      clearTimeout(this.searchDebounceTimeout)
+    }
   }
 }
 </script>

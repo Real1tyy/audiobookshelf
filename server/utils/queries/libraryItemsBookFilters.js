@@ -393,9 +393,10 @@ module.exports = {
    * @param {number} limit
    * @param {number} offset
    * @param {boolean} isHomePage for home page shelves
+   * @param {string|null} searchQuery search query string
    * @returns {{ libraryItems: import('../../models/LibraryItem')[], count: number }}
    */
-  async getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, collapseseries, include, limit, offset, isHomePage = false) {
+  async getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, collapseseries, include, limit, offset, isHomePage = false, searchQuery = null) {
     // TODO: Handle collapse sub-series
     if (filterGroup === 'series' && collapseseries) {
       collapseseries = false
@@ -552,6 +553,30 @@ module.exports = {
     const userPermissionBookWhere = this.getUserPermissionBookWhereQuery(user)
     replacements = { ...replacements, ...userPermissionBookWhere.replacements }
     bookWhere.push(...userPermissionBookWhere.bookWhere)
+
+    // Add search query filter
+    if (searchQuery) {
+      const textSearchQuery = await Database.createTextSearchQuery(searchQuery)
+      const matchTitle = textSearchQuery.matchExpression('book.title')
+      const matchSubtitle = textSearchQuery.matchExpression('book.subtitle')
+
+      bookWhere.push({
+        [Sequelize.Op.or]: [
+          Sequelize.literal(matchTitle),
+          Sequelize.literal(matchSubtitle),
+          {
+            asin: {
+              [Sequelize.Op.substring]: searchQuery
+            }
+          },
+          {
+            isbn: {
+              [Sequelize.Op.substring]: searchQuery
+            }
+          }
+        ]
+      })
+    }
 
     // Handle collapsed series
     let collapseSeriesBookSeries = []

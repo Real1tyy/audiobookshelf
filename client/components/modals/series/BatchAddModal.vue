@@ -64,8 +64,11 @@ export default {
     title() {
       return this.$getString('MessageItemsSelected', [this.selectedBookIds.length])
     },
+    filterData() {
+      return this.$store.state.libraries.filterData || {}
+    },
     seriesList() {
-      return this.$store.state.libraries.series || []
+      return this.filterData.series || []
     },
     sortedSeries() {
       return [...this.seriesList].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
@@ -79,22 +82,11 @@ export default {
   },
   methods: {
     loadSeries() {
-      this.processing = true
-      // Use a large limit to get all series (limit=0 returns no results due to Sequelize behavior)
-      this.$axios
-        .$get(`/api/libraries/${this.currentLibraryId}/series?limit=10000`)
-        .then((data) => {
-          if (data.results) {
-            this.$store.commit('libraries/setSeries', data.results || [])
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to get series', error)
-          this.$toast.error(this.$strings.ToastFailedToLoadData)
-        })
-        .finally(() => {
-          this.processing = false
-        })
+      // Series data is already available in filterData which is loaded with the library
+      // No need to make an additional API call
+      console.log('loadSeries called, filterData:', this.filterData)
+      console.log('seriesList:', this.seriesList)
+      this.processing = false
     },
     async addToSeries(series) {
       if (!this.selectedBookIds.length) return
