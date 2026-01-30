@@ -7,7 +7,7 @@ FROM node:20-alpine AS build-client
 WORKDIR /client
 # Copy package files first for better layer caching
 COPY /client/package*.json /client/
-RUN npm ci && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm npm ci && npm cache clean --force
 # Copy source files after npm install
 COPY /client /client
 RUN npm run generate
@@ -28,7 +28,7 @@ RUN apk add --no-cache --update \
   unzip
 
 WORKDIR /server
-COPY index.js package* /server
+COPY index.js package* /server/
 COPY /server /server/server
 
 RUN case "$TARGETPLATFORM" in \
@@ -41,7 +41,7 @@ RUN case "$TARGETPLATFORM" in \
   unzip /tmp/library.zip -d $NUSQLITE3_DIR && \
   rm /tmp/library.zip
 
-RUN npm ci --only=production
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 ### STAGE 2: Create minimal runtime image ###
 FROM node:20-alpine

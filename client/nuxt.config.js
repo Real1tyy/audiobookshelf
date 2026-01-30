@@ -1,9 +1,14 @@
 const pkg = require('./package.json')
 
 const routerBasePath = process.env.ROUTER_BASE_PATH ?? '/'
-const serverHostUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3333'
+// In docker-compose dev, "localhost" points at the *client* container.
+// Allow overriding the backend URL so Nuxt proxy/socket connections can reach the server container.
+const internalServerHostUrl =
+  process.env.NODE_ENV === 'production' ? '' : (process.env.ABS_SERVER_INTERNAL_URL ?? 'http://localhost:3333')
+const publicServerHostUrl =
+  process.env.NODE_ENV === 'production' ? '' : (process.env.ABS_SERVER_PUBLIC_URL ?? internalServerHostUrl)
 const serverPaths = ['api/', 'public/', 'hls/', 'auth/', 'feed/', 'status', 'login', 'logout', 'init']
-const proxy = Object.fromEntries(serverPaths.map((path) => [`${routerBasePath}/${path}`, { target: process.env.NODE_ENV !== 'production' ? serverHostUrl : '/' }]))
+const proxy = Object.fromEntries(serverPaths.map((path) => [`${routerBasePath}/${path}`, { target: process.env.NODE_ENV !== 'production' ? internalServerHostUrl : '/' }]))
 
 module.exports = {
   // Disable server-side rendering: https://go.nuxtjs.dev/ssr-mode
@@ -11,7 +16,7 @@ module.exports = {
   target: 'static',
   dev: process.env.NODE_ENV !== 'production',
   env: {
-    serverUrl: serverHostUrl + routerBasePath,
+    serverUrl: publicServerHostUrl + routerBasePath,
     chromecastReceiver: 'FD1F76C5'
   },
   telemetry: false,
@@ -63,7 +68,7 @@ module.exports = {
     sockets: [
       {
         name: 'dev',
-        url: serverHostUrl
+        url: publicServerHostUrl
       },
       {
         name: 'prod'

@@ -20,19 +20,26 @@ global.appRoot = __dirname
 
 const isDev = process.env.NODE_ENV !== 'production'
 if (isDev || options['prod-with-dev-env']) {
-  const devEnv = require('./dev').config
-  if (devEnv.Port) process.env.PORT = devEnv.Port
-  if (devEnv.ConfigPath) process.env.CONFIG_PATH = devEnv.ConfigPath
-  if (devEnv.MetadataPath) process.env.METADATA_PATH = devEnv.MetadataPath
-  if (devEnv.FFmpegPath) process.env.FFMPEG_PATH = devEnv.FFmpegPath
-  if (devEnv.FFProbePath) process.env.FFPROBE_PATH = devEnv.FFProbePath
-  if (devEnv.NunicodePath) process.env.NUSQLITE3_PATH = devEnv.NunicodePath
-  if (devEnv.SkipBinariesCheck) process.env.SKIP_BINARIES_CHECK = '1'
-  if (devEnv.AllowIframe) process.env.ALLOW_IFRAME = '1'
-  if (devEnv.BackupPath) process.env.BACKUP_PATH = devEnv.BackupPath
-  if (devEnv.ReactClientPath) process.env.REACT_CLIENT_PATH = devEnv.ReactClientPath
-  process.env.SOURCE = 'local'
-  process.env.ROUTER_BASE_PATH = devEnv.RouterBasePath ?? '/audiobookshelf'
+  // dev.js is an optional local-only file (commonly not checked in). If it's not present,
+  // fall back to environment variables so docker-compose dev can work out of the box.
+  try {
+    const devEnv = require('./dev').config
+    if (devEnv.Port) process.env.PORT = devEnv.Port
+    if (devEnv.ConfigPath) process.env.CONFIG_PATH = devEnv.ConfigPath
+    if (devEnv.MetadataPath) process.env.METADATA_PATH = devEnv.MetadataPath
+    if (devEnv.FFmpegPath) process.env.FFMPEG_PATH = devEnv.FFmpegPath
+    if (devEnv.FFProbePath) process.env.FFPROBE_PATH = devEnv.FFProbePath
+    if (devEnv.NunicodePath) process.env.NUSQLITE3_PATH = devEnv.NunicodePath
+    if (devEnv.SkipBinariesCheck) process.env.SKIP_BINARIES_CHECK = '1'
+    if (devEnv.AllowIframe) process.env.ALLOW_IFRAME = '1'
+    if (devEnv.BackupPath) process.env.BACKUP_PATH = devEnv.BackupPath
+    if (devEnv.ReactClientPath) process.env.REACT_CLIENT_PATH = devEnv.ReactClientPath
+    process.env.SOURCE = 'local'
+    process.env.ROUTER_BASE_PATH = devEnv.RouterBasePath ?? process.env.ROUTER_BASE_PATH ?? '/audiobookshelf'
+  } catch (e) {
+    // If you want the old behavior, create a local dev.js file exporting { config: {...} }.
+    process.env.ROUTER_BASE_PATH = process.env.ROUTER_BASE_PATH ?? '/audiobookshelf'
+  }
 }
 
 const inputConfig = options.config ? Path.resolve(options.config) : null
