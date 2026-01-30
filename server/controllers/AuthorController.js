@@ -395,6 +395,80 @@ class AuthorController {
   }
 
   /**
+   * GET: /api/authors/:id/listening-stats
+   * Get listening statistics for the current user filtered by this author
+   *
+   * @param {AuthorControllerRequest} req
+   * @param {Response} res
+   */
+  async getListeningStats(req, res) {
+    const authorId = req.author.id
+    const authorName = req.author.name
+
+    // Get all listening sessions for the user
+    const listeningSessions = await Database.getPlaybackSessions({ userId: req.user.id })
+
+    // Filter sessions for books by this author
+    const authorSessions = listeningSessions.filter((session) => {
+      const authors = session.mediaMetadata?.authors || []
+      return authors.some((au) => au.id === authorId || au.name === authorName)
+    })
+
+    // Calculate stats
+    const stats = {
+      totalTime: 0,
+      items: {},
+      days: {},
+      recentSessions: []
+    }
+
+    // Sort by most recent first
+    authorSessions.sort((a, b) => b.updatedAt - a.updatedAt)
+    stats.recentSessions = authorSessions.slice(0, 10)
+
+    authorSessions.forEach((session) => {
+      let timeListening = session.timeListening
+      if (typeof timeListening === 'string') {
+        timeListening = Number(timeListening)
+      }
+
+      stats.totalTime += timeListening
+
+      // Aggregate by day
+      if (session.date && timeListening > 0) {
+        if (!stats.days[session.date]) stats.days[session.date] = 0
+        stats.days[session.date] += timeListening
+      }
+
+      // Aggregate by item
+      if (!stats.items[session.libraryItemId]) {
+        stats.items[session.libraryItemId] = {
+          id: session.libraryItemId,
+          timeListening: timeListening,
+          mediaMetadata: session.mediaMetadata,
+          lastUpdate: session.lastUpdate
+        }
+      } else {
+        stats.items[session.libraryItemId].timeListening += timeListening
+      }
+    })
+
+    // Get finished books count for this author
+    const userMediaProgress = req.user.mediaProgresses || []
+    const authorLibraryItems = await Database.libraryItemModel.getForAuthor(req.author, req.user)
+    const authorLibraryItemIds = authorLibraryItems.map((li) => li.id)
+
+    const finishedItems = userMediaProgress.filter(
+      (mp) => mp.isFinished && authorLibraryItemIds.includes(mp.libraryItemId)
+    )
+
+    stats.booksFinished = finishedItems.length
+    stats.totalBooks = authorLibraryItems.length
+
+    res.json(stats)
+  }
+
+  /**
    * GET: /api/authors/:id/image
    *
    * @param {AuthorControllerRequest} req

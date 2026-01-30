@@ -25,6 +25,62 @@
         </div>
       </div>
 
+      <!-- Author Stats Section (Collapsible) -->
+      <div v-if="authorStats" class="mb-6 bg-primary/30 rounded-lg overflow-hidden">
+        <button class="w-full flex items-center justify-between p-4 hover:bg-primary/40 transition-colors" @click="showAuthorStats = !showAuthorStats">
+          <h2 class="text-lg text-white/80">{{ $strings.HeaderYourStats }}</h2>
+          <span class="material-symbols text-2xl text-white/60 transition-transform" :class="{ 'rotate-180': showAuthorStats }">expand_more</span>
+        </button>
+        <transition name="slide">
+          <div v-show="showAuthorStats" class="px-4 pb-4">
+            <div class="flex flex-wrap justify-center sm:justify-start gap-6 mb-4">
+              <div class="flex items-center">
+                <span class="material-symbols text-3xl text-white/60 mr-2">auto_stories</span>
+                <div>
+                  <p class="text-2xl font-bold">{{ authorStats.booksFinished }} / {{ authorStats.totalBooks }}</p>
+                  <p class="text-xs text-white/60">{{ $strings.LabelStatsItemsFinished }}</p>
+                </div>
+              </div>
+              <div class="flex items-center">
+                <span class="material-symbols text-3xl text-white/60 mr-2">watch_later</span>
+                <div>
+                  <p class="text-2xl font-bold">{{ $elapsedPretty(authorStats.totalTime) }}</p>
+                  <p class="text-xs text-white/60">{{ $strings.LabelTimeListened }}</p>
+                </div>
+              </div>
+              <div class="flex items-center">
+                <span class="material-symbols text-3xl text-white/60 mr-2">event</span>
+                <div>
+                  <p class="text-2xl font-bold">{{ totalDaysListened }}</p>
+                  <p class="text-xs text-white/60">{{ $strings.LabelStatsDaysListened }}</p>
+                </div>
+              </div>
+            </div>
+            <div v-if="authorStats.recentSessions && authorStats.recentSessions.length">
+              <p class="text-sm text-white/60 mb-3">{{ $strings.HeaderStatsRecentSessions }}</p>
+              <div class="space-y-2">
+                <div
+                  v-for="session in authorStats.recentSessions.slice(0, 5)"
+                  :key="session.id"
+                  class="flex items-center bg-primary/50 hover:bg-primary/70 rounded-lg p-3 transition-colors"
+                >
+                  <button class="w-10 h-10 flex items-center justify-center bg-success hover:bg-success/80 rounded-full mr-3 flex-shrink-0 transition-colors" @click="playSession(session)">
+                    <span class="material-symbols text-white text-xl">play_arrow</span>
+                  </button>
+                  <nuxt-link :to="`/item/${session.libraryItemId}`" class="flex-grow min-w-0 mr-3 hover:underline">
+                    <p class="text-sm text-white truncate">{{ session.displayTitle }}</p>
+                    <p class="text-xs text-white/50">{{ $dateDistanceFromNow(session.updatedAt) }}</p>
+                  </nuxt-link>
+                  <div class="flex-shrink-0 text-right">
+                    <p class="text-sm font-semibold text-white">{{ $elapsedPretty(session.timeListening) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+
       <!-- Books Gallery -->
       <div class="py-4">
         <app-books-toolbar :total-books="filteredLibraryItems.length" :initial-search="searchQuery" :initial-filter="filterBy" :initial-sort="sortBy" :initial-sort-desc="sortDesc" @change="onToolbarChange" />
@@ -99,7 +155,9 @@ export default {
       filterBy: 'all',
       sortBy: 'addedAt',
       sortDesc: true,
-      isLoadingSearch: false
+      isLoadingSearch: false,
+      authorStats: null,
+      showAuthorStats: false
     }
   },
   watch: {
@@ -167,6 +225,10 @@ export default {
         })
       })
       return items
+    },
+    totalDaysListened() {
+      if (!this.authorStats?.days) return 0
+      return Object.keys(this.authorStats.days).length
     }
   },
   methods: {
@@ -303,6 +365,20 @@ export default {
         this.isSelectionMode = true
         this.updateBookSelectionMode(true)
       }
+    },
+    async fetchAuthorStats() {
+      try {
+        this.authorStats = await this.$axios.$get(`/api/authors/${this.author.id}/listening-stats`)
+      } catch (error) {
+        console.error('Failed to fetch author stats', error)
+        this.authorStats = null
+      }
+    },
+    playSession(session) {
+      this.$eventBus.$emit('play-item', {
+        libraryItemId: session.libraryItemId,
+        episodeId: session.episodeId || null
+      })
     }
   },
   mounted() {
@@ -314,6 +390,9 @@ export default {
     this.filterBy = this.$route.query.filter || 'all'
     this.sortBy = this.$route.query.sort || 'addedAt'
     this.sortDesc = this.$route.query.desc === '0' ? false : true
+
+    // Fetch author-specific listening stats
+    this.fetchAuthorStats()
 
     this.$root.socket.on('author_updated', this.authorUpdated)
     this.$root.socket.on('author_removed', this.authorRemoved)
@@ -341,5 +420,18 @@ export default {
 #author-description.show-full {
   -webkit-line-clamp: unset;
   max-height: 999rem;
+}
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+  max-height: 500px;
+  overflow: hidden;
+}
+.slide-enter,
+.slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 </style>

@@ -13,8 +13,8 @@
           <ui-text-input v-model="searchQuery" :placeholder="$strings.PlaceholderSearch || 'Search books...'" class="w-full" @input="onSearchInput" @keydown.enter="onSearchEnter" @blur="onSearchBlur" />
         </div>
 
-        <!-- Filter select -->
-        <controls-books-filter-select v-if="!isBatchSelecting" v-model="filterBy" class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateFilter" />
+        <!-- Filter select (use same advanced filter dropdown as Library page) -->
+        <controls-library-filter-select v-if="!isBatchSelecting" v-model="filterBy" class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateFilter" />
 
         <!-- Sort select -->
         <controls-books-sort-select v-if="!isBatchSelecting" v-model="sortBy" :descending.sync="sortDesc" class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateSort" />

@@ -5,6 +5,8 @@ export const state = () => ({
     orderBy: 'media.metadata.title',
     orderDesc: false,
     filterBy: 'all',
+    // Library page search (used by Bookshelf toolbar + LazyBookshelf query building)
+    librarySearchQuery: '',
     playbackRate: 1,
     playbackRateIncrementDecrement: 0.1,
     bookshelfCoverSize: 120,
