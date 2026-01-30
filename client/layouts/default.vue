@@ -389,6 +389,9 @@ export default {
         this.socketConnectionToastId = null
         return
       }
+      // If routerBasePath is '/', `${routerBasePath}/socket.io` becomes `//socket.io`
+      // which can break websocket connections depending on the environment.
+      const routerBasePath = this.$config.routerBasePath && this.$config.routerBasePath !== '/' ? this.$config.routerBasePath.replace(/\/+$/, '') : ''
       this.socket = this.$nuxtSocket({
         name: process.env.NODE_ENV === 'development' ? 'dev' : 'prod',
         persist: 'main',
@@ -396,7 +399,7 @@ export default {
         transports: ['websocket'],
         upgrade: false,
         reconnection: true,
-        path: `${this.$config.routerBasePath}/socket.io`
+        path: `${routerBasePath}/socket.io`
       })
       this.$root.socket = this.socket
       this.isSocketAuthenticated = false

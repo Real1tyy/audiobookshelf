@@ -9,7 +9,12 @@ export default class AudioTrack {
     this.metadata = track.metadata || {}
 
     this.sessionId = sessionId
-    this.routerBasePath = routerBasePath || ''
+    // IMPORTANT:
+    // If routerBasePath is '/', prefixing it onto already-absolute paths like '/public/...'
+    // produces '//public/...' which the browser treats as a *hostname* ('public') due to
+    // protocol-relative URL semantics. Normalize '/' to '' and strip any trailing slashes.
+    const rbp = (routerBasePath || '').trim()
+    this.routerBasePath = rbp && rbp !== '/' ? rbp.replace(/\/+$/, '') : ''
     if (this.contentUrl?.startsWith('/hls')) {
       this.sessionTrackUrl = this.contentUrl
     } else {
