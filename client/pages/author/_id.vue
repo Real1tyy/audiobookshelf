@@ -27,11 +27,9 @@
 
       <!-- Books Gallery -->
       <div class="py-4">
-        <nuxt-link :to="`/library/${currentLibraryId}/bookshelf?filter=authors.${$encode(author.id)}`" class="hover:underline">
-          <h2 class="text-lg mb-4">{{ libraryItems.length }} {{ $strings.LabelBooks }}</h2>
-        </nuxt-link>
-        <div class="flex flex-wrap">
-          <div v-for="item in libraryItems" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
+        <app-books-toolbar :total-books="filteredLibraryItems.length" :initial-search="searchQuery" :initial-filter="filterBy" :initial-sort="sortBy" :initial-sort-desc="sortDesc" @change="onToolbarChange" />
+        <div class="flex flex-wrap mt-4">
+          <div v-for="item in filteredLibraryItems" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
             <cards-lazy-book-card :ref="`book-card-${item.id}`" :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" @select="selectItem" />
           </div>
         </div>
@@ -58,7 +56,20 @@
 <script>
 export default {
   async asyncData({ store, app, params, redirect, query }) {
-    const author = await app.$axios.$get(`/api/authors/${params.id}?include=items,series`).catch((error) => {
+    const searchQuery = query.search || ''
+    const filterBy = query.filter || 'all'
+    const sortBy = query.sort || 'addedAt'
+    const sortDesc = query.desc === '0' ? false : true
+
+    // Build query params
+    const queryParams = new URLSearchParams()
+    queryParams.append('include', 'items,series')
+    if (searchQuery) queryParams.append('search', searchQuery)
+    if (filterBy !== 'all') queryParams.append('filter', filterBy)
+    if (sortBy !== 'addedAt') queryParams.append('sort', sortBy)
+    queryParams.append('desc', sortDesc ? '1' : '0')
+
+    const author = await app.$axios.$get(`/api/authors/${params.id}?${queryParams.toString()}`).catch((error) => {
       console.error('Failed to get author', error)
       return null
     })
@@ -72,14 +83,23 @@ export default {
     }
 
     return {
-      author
+      author,
+      searchQuery,
+      filterBy,
+      sortBy,
+      sortDesc
     }
   },
   data() {
     return {
       isDescriptionClamped: false,
       showFullDescription: false,
-      isSelectionMode: false
+      isSelectionMode: false,
+      searchQuery: '',
+      filterBy: 'all',
+      sortBy: 'addedAt',
+      sortDesc: true,
+      isLoadingSearch: false
     }
   },
   watch: {
@@ -102,6 +122,11 @@ export default {
     },
     libraryItems() {
       return this.author.libraryItems || []
+    },
+    filteredLibraryItems() {
+      // Client-side filtering is only used for display
+      // The actual data comes from the backend filtered by search query
+      return this.libraryItems
     },
     authorSeries() {
       return this.author.series || []
@@ -133,7 +158,7 @@ export default {
     },
     allItems() {
       // Flatten all library items and series items for selection
-      const items = [...this.libraryItems]
+      const items = [...this.filteredLibraryItems]
       this.authorSeries.forEach((series) => {
         series.items.forEach((item) => {
           if (!items.find((i) => i.id === item.id)) {
@@ -153,9 +178,61 @@ export default {
       this.$store.commit('globals/showEditAuthorModal', this.author)
     },
     editItem(libraryItem) {
-      const itemIds = this.libraryItems.map((e) => e.id)
+      const itemIds = this.filteredLibraryItems.map((e) => e.id)
       this.$store.commit('setBookshelfBookIds', itemIds)
       this.$store.commit('showEditModalOnTab', { libraryItem, tab: 'details' })
+    },
+    async onToolbarChange({ search, filter, sort, desc }) {
+      const currentQuery = this.$route.query
+      const hasChanged = search !== (currentQuery.search || '') || filter !== (currentQuery.filter || 'all') || sort !== (currentQuery.sort || 'addedAt') || desc !== (currentQuery.desc === '0' ? false : true)
+
+      if (!hasChanged) return
+
+      // Update local state
+      this.searchQuery = search
+      this.filterBy = filter
+      this.sortBy = sort
+      this.sortDesc = desc
+
+      // Build new query params
+      const query = {}
+      if (search) query.search = search
+      if (filter !== 'all') query.filter = filter
+      if (sort !== 'addedAt') query.sort = sort
+      query.desc = desc ? '1' : '0'
+
+      // Update URL without reloading page
+      this.$router.replace({ query })
+
+      // Fetch updated author data
+      await this.fetchAuthorData()
+    },
+    async fetchAuthorData() {
+      this.isLoadingSearch = true
+      try {
+        // Build query params
+        const queryParams = new URLSearchParams()
+        queryParams.append('include', 'items,series')
+        if (this.searchQuery) queryParams.append('search', this.searchQuery)
+        if (this.filterBy !== 'all') queryParams.append('filter', this.filterBy)
+        if (this.sortBy !== 'addedAt') queryParams.append('sort', this.sortBy)
+        queryParams.append('desc', this.sortDesc ? '1' : '0')
+
+        const author = await this.$axios.$get(`/api/authors/${this.$route.params.id}?${queryParams.toString()}`)
+
+        if (author) {
+          this.author = author
+          // Clear selection when filters change
+          this.$store.commit('globals/clearSelectedMediaItems')
+          this.isSelectionMode = false
+          this.updateBookSelectionMode(false)
+        }
+      } catch (error) {
+        console.error('Failed to fetch author data', error)
+        this.$toast.error('Failed to update books')
+      } finally {
+        this.isLoadingSearch = false
+      }
     },
     authorUpdated(author) {
       if (author.id === this.author.id) {
@@ -231,6 +308,12 @@ export default {
   mounted() {
     if (!this.author) this.$router.replace('/')
     this.checkDescriptionClamped()
+
+    // Initialize from URL or asyncData
+    this.searchQuery = this.$route.query.search || ''
+    this.filterBy = this.$route.query.filter || 'all'
+    this.sortBy = this.$route.query.sort || 'addedAt'
+    this.sortDesc = this.$route.query.desc === '0' ? false : true
 
     this.$root.socket.on('author_updated', this.authorUpdated)
     this.$root.socket.on('author_removed', this.authorRemoved)
