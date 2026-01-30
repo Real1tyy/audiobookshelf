@@ -285,7 +285,7 @@ export default {
         if (author) {
           this.author = author
           // Clear selection when filters change
-          this.$store.commit('globals/clearSelectedMediaItems')
+          this.$store.commit('globals/resetSelectedMediaItems')
           this.isSelectionMode = false
           this.updateBookSelectionMode(false)
         }

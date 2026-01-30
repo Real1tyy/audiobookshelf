@@ -19,6 +19,8 @@
     <modals-authors-edit-modal />
     <modals-batch-quick-match-model />
     <modals-series-batch-add-modal />
+    <modals-batch-tags-modal />
+    <modals-batch-genres-modal />
     <modals-rssfeed-open-close-modal />
     <modals-raw-cover-preview-modal />
     <modals-share-modal />

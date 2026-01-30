@@ -630,9 +630,11 @@ class LibraryController {
     payload.offset = payload.page * payload.limit
 
     // TODO: Temporary way of handling collapse sub-series. Either remove feature or handle through sql queries
-    const filterByGroup = payload.filterBy?.split('.').shift()
+    // Multi-filter support uses comma-separated filters; collapse-subseries only supports single series filter.
+    const hasMultipleFilters = typeof payload.filterBy === 'string' && payload.filterBy.includes(',')
+    const filterByGroup = hasMultipleFilters ? null : payload.filterBy?.split('.').shift()
     const filterByValue = filterByGroup ? libraryFilters.decode(payload.filterBy.replace(`${filterByGroup}.`, '')) : null
-    if (filterByGroup === 'series' && filterByValue !== 'no-series' && payload.collapseseries) {
+    if (!hasMultipleFilters && filterByGroup === 'series' && filterByValue !== 'no-series' && payload.collapseseries) {
       const seriesId = libraryFilters.decode(payload.filterBy.split('.')[1])
       payload.results = await libraryHelpers.handleCollapseSubseries(payload, seriesId, req.user, req.library)
     } else {
@@ -824,7 +826,17 @@ class LibraryController {
 
       let items = libraryItemsInSeries
 
-      // Apply filtering and sorting
+      // Apply search and filter first (if any)
+      if (filterSortOptions.searchQuery || filterSortOptions.filterBy !== 'all') {
+        items = filterAndSortLibraryItems(items, {
+          searchQuery: filterSortOptions.searchQuery,
+          filterBy: filterSortOptions.filterBy,
+          sortBy: null, // Don't sort yet
+          user: req.user
+        })
+      }
+
+      // Apply sorting
       if (filterSortOptions.sortBy === 'sequence') {
         // Sort by series sequence number
         items = naturalSort(items).asc((li) => {
@@ -834,19 +846,10 @@ class LibraryController {
         if (filterSortOptions.sortDesc) {
           items = items.reverse()
         }
-        // Apply search and filter without re-sorting
-        if (filterSortOptions.searchQuery || filterSortOptions.filterBy !== 'all') {
-          const filteredItems = filterAndSortLibraryItems(items, {
-            searchQuery: filterSortOptions.searchQuery,
-            filterBy: filterSortOptions.filterBy,
-            sortBy: null, // Don't re-sort
-            user: req.user
-          })
-          items = filteredItems
-        }
       } else {
         items = filterAndSortLibraryItems(items, {
-          ...filterSortOptions,
+          sortBy: filterSortOptions.sortBy,
+          sortDesc: filterSortOptions.sortDesc,
           user: req.user
         })
       }

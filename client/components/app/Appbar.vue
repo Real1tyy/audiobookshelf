@@ -73,6 +73,12 @@
         <ui-tooltip v-if="userCanUpdate && isBookLibrary" :text="$strings.LabelAddToSeries" direction="bottom">
           <ui-icon-btn :disabled="processingBatch" icon="bookmark_add" @click="batchAddToSeriesClick" class="mx-1.5" />
         </ui-tooltip>
+        <ui-tooltip v-if="userCanUpdate" :text="$strings.LabelAddTags" direction="bottom">
+          <ui-icon-btn :disabled="processingBatch" icon="label" @click="batchAddTagsClick" class="mx-1.5" />
+        </ui-tooltip>
+        <ui-tooltip v-if="userCanUpdate" :text="$strings.LabelAddGenres" direction="bottom">
+          <ui-icon-btn :disabled="processingBatch" icon="category" @click="batchAddGenresClick" class="mx-1.5" />
+        </ui-tooltip>
         <template v-if="userCanUpdate">
           <ui-tooltip :text="$strings.LabelEdit" direction="bottom">
             <ui-icon-btn :disabled="processingBatch" icon="edit" bg-color="bg-warning" class="mx-1.5" @click="batchEditClick" />
@@ -413,6 +419,12 @@ export default {
     },
     batchAddToSeriesClick() {
       this.$store.commit('globals/setShowBatchSeriesModal', true)
+    },
+    batchAddTagsClick() {
+      this.$store.commit('globals/setShowBatchTagsModal', true)
+    },
+    batchAddGenresClick() {
+      this.$store.commit('globals/setShowBatchGenresModal', true)
     },
     setBookshelfTotalEntities(totalEntities) {
       this.totalEntities = totalEntities
