@@ -396,7 +396,7 @@ module.exports = {
    * @param {string|null} searchQuery search query string
    * @returns {{ libraryItems: import('../../models/LibraryItem')[], count: number }}
    */
-  async getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, collapseseries, include, limit, offset, isHomePage = false, searchQuery = null) {
+  async getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, collapseseries, include, limit, offset, isHomePage = false, searchQuery = null, filters = null) {
     // TODO: Handle collapse sub-series
     if (filterGroup === 'series' && collapseseries) {
       collapseseries = false
@@ -449,21 +449,30 @@ module.exports = {
       })
     }
 
-    if (filterGroup === 'share-open') {
+    const activeFilters = Array.isArray(filters) && filters.length ? filters : [{ filterGroup, filterValue }]
+    const hasFilter = (g) => activeFilters.some((f) => f.filterGroup === g)
+    const hasFilterValue = (g, v) => activeFilters.some((f) => f.filterGroup === g && f.filterValue === v)
+
+    if (hasFilter('share-open')) {
       bookIncludes.push({
         model: Database.mediaItemShareModel,
         required: true
       })
-    } else if (filterGroup === 'ebooks' && filterValue === 'supplementary') {
+    }
+
+    if (hasFilterValue('ebooks', 'supplementary')) {
       // TODO: Temp workaround for filtering supplementary ebook
       libraryItemWhere['libraryFiles'] = {
         [Sequelize.Op.substring]: `"isSupplementary":true`
       }
-    } else if (filterGroup === 'ebooks' && filterValue === 'no-supplementary') {
+    } else if (hasFilterValue('ebooks', 'no-supplementary')) {
       libraryItemWhere['libraryFiles'] = {
         [Sequelize.Op.notLike]: Sequelize.literal(`\'%"isSupplementary":true%\'`)
       }
-    } else if (filterGroup === 'missing' && filterValue === 'authors') {
+    }
+
+    // Missing-author/series filters need special includes so `$authors.id$` / `$series.id$` constraints work.
+    if (hasFilterValue('missing', 'authors')) {
       authorInclude = {
         model: Database.authorModel,
         attributes: ['id'],
@@ -471,7 +480,9 @@ module.exports = {
           attributes: []
         }
       }
-    } else if ((filterGroup === 'series' && filterValue === 'no-series') || (filterGroup === 'missing' && filterValue === 'series')) {
+    }
+
+    if (hasFilterValue('series', 'no-series') || hasFilterValue('missing', 'series')) {
       seriesInclude = {
         model: Database.seriesModel,
         attributes: ['id'],
@@ -479,33 +490,9 @@ module.exports = {
           attributes: []
         }
       }
-    } else if (filterGroup === 'authors') {
-      bookIncludes.push({
-        model: Database.authorModel,
-        attributes: ['id', 'name'],
-        where: {
-          id: filterValue
-        },
-        through: {
-          attributes: []
-        }
-      })
-    } else if (filterGroup === 'series') {
-      bookIncludes.push({
-        model: Database.seriesModel,
-        attributes: ['id', 'name'],
-        where: {
-          id: filterValue
-        },
-        through: {
-          attributes: ['sequence']
-        }
-      })
-      if (sortBy !== 'sequence') {
-        // Secondary sort by sequence
-        sortOrder.push([Sequelize.literal('CAST(`series.bookSeries.sequence` AS FLOAT) ASC NULLS LAST')])
-      }
-    } else if (filterGroup === 'issues') {
+    }
+
+    if (hasFilter('issues')) {
       libraryItemWhere[Sequelize.Op.or] = [
         {
           isMissing: true
@@ -514,7 +501,10 @@ module.exports = {
           isInvalid: true
         }
       ]
-    } else if (filterGroup === 'progress' && user) {
+    }
+
+    // If ANY filter is progress, include mediaProgresses so progress constraints work
+    if (hasFilter('progress') && user) {
       const mediaProgressWhere = {
         userId: user.id
       }
@@ -528,7 +518,9 @@ module.exports = {
         where: mediaProgressWhere,
         required: false
       })
-    } else if (filterGroup === 'recent') {
+    }
+
+    if (hasFilter('recent')) {
       libraryItemWhere['createdAt'] = {
         [Sequelize.Op.gte]: new Date(new Date() - 60 * 24 * 60 * 60 * 1000) // 60 days ago
       }
@@ -546,8 +538,49 @@ module.exports = {
       })
     }
 
-    let { mediaWhere, replacements } = this.getMediaGroupQuery(filterGroup, filterValue)
-    let bookWhere = Array.isArray(mediaWhere) ? mediaWhere : [mediaWhere]
+    let replacements = {}
+    let bookWhere = []
+    // Build AND-combined where clauses for each filter token
+    if (activeFilters.length) {
+      activeFilters.forEach((f, idx) => {
+        const g = f.filterGroup
+        const v = f.filterValue
+        if (!g || !v) return
+
+        // Relational AND filters via EXISTS to avoid needing multiple include aliases
+        if (g === 'authors') {
+          replacements[`authorId${idx}`] = v
+          bookWhere.push(Sequelize.literal(`EXISTS (SELECT 1 FROM bookAuthors ba WHERE ba.bookId = book.id AND ba.authorId = :authorId${idx})`))
+          return
+        }
+        if (g === 'series') {
+          if (v === 'no-series') {
+            bookWhere.push(Sequelize.literal(`NOT EXISTS (SELECT 1 FROM bookSeries bs WHERE bs.bookId = book.id)`))
+          } else {
+            replacements[`seriesId${idx}`] = v
+            bookWhere.push(Sequelize.literal(`EXISTS (SELECT 1 FROM bookSeries bs WHERE bs.bookId = book.id AND bs.seriesId = :seriesId${idx})`))
+          }
+          return
+        }
+
+        // Use existing single-filter builder for most other groups, but avoid replacement key collisions
+        if (['genres', 'tags', 'narrators'].includes(g)) {
+          const key = `filterValue${idx}`
+          replacements[key] = v
+          bookWhere.push(
+            Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(${g}) WHERE json_valid(${g}) AND json_each.value = :${key})`), {
+              [Sequelize.Op.gte]: 1
+            })
+          )
+          return
+        }
+
+        // Delegate to existing helper for the rest (safe: it doesn't rely on :filterValue collisions)
+        const { mediaWhere } = this.getMediaGroupQuery(g, v)
+        if (Array.isArray(mediaWhere)) bookWhere.push(...mediaWhere)
+        else if (Object.keys(mediaWhere).length) bookWhere.push(mediaWhere)
+      })
+    }
 
     // User permissions
     const userPermissionBookWhere = this.getUserPermissionBookWhereQuery(user)

@@ -64,8 +64,8 @@
           <ui-text-input v-model="searchQuery" :placeholder="$strings.PlaceholderSearch || 'Search...'" class="w-full h-7.5" @input="onSearchInput" @keydown.enter="onSearchEnter" @blur="onSearchBlur" />
         </div>
 
-        <!-- library filter select -->
-        <controls-library-filter-select v-if="isLibraryPage && !isBatchSelecting" v-model="settings.filterBy" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateFilter" />
+        <!-- library filter select (multi-filter AND support) -->
+        <controls-library-filter-multi-select v-if="isLibraryPage && !isBatchSelecting" v-model="settings.filterBy" class="ml-1 sm:ml-4" @change="updateFilter" />
 
         <!-- library sort select -->
         <controls-library-sort-select v-if="isLibraryPage && !isBatchSelecting" v-model="settings.orderBy" :descending.sync="settings.orderDesc" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateOrder" />

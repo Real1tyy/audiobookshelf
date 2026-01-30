@@ -144,7 +144,7 @@ module.exports = {
    * @param {string|null} searchQuery search query string
    * @returns {Promise<{ libraryItems: import('../../models/LibraryItem')[], count: number }>}
    */
-  async getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, include, limit, offset, searchQuery = null) {
+  async getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, include, limit, offset, searchQuery = null, filters = null) {
     const includeRSSFeed = include.includes('rssfeed')
     const includeNumEpisodesIncomplete = include.includes('numepisodesincomplete')
 
@@ -152,15 +152,18 @@ module.exports = {
       libraryId
     }
     const libraryItemIncludes = []
-    if (filterGroup === 'feed-open' || includeRSSFeed) {
-      const rssFeedRequired = filterGroup === 'feed-open'
+    const activeFilters = Array.isArray(filters) && filters.length ? filters : [{ filterGroup, filterValue }]
+    const hasFilter = (g) => activeFilters.some((f) => f.filterGroup === g)
+
+    if (hasFilter('feed-open') || includeRSSFeed) {
+      const rssFeedRequired = hasFilter('feed-open')
       libraryItemIncludes.push({
         model: Database.feedModel,
         required: rssFeedRequired,
         separate: !rssFeedRequired
       })
     }
-    if (filterGroup === 'issues') {
+    if (hasFilter('issues')) {
       libraryItemWhere[Sequelize.Op.or] = [
         {
           isMissing: true
@@ -169,7 +172,7 @@ module.exports = {
           isInvalid: true
         }
       ]
-    } else if (filterGroup === 'recent') {
+    } else if (hasFilter('recent')) {
       libraryItemWhere['createdAt'] = {
         [Sequelize.Op.gte]: new Date(new Date() - 60 * 24 * 60 * 60 * 1000) // 60 days ago
       }
@@ -177,11 +180,30 @@ module.exports = {
 
     const podcastIncludes = []
 
-    let { mediaWhere, replacements } = this.getMediaGroupQuery(filterGroup, filterValue)
+    let replacements = {}
     replacements.userId = user.id
 
     const podcastWhere = []
-    if (Object.keys(mediaWhere).length) podcastWhere.push(mediaWhere)
+    // Apply AND-combined filters
+    activeFilters.forEach((f, idx) => {
+      const g = f.filterGroup
+      const v = f.filterValue
+      if (!g || !v) return
+
+      if (['genres', 'tags'].includes(g)) {
+        const key = `filterValue${idx}`
+        replacements[key] = v
+        podcastWhere.push(
+          Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(${g}) WHERE json_valid(${g}) AND json_each.value = :${key})`), {
+            [Sequelize.Op.gte]: 1
+          })
+        )
+        return
+      }
+
+      const { mediaWhere } = this.getMediaGroupQuery(g, v)
+      if (Object.keys(mediaWhere).length) podcastWhere.push(mediaWhere)
+    })
 
     const userPermissionPodcastWhere = this.getUserPermissionPodcastWhereQuery(user)
     replacements = { ...replacements, ...userPermissionPodcastWhere.replacements }

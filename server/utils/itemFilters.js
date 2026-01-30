@@ -23,8 +23,9 @@ function applySearchFilter(libraryItems, searchQuery) {
 
   const searchLower = searchQuery.toLowerCase()
   return libraryItems.filter((li) => {
-    const title = li.media?.title?.toLowerCase() || ''
-    return title.includes(searchLower)
+    // Handle both Sequelize model format (media.title) and JSON format (media.metadata.title)
+    const title = li.media?.title || li.media?.metadata?.title || ''
+    return title.toLowerCase().includes(searchLower)
   })
 }
 
@@ -169,13 +170,15 @@ function applyAdvancedFilter(libraryItems, filterGroup, filterValue) {
 function getSortValue(libraryItem, sortBy, user) {
   switch (sortBy) {
     case 'title':
-      return libraryItem.media?.title?.toLowerCase() || ''
+      // Handle both Sequelize model format (media.title) and JSON format (media.metadata.title)
+      const title = libraryItem.media?.title || libraryItem.media?.metadata?.title || ''
+      return title.toLowerCase()
     case 'publishedYear':
-      return libraryItem.media?.publishedYear || 0
+      return libraryItem.media?.publishedYear || libraryItem.media?.metadata?.publishedYear || 0
     case 'addedAt':
       return libraryItem.addedAt || 0
     case 'size':
-      return libraryItem.size || 0
+      return libraryItem.size || libraryItem.media?.size || 0
     case 'duration':
       return libraryItem.media?.duration || 0
     case 'progress':

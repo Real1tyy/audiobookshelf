@@ -11,7 +11,52 @@ const naturalSort = createNewSortInstance({
 
 module.exports = {
   decode(text) {
-    return Buffer.from(decodeURIComponent(text), 'base64').toString()
+    // Values may be URI-encoded once (preferred), but can also end up double-encoded
+    // when already-encoded tokens are passed through URLSearchParams.
+    // Decode up to 2 times to be resilient.
+    let v = text
+    try {
+      v = decodeURIComponent(v)
+      if (/%[0-9A-Fa-f]{2}/.test(v)) {
+        v = decodeURIComponent(v)
+      }
+    } catch (e) {
+      // keep original
+    }
+    return Buffer.from(v, 'base64').toString()
+  },
+
+  /**
+   * Parse one-or-many filter tokens (comma-separated) for AND semantics.
+   *
+   * Examples:
+   * - "tags.<enc>,genres.<enc>,authors.<enc>"
+   * - "issues"
+   *
+   * @param {string|null|undefined} filterBy
+   * @returns {{ filterGroup: string|null, filterValue: string|null }[]}
+   */
+  parseFilters(filterBy) {
+    if (!filterBy || filterBy === 'all') return []
+    const tokens = String(filterBy)
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => !!t && t !== 'all')
+
+    const searchGroups = ['genres', 'tags', 'series', 'authors', 'progress', 'narrators', 'publishers', 'publishedDecades', 'missing', 'languages', 'tracks', 'ebooks']
+
+    return tokens.map((token) => {
+      const group = searchGroups.find((_group) => token.startsWith(_group + '.')) || token.split('.').shift()
+      if (!group) return { filterGroup: null, filterValue: null }
+
+      if (!token.includes('.')) {
+        // Simple filter like 'issues', 'feed-open', 'explicit', 'share-open', 'abridged'
+        return { filterGroup: group, filterValue: group }
+      }
+
+      const encodedValue = token.slice(group.length + 1)
+      return { filterGroup: group, filterValue: this.decode(encodedValue) }
+    })
   },
 
   /**
@@ -24,19 +69,27 @@ module.exports = {
   async getFilteredLibraryItems(libraryId, user, options) {
     const { filterBy, sortBy, sortDesc, limit, offset, collapseseries, include, mediaType, searchQuery } = options
 
-    let filterValue = null
-    let filterGroup = null
-    if (filterBy) {
-      const searchGroups = ['genres', 'tags', 'series', 'authors', 'progress', 'narrators', 'publishers', 'publishedDecades', 'missing', 'languages', 'tracks', 'ebooks']
-      const group = searchGroups.find((_group) => filterBy.startsWith(_group + '.'))
-      filterGroup = group || filterBy
-      filterValue = group ? this.decode(filterBy.replace(`${group}.`, '')) : null
-    }
+    const filters = this.parseFilters(filterBy)
+    const primary = filters[0] || { filterGroup: null, filterValue: null }
 
     if (mediaType === 'book') {
-      return libraryItemsBookFilters.getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, collapseseries, include, limit, offset, false, searchQuery)
+      return libraryItemsBookFilters.getFilteredLibraryItems(
+        libraryId,
+        user,
+        primary.filterGroup,
+        primary.filterValue,
+        sortBy,
+        sortDesc,
+        collapseseries,
+        include,
+        limit,
+        offset,
+        false,
+        searchQuery,
+        filters
+      )
     } else {
-      return libraryItemsPodcastFilters.getFilteredLibraryItems(libraryId, user, filterGroup, filterValue, sortBy, sortDesc, include, limit, offset, searchQuery)
+      return libraryItemsPodcastFilters.getFilteredLibraryItems(libraryId, user, primary.filterGroup, primary.filterValue, sortBy, sortDesc, include, limit, offset, searchQuery, filters)
     }
   },
 
