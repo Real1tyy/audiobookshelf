@@ -42,7 +42,7 @@ class LibraryItemController {
   /**
    * GET: /api/items/:id
    * Optional query params:
-   * ?include=progress,rssfeed,downloads,share
+   * ?include=progress,rssfeed,downloads,share,relatedbooks
    * ?expanded=1
    *
    * @param {LibraryItemControllerRequest} req
@@ -74,6 +74,27 @@ class LibraryItemController {
         if (this.podcastManager.currentDownload?.libraryItemId === req.libraryItem.id) {
           item.episodesDownloading = [this.podcastManager.currentDownload.toJSONForClient()]
         }
+      }
+
+      // Include related books data
+      if (item.mediaType === 'book' && includeEntities.includes('relatedbooks') && item.media.metadata.relatedBooks?.length) {
+        const relatedBooksData = []
+        for (const bookId of item.media.metadata.relatedBooks) {
+          try {
+            const relatedLibraryItem = await Database.libraryItemModel.findOneExpanded({ mediaId: bookId })
+            if (relatedLibraryItem && req.user.checkCanAccessLibraryItem(relatedLibraryItem)) {
+              relatedBooksData.push({
+                id: bookId,
+                libraryItemId: relatedLibraryItem.id,
+                title: relatedLibraryItem.media.title,
+                subtitle: relatedLibraryItem.media.subtitle
+              })
+            }
+          } catch (error) {
+            Logger.error(`[LibraryItemController] Failed to load related book ${bookId}:`, error)
+          }
+        }
+        item.relatedBooksData = relatedBooksData
       }
 
       return res.json(item)
@@ -204,7 +225,15 @@ class LibraryItemController {
       }
     }
 
+    // Store old related books for bidirectional relationship updates
+    const oldRelatedBooks = req.libraryItem.isBook ? [...(req.libraryItem.media.relatedBooks || [])] : []
+
     let hasUpdates = (await req.libraryItem.media.updateFromRequest(mediaPayload)) || mediaPayload.url
+
+    // Update bidirectional related books relationships
+    if (req.libraryItem.isBook && mediaPayload.metadata?.relatedBooks !== undefined) {
+      await req.libraryItem.media.updateRelatedBooksRelationships(oldRelatedBooks)
+    }
 
     if (req.libraryItem.isBook && Array.isArray(mediaPayload.metadata?.series)) {
       const seriesUpdateData = await req.libraryItem.media.updateSeriesFromRequest(mediaPayload.metadata.series, req.libraryItem.libraryId)
@@ -624,7 +653,15 @@ class LibraryItemController {
       const mediaPayload = updatePayload.mediaPayload
       const libraryItem = libraryItems.find((li) => li.id === updatePayload.id)
 
+      // Store old related books for bidirectional relationship updates
+      const oldRelatedBooks = libraryItem.isBook ? [...(libraryItem.media.relatedBooks || [])] : []
+
       let hasUpdates = await libraryItem.media.updateFromRequest(mediaPayload)
+
+      // Update bidirectional related books relationships
+      if (libraryItem.isBook && mediaPayload.metadata?.relatedBooks !== undefined) {
+        await libraryItem.media.updateRelatedBooksRelationships(oldRelatedBooks)
+      }
 
       if (libraryItem.isBook && Array.isArray(mediaPayload.metadata?.series)) {
         const seriesUpdateData = await libraryItem.media.updateSeriesFromRequest(mediaPayload.metadata.series, libraryItem.libraryId)

@@ -18,3 +18,4 @@ Please add a record of every database migration that you create to this file. Th
 | v2.20.0        | v2.20.0-improve-author-sort-queries          | Adds AuthorNames(FirstLast\|LastFirst) to libraryItems to improve author sort queries                         |
 | v2.34.0        | v2.34.0-book-add-rating                      | Adds rating column to books table to support user ratings (0-10)                                              |
 | v2.35.0        | v2.35.0-book-add-url                         | Adds url column to books table to link to external resources                                                  |
+| v2.36.0        | v2.36.0-book-add-related                     | Adds relatedBooks column to books table to link related audiobooks                                            |

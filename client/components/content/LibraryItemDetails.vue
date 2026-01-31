@@ -57,14 +57,6 @@
         </template>
       </div>
     </div>
-    <div v-if="language" class="flex py-0.5">
-      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
-        <span class="text-white/60 uppercase text-sm">{{ $strings.LabelLanguage }}</span>
-      </div>
-      <div>
-        <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=languages.${$encode(language)}`" class="hover:underline">{{ language }}</nuxt-link>
-      </div>
-    </div>
     <div v-if="!isPodcast && rating !== null && rating !== undefined" role="paragraph" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">Rating</span>
@@ -83,6 +75,25 @@
           {{ url }}
           <span class="material-symbols text-sm ml-1">open_in_new</span>
         </a>
+      </div>
+    </div>
+    <div v-if="relatedBooksData.length" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">Related Books</span>
+      </div>
+      <div class="max-w-[calc(100vw-10rem)]">
+        <template v-for="(book, index) in relatedBooksData">
+          <nuxt-link :key="book.id" :to="`/item/${book.libraryItemId}`" class="hover:underline">{{ book.title }}</nuxt-link
+          ><span :key="`${book.id}-sep`" v-if="index < relatedBooksData.length - 1">,&nbsp;</span>
+        </template>
+      </div>
+    </div>
+    <div v-if="language" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">{{ $strings.LabelLanguage }}</span>
+      </div>
+      <div>
+        <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=languages.${$encode(language)}`" class="hover:underline">{{ language }}</nuxt-link>
       </div>
     </div>
     <div v-if="tracks.length || (isPodcast && totalPodcastDuration)" role="paragraph" class="flex py-0.5">
@@ -113,7 +124,9 @@ export default {
     }
   },
   data() {
-    return {}
+    return {
+      relatedBooksData: []
+    }
   },
   computed: {
     libraryId() {
@@ -164,6 +177,9 @@ export default {
     url() {
       return this.mediaMetadata.url
     },
+    relatedBooks() {
+      return this.mediaMetadata.relatedBooks || []
+    },
     durationPretty() {
       if (this.isPodcast) return this.$elapsedPrettyExtended(this.totalPodcastDuration)
 
@@ -186,6 +202,18 @@ export default {
     },
     podcastType() {
       return this.mediaMetadata.type
+    }
+  },
+  watch: {
+    libraryItem: {
+      immediate: true,
+      handler(newVal) {
+        if (newVal && newVal.relatedBooksData) {
+          this.relatedBooksData = newVal.relatedBooksData
+        } else {
+          this.relatedBooksData = []
+        }
+      }
     }
   },
   methods: {},

@@ -38,6 +38,21 @@
       </div>
 
       <div class="flex flex-wrap mt-2 -mx-1">
+        <div class="w-full md:w-1/4 px-1">
+          <ui-text-input-with-label ref="ratingInput" v-model="details.rating" type="number" label="Rating" :step="0.1" :min="0" :max="10" trim-whitespace @input="handleInputChange" />
+        </div>
+        <div class="w-full md:w-3/4 px-1 mt-2 md:mt-0">
+          <ui-text-input-with-label ref="urlInput" v-model="details.url" label="URL" trim-whitespace @input="handleInputChange" />
+        </div>
+      </div>
+
+      <div class="flex flex-wrap mt-2 -mx-1">
+        <div class="w-full px-1">
+          <widgets-related-books-widget v-model="details.relatedBooks" :library-id="libraryItem.libraryId" :current-book-id="libraryItem.media.id" @input="handleInputChange" />
+        </div>
+      </div>
+
+      <div class="flex flex-wrap mt-2 -mx-1">
         <div class="w-full md:w-1/2 px-1">
           <ui-multi-select ref="narratorsSelect" v-model="details.narrators" :label="$strings.LabelNarrators" :items="narrators" @input="handleInputChange" />
         </div>
@@ -65,15 +80,6 @@
           <div class="flex justify-center">
             <ui-checkbox v-model="details.abridged" :label="$strings.LabelAbridged" checkbox-bg="primary" border-color="gray-600" label-class="pl-2 text-base font-semibold" @input="handleInputChange" />
           </div>
-        </div>
-      </div>
-
-      <div class="flex flex-wrap mt-2 -mx-1">
-        <div class="w-full md:w-1/4 px-1">
-          <ui-text-input-with-label ref="ratingInput" v-model="details.rating" type="number" label="Rating" :step="0.1" :min="0" :max="10" trim-whitespace @input="handleInputChange" />
-        </div>
-        <div class="w-full md:w-3/4 px-1 mt-2 md:mt-0">
-          <ui-text-input-with-label ref="urlInput" v-model="details.url" label="URL" trim-whitespace @input="handleInputChange" />
         </div>
       </div>
     </form>
@@ -106,7 +112,8 @@ export default {
         explicit: false,
         abridged: false,
         rating: null,
-        url: null
+        url: null,
+        relatedBooks: []
       },
       newTags: []
     }
@@ -258,7 +265,7 @@ export default {
         // Key cleared out or key first populated
         if ((!newValue && oldValue) || (newValue && !oldValue)) {
           metadata[key] = newValue
-        } else if (key === 'narrators' || key === 'genres') {
+        } else if (key === 'narrators' || key === 'genres' || key === 'relatedBooks') {
           // Check array of strings
           if (!this.stringArrayEqual(newValue, oldValue)) {
             metadata[key] = [...newValue]
@@ -300,6 +307,7 @@ export default {
       this.details.abridged = !!this.mediaMetadata.abridged
       this.details.rating = this.mediaMetadata.rating || null
       this.details.url = this.mediaMetadata.url || null
+      this.details.relatedBooks = [...(this.mediaMetadata.relatedBooks || [])]
       this.newTags = [...(this.media.tags || [])]
     },
     submitForm() {

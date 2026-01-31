@@ -112,6 +112,8 @@ class Book extends Model {
     /** @type {string} */
     this.url
     /** @type {string[]} */
+    this.relatedBooks
+    /** @type {string[]} */
     this.narrators
     /** @type {AudioFileObject[]} */
     this.audioFiles
@@ -164,6 +166,7 @@ class Book extends Model {
         duration: DataTypes.FLOAT,
         rating: DataTypes.FLOAT,
         url: DataTypes.STRING,
+        relatedBooks: DataTypes.JSON,
 
         narrators: DataTypes.JSON,
         audioFiles: DataTypes.JSON,
@@ -420,6 +423,14 @@ class Book extends Model {
           hasUpdates = true
         }
       }
+      if (payload.metadata.relatedBooks !== undefined) {
+        const relatedBooks = Array.isArray(payload.metadata.relatedBooks) ? payload.metadata.relatedBooks.filter(id => typeof id === 'string' && id !== this.id) : []
+        if (JSON.stringify(this.relatedBooks || []) !== JSON.stringify(relatedBooks)) {
+          this.relatedBooks = relatedBooks
+          this.changed('relatedBooks', true)
+          hasUpdates = true
+        }
+      }
       const arrayOfStringsKeys = ['narrators', 'genres']
       arrayOfStringsKeys.forEach((key) => {
         if (Array.isArray(payload.metadata[key]) && !payload.metadata[key].some((item) => typeof item !== 'string') && JSON.stringify(this[key]) !== JSON.stringify(payload.metadata[key])) {
@@ -457,6 +468,60 @@ class Book extends Model {
     }
 
     return hasUpdates
+  }
+
+  /**
+   * Update bidirectional related books relationships
+   * If book A is related to book B, then book B should also be related to book A
+   *
+   * @param {string[]} oldRelatedBooks - Previous related book IDs
+   * @returns {Promise<void>}
+   */
+  async updateRelatedBooksRelationships(oldRelatedBooks = []) {
+    const currentRelatedBooks = this.relatedBooks || []
+    const previousRelatedBooks = oldRelatedBooks || []
+
+    // Find books that were added
+    const addedRelations = currentRelatedBooks.filter(id => !previousRelatedBooks.includes(id))
+
+    // Find books that were removed
+    const removedRelations = previousRelatedBooks.filter(id => !currentRelatedBooks.includes(id))
+
+    // Add bidirectional relationships for newly added books
+    for (const relatedBookId of addedRelations) {
+      try {
+        const relatedBook = await this.sequelize.models.book.findByPk(relatedBookId)
+        if (relatedBook) {
+          const relatedBookRelations = relatedBook.relatedBooks || []
+          if (!relatedBookRelations.includes(this.id)) {
+            relatedBook.relatedBooks = [...relatedBookRelations, this.id]
+            relatedBook.changed('relatedBooks', true)
+            await relatedBook.save()
+            Logger.debug(`[Book] Added bidirectional relationship: "${relatedBook.title}" (${relatedBook.id}) <-> "${this.title}" (${this.id})`)
+          }
+        }
+      } catch (error) {
+        Logger.error(`[Book] Failed to update related book ${relatedBookId}:`, error)
+      }
+    }
+
+    // Remove bidirectional relationships for removed books
+    for (const relatedBookId of removedRelations) {
+      try {
+        const relatedBook = await this.sequelize.models.book.findByPk(relatedBookId)
+        if (relatedBook) {
+          const relatedBookRelations = relatedBook.relatedBooks || []
+          if (relatedBookRelations.includes(this.id)) {
+            relatedBook.relatedBooks = relatedBookRelations.filter(id => id !== this.id)
+            relatedBook.changed('relatedBooks', true)
+            await relatedBook.save()
+            Logger.debug(`[Book] Removed bidirectional relationship: "${relatedBook.title}" (${relatedBook.id}) <-> "${this.title}" (${this.id})`)
+          }
+        }
+      } catch (error) {
+        Logger.error(`[Book] Failed to update related book ${relatedBookId}:`, error)
+      }
+    }
   }
 
   /**
@@ -586,7 +651,8 @@ class Book extends Model {
       explicit: this.explicit,
       abridged: this.abridged,
       rating: this.rating,
-      url: this.url
+      url: this.url,
+      relatedBooks: this.relatedBooks || []
     }
   }
 
@@ -610,7 +676,8 @@ class Book extends Model {
       explicit: this.explicit,
       abridged: this.abridged,
       rating: this.rating,
-      url: this.url
+      url: this.url,
+      relatedBooks: this.relatedBooks || []
     }
   }
 

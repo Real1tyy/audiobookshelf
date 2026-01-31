@@ -154,7 +154,7 @@ export default {
     }
 
     // Include episode downloads for podcasts
-    var item = await app.$axios.$get(`/api/items/${params.id}?expanded=1&include=downloads,rssfeed,share`).catch((error) => {
+    var item = await app.$axios.$get(`/api/items/${params.id}?expanded=1&include=downloads,rssfeed,share,relatedbooks`).catch((error) => {
       console.error('Failed', error)
       return false
     })
@@ -592,10 +592,19 @@ export default {
       if (!this.$refs.description) return
       this.isDescriptionClamped = this.$refs.description.scrollHeight > this.$refs.description.clientHeight
     },
-    libraryItemUpdated(libraryItem) {
+    async libraryItemUpdated(libraryItem) {
       if (libraryItem.id === this.libraryItemId) {
         console.log('Item was updated', libraryItem)
-        this.libraryItem = libraryItem
+        // Fetch the full updated item with related books
+        try {
+          const updatedItem = await this.$axios.$get(`/api/items/${libraryItem.id}?expanded=1&include=downloads,rssfeed,share,relatedbooks`)
+          this.libraryItem = updatedItem
+          this.rssFeed = updatedItem.rssFeed || null
+          this.mediaItemShare = updatedItem.mediaItemShare || null
+        } catch (error) {
+          console.error('Failed to fetch updated item', error)
+          this.libraryItem = libraryItem
+        }
         this.$nextTick(this.checkDescriptionClamped)
       }
     },
