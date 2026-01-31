@@ -832,6 +832,7 @@
   "MessageInsertChapterBelow": "Insert chapter below",
   "MessageInvalidAsin": "Invalid ASIN",
   "MessageItemsSelected": "{0} items selected",
+  "MessageItemsAddedToQueue": "{0} items added to queue",
   "MessageItemsUpdated": "{0} items updated",
   "MessageJoinUsOn": "Join us on",
   "MessageLoading": "Loading...",

@@ -52,6 +52,11 @@
             <span class="material-symbols" :style="{ fontSize: 1 + 'em' }">edit</span>
           </div>
 
+          <!-- Add to Queue button -->
+          <div cy-id="addToQueueButton" v-if="showQuickAddToQueue" v-show="!isSelectionMode" class="absolute cursor-pointer hover:text-yellow-300 hover:scale-125 transform duration-150 right-0" :style="{ top: userCanUpdate ? 1.75 + 'em' : 0.375 + 'em', padding: 0.375 + 'em' }" @click.stop.prevent="addToQueue">
+            <span class="material-symbols" :style="{ fontSize: 1 + 'em' }">queue_music</span>
+          </div>
+
           <!-- Radio button -->
           <div cy-id="selectedRadioButton" class="absolute cursor-pointer hover:text-yellow-300 hover:scale-125 transform duration-100" :style="{ top: 0.375 + 'em', left: 0.375 + 'em' }" @click.stop.prevent="selectBtnClick">
             <span class="material-symbols" :class="selected ? 'text-yellow-400' : ''" :style="{ fontSize: 1.25 + 'em' }">{{ selected ? 'radio_button_checked' : 'radio_button_unchecked' }}</span>
@@ -451,6 +456,20 @@ export default {
     },
     showPlayButton() {
       return !this.isSelectionMode && !this.isMissing && !this.isInvalid && !this.isStreaming && (this.numTracks || this.recentEpisode)
+    },
+    showQuickAddToQueue() {
+      // Show quick add to queue button when:
+      // 1. Something is playing (queue is available)
+      // 2. Not a podcast (or has recent episode)
+      // 3. Item has tracks or is a podcast episode
+      // 4. Item is not already queued
+      // 5. Not streaming from a different library
+      if (!this.libraryItemIdStreaming) return false
+      if (this.isStreamingFromDifferentLibrary) return false
+      if (this.isQueued) return false
+      if (this.isPodcast && !this.recentEpisode) return false
+      if (!this.numTracks && !this.recentEpisode) return false
+      return true
     },
     showSmallEBookIcon() {
       return !this.isSelectionMode && this.ebookFormat

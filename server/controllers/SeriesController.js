@@ -14,6 +14,76 @@ const { reqSupportsWebp } = require('../utils/index')
 const { downloadImageFile } = require('../utils/fileUtils')
 
 /**
+ * Save series image from URL
+ * @param {string} seriesId
+ * @param {string} url
+ * @returns {Promise<{path?: string, error?: string}>}
+ */
+async function saveSeriesImage(seriesId, url) {
+  const seriesDir = Path.join(global.MetadataPath, 'series')
+
+  if (!(await fs.pathExists(seriesDir))) {
+    await fs.ensureDir(seriesDir)
+  }
+
+  const imageExtension = url.toLowerCase().split('.').pop()
+  const ext = imageExtension === 'png' ? 'png' : 'jpg'
+  const filename = seriesId + '.' + ext
+  const outputPath = Path.posix.join(seriesDir, filename)
+
+  return downloadImageFile(url, outputPath)
+    .then(() => {
+      return {
+        path: outputPath
+      }
+    })
+    .catch((err) => {
+      let errorMsg = err.message || 'Unknown error'
+      Logger.error(`[SeriesController] Download image file failed for "${url}"`, errorMsg)
+      return {
+        error: errorMsg
+      }
+    })
+}
+
+/**
+ * Save series image from base64 data
+ * @param {string} seriesId
+ * @param {string} base64Data
+ * @returns {Promise<{path?: string, error?: string}>}
+ */
+async function saveSeriesImageFromBase64(seriesId, base64Data) {
+  const seriesDir = Path.join(global.MetadataPath, 'series')
+
+  if (!(await fs.pathExists(seriesDir))) {
+    await fs.ensureDir(seriesDir)
+  }
+
+  // Extract format from base64 header
+  let ext = 'jpg'
+  if (base64Data.startsWith('data:image/png')) {
+    ext = 'png'
+  } else if (base64Data.startsWith('data:image/webp')) {
+    ext = 'webp'
+  }
+
+  // Remove data URL prefix if present
+  const base64Image = base64Data.replace(/^data:image\/\w+;base64,/, '')
+  const buffer = Buffer.from(base64Image, 'base64')
+
+  const filename = seriesId + '.' + ext
+  const outputPath = Path.join(seriesDir, filename)
+
+  try {
+    await fs.writeFile(outputPath, buffer)
+    return { path: outputPath }
+  } catch (err) {
+    Logger.error(`[SeriesController] Failed to save base64 image for series "${seriesId}"`, err)
+    return { error: err.message || 'Failed to save image' }
+  }
+}
+
+/**
  * @typedef RequestUserObject
  * @property {import('../models/User')} user
  *
@@ -115,7 +185,7 @@ class SeriesController {
       }
 
       Logger.debug(`[SeriesController] Requesting download series cover from url "${req.body.url}"`)
-      const result = await this.saveSeriesImage(req.series.id, req.body.url)
+      const result = await saveSeriesImage(req.series.id, req.body.url)
 
       if (result?.error) {
         return res.status(400).send(result.error)
@@ -125,7 +195,7 @@ class SeriesController {
       coverPath = result.path
     } else if (req.body.cover) {
       // Base64 cover
-      const result = await this.saveSeriesImageFromBase64(req.series.id, req.body.cover)
+      const result = await saveSeriesImageFromBase64(req.series.id, req.body.cover)
       if (result?.error) {
         return res.status(400).send(result.error)
       } else if (!result?.path) {
@@ -209,76 +279,6 @@ class SeriesController {
       width: width ? parseInt(width) : null
     }
     return CacheManager.handleSeriesCache(res, seriesId, options)
-  }
-
-  /**
-   * Save series image from URL
-   * @param {string} seriesId
-   * @param {string} url
-   * @returns {Promise<{path?: string, error?: string}>}
-   */
-  async saveSeriesImage(seriesId, url) {
-    const seriesDir = Path.join(global.MetadataPath, 'series')
-
-    if (!(await fs.pathExists(seriesDir))) {
-      await fs.ensureDir(seriesDir)
-    }
-
-    const imageExtension = url.toLowerCase().split('.').pop()
-    const ext = imageExtension === 'png' ? 'png' : 'jpg'
-    const filename = seriesId + '.' + ext
-    const outputPath = Path.posix.join(seriesDir, filename)
-
-    return downloadImageFile(url, outputPath)
-      .then(() => {
-        return {
-          path: outputPath
-        }
-      })
-      .catch((err) => {
-        let errorMsg = err.message || 'Unknown error'
-        Logger.error(`[SeriesController] Download image file failed for "${url}"`, errorMsg)
-        return {
-          error: errorMsg
-        }
-      })
-  }
-
-  /**
-   * Save series image from base64 data
-   * @param {string} seriesId
-   * @param {string} base64Data
-   * @returns {Promise<{path?: string, error?: string}>}
-   */
-  async saveSeriesImageFromBase64(seriesId, base64Data) {
-    const seriesDir = Path.join(global.MetadataPath, 'series')
-
-    if (!(await fs.pathExists(seriesDir))) {
-      await fs.ensureDir(seriesDir)
-    }
-
-    // Extract format from base64 header
-    let ext = 'jpg'
-    if (base64Data.startsWith('data:image/png')) {
-      ext = 'png'
-    } else if (base64Data.startsWith('data:image/webp')) {
-      ext = 'webp'
-    }
-
-    // Remove data URL prefix if present
-    const base64Image = base64Data.replace(/^data:image\/\w+;base64,/, '')
-    const buffer = Buffer.from(base64Image, 'base64')
-
-    const filename = seriesId + '.' + ext
-    const outputPath = Path.join(seriesDir, filename)
-
-    try {
-      await fs.writeFile(outputPath, buffer)
-      return { path: outputPath }
-    } catch (err) {
-      Logger.error(`[SeriesController] Failed to save base64 image for series "${seriesId}"`, err)
-      return { error: err.message || 'Failed to save image' }
-    }
   }
 
   /**

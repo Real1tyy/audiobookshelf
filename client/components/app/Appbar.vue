@@ -58,6 +58,9 @@
           <span class="material-symbols fill text-2xl -ml-2 pr-1 text-white">play_arrow</span>
           {{ $strings.ButtonPlay }}
         </ui-btn>
+        <ui-tooltip v-if="!isPodcastLibrary && selectedMediaItemsArePlayable && showAddToQueueButton" :text="$strings.ButtonQueueAddItem" direction="bottom">
+          <ui-icon-btn :disabled="processingBatch" icon="queue_music" class="mx-1.5" @click="addSelectedItemsToQueue" />
+        </ui-tooltip>
         <ui-tooltip :text="$strings.LabelSelectAll" direction="bottom">
           <ui-icon-btn :disabled="processingBatch" icon="select_all" class="mx-1.5" @click="selectAll" />
         </ui-tooltip>
@@ -172,6 +175,13 @@ export default {
     },
     isHttps() {
       return location.protocol === 'https:' || process.env.NODE_ENV === 'development'
+    },
+    libraryItemIdStreaming() {
+      return this.$store.getters['getLibraryItemIdStreaming']
+    },
+    showAddToQueueButton() {
+      // Only show add to queue when something is already playing
+      return !!this.libraryItemIdStreaming
     },
     contextMenuItems() {
       if (!this.userIsAdminOrUp) return []
@@ -311,6 +321,46 @@ export default {
         libraryItemId: queueItems[0].libraryItemId,
         queueItems
       })
+      this.$store.commit('setProcessingBatch', false)
+      this.$store.commit('globals/resetSelectedMediaItems', [])
+      this.$eventBus.$emit('bookshelf_clear_selection')
+    },
+    async addSelectedItemsToQueue() {
+      this.$store.commit('setProcessingBatch', true)
+
+      const libraryItemIds = this.selectedMediaItems.map((i) => i.id)
+      const libraryItems = await this.$axios
+        .$post(`/api/items/batch/get`, { libraryItemIds })
+        .then((res) => res.libraryItems)
+        .catch((error) => {
+          const errorMsg = error.response.data || 'Failed to get items'
+          console.error(errorMsg, error)
+          this.$toast.error(errorMsg)
+          return []
+        })
+
+      if (!libraryItems.length) {
+        this.$store.commit('setProcessingBatch', false)
+        return
+      }
+
+      libraryItems.forEach((item) => {
+        let subtitle = ''
+        if (item.mediaType === 'book') subtitle = item.media.metadata.authors.map((au) => au.name).join(', ')
+        const queueItem = {
+          libraryItemId: item.id,
+          libraryId: item.libraryId,
+          episodeId: null,
+          title: item.media.metadata.title,
+          subtitle,
+          caption: '',
+          duration: item.media.duration || null,
+          coverPath: item.media.coverPath || null
+        }
+        this.$store.commit('addItemToQueue', queueItem)
+      })
+
+      this.$toast.success(this.$getString('MessageItemsAddedToQueue', [libraryItems.length]))
       this.$store.commit('setProcessingBatch', false)
       this.$store.commit('globals/resetSelectedMediaItems', [])
       this.$eventBus.$emit('bookshelf_clear_selection')
