@@ -27,7 +27,11 @@ module.exports = {
     if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
       replacements['userTagsSelected'] = user.permissions.itemTagsSelected
       if (user.permissions.selectedTagsNotAccessible) {
-        bookWhere.push(Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected))`), 0))
+        bookWhere.push(
+          Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected))`), {
+            [Sequelize.Op.eq]: 0
+          })
+        )
       } else {
         bookWhere.push(
           Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected))`), {
@@ -189,7 +193,7 @@ module.exports = {
     } else if (group === 'explicit') {
       mediaWhere['explicit'] = true
     } else if (['genres', 'tags', 'narrators'].includes(group)) {
-      mediaWhere[group] = Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(${group}) WHERE json_valid(${group}) AND json_each.value = :filterValue)`), {
+      mediaWhere = Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(${group}) WHERE json_valid(${group}) AND json_each.value = :filterValue)`), {
         [Sequelize.Op.gte]: 1
       })
       replacements.filterValue = value
@@ -550,7 +554,7 @@ module.exports = {
         // Relational AND filters via EXISTS to avoid needing multiple include aliases
         if (g === 'authors') {
           replacements[`authorId${idx}`] = v
-          bookWhere.push(Sequelize.literal(`EXISTS (SELECT 1 FROM bookAuthors ba WHERE ba.bookId = book.id AND ba.authorId = :authorId${idx})`))
+          bookWhere.push(Sequelize.where(Sequelize.literal(`EXISTS (SELECT 1 FROM bookAuthors ba WHERE ba.bookId = book.id AND ba.authorId = :authorId${idx})`), true))
           return
         }
         if (g === 'series') {
@@ -558,7 +562,7 @@ module.exports = {
             bookWhere.push(Sequelize.literal(`NOT EXISTS (SELECT 1 FROM bookSeries bs WHERE bs.bookId = book.id)`))
           } else {
             replacements[`seriesId${idx}`] = v
-            bookWhere.push(Sequelize.literal(`EXISTS (SELECT 1 FROM bookSeries bs WHERE bs.bookId = book.id AND bs.seriesId = :seriesId${idx})`))
+            bookWhere.push(Sequelize.where(Sequelize.literal(`EXISTS (SELECT 1 FROM bookSeries bs WHERE bs.bookId = book.id AND bs.seriesId = :seriesId${idx})`), true))
           }
           return
         }

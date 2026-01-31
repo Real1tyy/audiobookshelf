@@ -277,9 +277,7 @@ module.exports = {
     // TODO: Merge with existing query
     if (library.settings.hideSingleBookSeries) {
       seriesWhere.push(
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id)`), {
-          [Sequelize.Op.gt]: 1
-        })
+        Sequelize.literal(`(SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id) > 1`)
       )
     }
 
@@ -298,9 +296,7 @@ module.exports = {
         }
       }
       seriesWhere.push(
-        Sequelize.where(Sequelize.literal(`(${attrQuery})`), {
-          [Sequelize.Op.gt]: 0
-        })
+        Sequelize.literal(`(${attrQuery}) > 0`)
       )
     }
 

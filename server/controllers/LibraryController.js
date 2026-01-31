@@ -1409,9 +1409,7 @@ class LibraryController {
         {
           libraryId: req.library.id
         },
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(libraryFiles) WHERE json_valid(libraryFiles) AND json_extract(json_each.value, "$.metadata.filename") = "${metadataFilename}")`), {
-          [Sequelize.Op.gte]: 1
-        })
+        Sequelize.literal(`(SELECT count(*) FROM json_each(libraryFiles) WHERE json_valid(libraryFiles) AND json_extract(json_each.value, "$.metadata.filename") = "${metadataFilename}") >= 1`)
       ]
     })
     if (!libraryItemsWithMetadata.length) {

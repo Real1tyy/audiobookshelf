@@ -50,9 +50,7 @@ module.exports = {
     // TODO: Merge with existing query
     if (library.settings.hideSingleBookSeries) {
       seriesWhere.push(
-        Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id)`), {
-          [Sequelize.Op.gt]: 1
-        })
+        Sequelize.literal(`(SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id) > 1`)
       )
     }
 
@@ -77,11 +75,11 @@ module.exports = {
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'finished') {
         const progQuery = 'SELECT count(*) FROM books b, bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished IS NULL OR mp.isFinished = 0)'
-        seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
+        seriesWhere.push(Sequelize.literal(`(${progQuery}) = 0`))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'not-started') {
         const progQuery = 'SELECT count(*) FROM books b, bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.isFinished = 1 OR mp.currentTime > 0)'
-        seriesWhere.push(Sequelize.where(Sequelize.literal(`(${progQuery})`), 0))
+        seriesWhere.push(Sequelize.literal(`(${progQuery}) = 0`))
         userPermissionBookWhere.replacements.userId = user.id
       } else if (filterValue === 'in-progress') {
         attrQuery = 'SELECT count(*) FROM books b, bookSeries bs LEFT OUTER JOIN mediaProgresses mp ON mp.mediaItemId = b.id AND mp.userId = :userId WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (mp.currentTime > 0 OR mp.ebookProgress > 0) AND mp.isFinished = 0'
@@ -108,9 +106,7 @@ module.exports = {
 
     if (attrQuery) {
       seriesWhere.push(
-        Sequelize.where(Sequelize.literal(`(${attrQuery})`), {
-          [Sequelize.Op.gt]: 0
-        })
+        Sequelize.literal(`(${attrQuery}) > 0`)
       )
     }
 
