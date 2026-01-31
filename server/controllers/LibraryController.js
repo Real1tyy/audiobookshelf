@@ -1060,6 +1060,152 @@ class LibraryController {
       stats.totalSize = bookStats.totalSize
       stats.totalDuration = bookStats.totalDuration
       stats.numAudioTracks = bookStats.numAudioFiles
+
+      // Extra library-level book stats (global across users)
+      // - Most accurate listening totals come from playbackSessions (seconds)
+      // - viewedCount/totalListeningTime live on books and are global counters
+      const libraryId = req.library.id
+
+      // Aggregate done/views/ratings
+      const [aggregateRows] = await Database.sequelize.query(
+        `
+        SELECT
+          SUM(COALESCE(b.viewedCount, 0)) AS totalViewedCount,
+          SUM(CASE WHEN COALESCE(b.viewedCount, 0) > 0 THEN 1 ELSE 0 END) AS totalBooksDone,
+          AVG(CASE WHEN b.rating IS NOT NULL THEN b.rating ELSE NULL END) AS averageRating
+        FROM libraryItems li
+        JOIN books b ON b.id = li.mediaId
+        WHERE li.libraryId = :libraryId
+          AND li.mediaType = 'book';
+        `,
+        { replacements: { libraryId } }
+      )
+      const aggregate = aggregateRows?.[0] || {}
+      stats.totalViewedCount = Number(aggregate.totalViewedCount) || 0
+      stats.totalBooksDone = Number(aggregate.totalBooksDone) || 0
+      stats.averageRating = aggregate.averageRating === null || aggregate.averageRating === undefined ? null : Number(aggregate.averageRating)
+
+      // Top rated books
+      const [topRatedRows] = await Database.sequelize.query(
+        `
+        SELECT li.id AS id, b.title AS title, b.rating AS rating
+        FROM libraryItems li
+        JOIN books b ON b.id = li.mediaId
+        WHERE li.libraryId = :libraryId
+          AND li.mediaType = 'book'
+          AND b.rating IS NOT NULL
+        ORDER BY b.rating DESC, b.title COLLATE NOCASE ASC
+        LIMIT 10;
+        `,
+        { replacements: { libraryId } }
+      )
+      stats.topRatedBooks = (topRatedRows || []).map((r) => ({
+        id: r.id,
+        title: r.title,
+        rating: r.rating === null || r.rating === undefined ? null : Number(r.rating)
+      }))
+
+      // Top tags (JSON array stored on books.tags)
+      // If SQLite JSON1 isn't available for some reason, fail gracefully with an empty list.
+      try {
+        const [topTagRows] = await Database.sequelize.query(
+          `
+          SELECT
+            je.value AS tag,
+            COUNT(*) AS count
+          FROM libraryItems li
+          JOIN books b ON b.id = li.mediaId
+          JOIN json_each(b.tags) je
+          WHERE li.libraryId = :libraryId
+            AND li.mediaType = 'book'
+            AND je.value IS NOT NULL
+            AND TRIM(CAST(je.value AS TEXT)) <> ''
+          GROUP BY je.value
+          ORDER BY count DESC
+          LIMIT 5;
+          `,
+          { replacements: { libraryId } }
+        )
+        stats.topTags = (topTagRows || []).map((r) => ({
+          tag: r.tag,
+          count: Number(r.count) || 0
+        }))
+      } catch (error) {
+        Logger.warn(`[LibraryController] Failed to load topTags for library "${libraryId}"`, error?.message || error)
+        stats.topTags = []
+      }
+
+      // Listening analytics from playback sessions (seconds)
+      const daysBack = 365
+      const startDateObj = new Date()
+      startDateObj.setDate(startDateObj.getDate() - (daysBack - 1))
+      const startDate = startDateObj.toISOString().slice(0, 10)
+
+      const [listeningTotalRows] = await Database.sequelize.query(
+        `
+        SELECT SUM(COALESCE(timeListening, 0)) AS totalTime
+        FROM playbackSessions
+        WHERE libraryId = :libraryId
+          AND mediaItemType = 'book';
+        `,
+        { replacements: { libraryId } }
+      )
+      const totalTime = Number(listeningTotalRows?.[0]?.totalTime) || 0
+
+      const [dailyRows] = await Database.sequelize.query(
+        `
+        SELECT date AS bucket, SUM(COALESCE(timeListening, 0)) AS timeListening
+        FROM playbackSessions
+        WHERE libraryId = :libraryId
+          AND mediaItemType = 'book'
+          AND date IS NOT NULL
+          AND date >= :startDate
+        GROUP BY date
+        ORDER BY date ASC;
+        `,
+        { replacements: { libraryId, startDate } }
+      )
+
+      const [weeklyRows] = await Database.sequelize.query(
+        `
+        SELECT strftime('%Y-W%W', date) AS bucket, SUM(COALESCE(timeListening, 0)) AS timeListening
+        FROM playbackSessions
+        WHERE libraryId = :libraryId
+          AND mediaItemType = 'book'
+          AND date IS NOT NULL
+          AND date >= :startDate
+        GROUP BY bucket
+        ORDER BY bucket ASC;
+        `,
+        { replacements: { libraryId, startDate } }
+      )
+
+      const [monthlyRows] = await Database.sequelize.query(
+        `
+        SELECT strftime('%Y-%m', date) AS bucket, SUM(COALESCE(timeListening, 0)) AS timeListening
+        FROM playbackSessions
+        WHERE libraryId = :libraryId
+          AND mediaItemType = 'book'
+          AND date IS NOT NULL
+          AND date >= :startDate
+        GROUP BY bucket
+        ORDER BY bucket ASC;
+        `,
+        { replacements: { libraryId, startDate } }
+      )
+
+      const days = {}
+      for (const row of dailyRows || []) {
+        if (!row.bucket) continue
+        days[row.bucket] = Number(row.timeListening) || 0
+      }
+
+      stats.listeningStats = {
+        totalTime,
+        days,
+        weekly: (weeklyRows || []).map((r) => ({ bucket: r.bucket, timeListening: Number(r.timeListening) || 0 })),
+        monthly: (monthlyRows || []).map((r) => ({ bucket: r.bucket, timeListening: Number(r.timeListening) || 0 }))
+      }
     } else {
       const genres = await libraryItemsPodcastFilters.getGenresWithCount(req.library.id)
       const podcastStats = await libraryItemsPodcastFilters.getPodcastLibraryStats(req.library.id)

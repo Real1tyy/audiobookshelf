@@ -5,6 +5,105 @@
       <div class="w-full max-w-4xl mx-auto">
         <stats-preview-icons v-if="totalItems" :library-stats="libraryStats" />
 
+        <div v-if="isBookLibrary && libraryStats" class="flex flex-wrap justify-center gap-10 mt-8">
+          <div class="flex items-center">
+            <span class="material-symbols text-4xl text-white/60 mr-3">done_all</span>
+            <div>
+              <p class="text-3xl font-bold">{{ $formatNumber(totalBooksDone) }}</p>
+              <p class="text-xs text-white/60">{{ $strings.LabelStatsItemsFinished || 'Books marked done' }}</p>
+            </div>
+          </div>
+          <div class="flex items-center">
+            <span class="material-symbols text-4xl text-white/60 mr-3">visibility</span>
+            <div>
+              <p class="text-3xl font-bold">{{ $formatNumber(totalViewedCount) }}</p>
+              <p class="text-xs text-white/60">{{ $strings.LabelStatsViews || 'Total viewed count' }}</p>
+            </div>
+          </div>
+          <div class="flex items-center">
+            <span class="material-symbols text-4xl text-white/60 mr-3">watch_later</span>
+            <div>
+              <p class="text-3xl font-bold">{{ $elapsedPretty(totalListeningTime) }}</p>
+              <p class="text-xs text-white/60">{{ $strings.LabelTimeListened || 'Time listened' }}</p>
+            </div>
+          </div>
+          <div class="flex items-center">
+            <span class="material-symbols text-4xl text-white/60 mr-3">star</span>
+            <div>
+              <p class="text-3xl font-bold">{{ averageRatingDisplay }}</p>
+              <p class="text-xs text-white/60">{{ $strings.LabelAverageRating || 'Average rating' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="isBookLibrary && listeningStats" class="mt-10">
+          <stats-daily-listening-chart :listening-stats="listeningStats" class="origin-top-left transform scale-75 lg:scale-100" />
+          <stats-heatmap :days-listening="listeningStats.days" class="my-2" />
+
+          <div class="flex flex-col lg:flex-row gap-8 mt-8">
+            <div class="w-80 mx-auto">
+              <h1 class="text-2xl mb-4">{{ $strings.HeaderTopTags || 'Top 5 Tags' }}</h1>
+              <p v-if="!topTags.length">{{ $strings.MessageNoTags || 'No tags' }}</p>
+              <template v-for="tag in topTags">
+                <div :key="tag.tag" class="w-full py-2">
+                  <div class="flex items-end mb-1">
+                    <p class="text-2xl font-bold">{{ Math.round((100 * tag.count) / totalItems) }}&nbsp;%</p>
+                    <div class="grow" />
+                    <nuxt-link :to="`/library/${currentLibraryId}/bookshelf?filter=tags.${$encode(tag.tag)}`" class="text-base text-white/70 hover:underline">
+                      {{ tag.tag }}
+                    </nuxt-link>
+                  </div>
+                  <div class="w-full rounded-full h-3 bg-primary/50 overflow-hidden">
+                    <div class="bg-yellow-400 h-full rounded-full" :style="{ width: Math.round((100 * tag.count) / totalItems) + '%' }" />
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="w-80 mx-auto">
+              <h1 class="text-2xl mb-4">{{ $strings.HeaderTopRatedBooks || 'Top Rated Books' }}</h1>
+              <p v-if="!topRatedBooks.length">{{ $strings.MessageNoItems || 'No items' }}</p>
+              <template v-for="(b, index) in topRatedBooks">
+                <div :key="b.id" class="w-full py-2">
+                  <div class="flex items-center mb-1">
+                    <p class="text-sm text-white/70 w-44 pr-2 truncate">
+                      {{ index + 1 }}.&nbsp;&nbsp;&nbsp;&nbsp;<nuxt-link :to="`/item/${b.id}`" class="hover:underline">{{ b.title }}</nuxt-link>
+                    </p>
+                    <div class="grow" />
+                    <div class="w-12 text-right">
+                      <p class="text-sm font-bold">{{ b.rating == null ? '-' : Number(b.rating).toFixed(1) }}</p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="mt-8 max-w-4xl mx-auto">
+            <h1 class="text-2xl mb-4">{{ $strings.HeaderListeningIntervals || 'Listening intervals' }}</h1>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <p class="text-sm text-white/60 mb-2">{{ $strings.LabelWeekly || 'Weekly' }}</p>
+                <div v-if="listeningStats.weekly?.length" class="space-y-1">
+                  <div v-for="w in listeningStats.weekly.slice(-8)" :key="w.bucket" class="flex justify-between text-sm">
+                    <span class="text-white/70">{{ w.bucket }}</span>
+                    <span class="font-semibold">{{ $elapsedPretty(w.timeListening) }}</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p class="text-sm text-white/60 mb-2">{{ $strings.LabelMonthly || 'Monthly' }}</p>
+                <div v-if="listeningStats.monthly?.length" class="space-y-1">
+                  <div v-for="m in listeningStats.monthly.slice(-8)" :key="m.bucket" class="flex justify-between text-sm">
+                    <span class="text-white/70">{{ m.bucket }}</span>
+                    <span class="font-semibold">{{ $elapsedPretty(m.timeListening) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="flex lg:flex-row flex-wrap justify-between flex-col mt-8">
           <div class="w-80 my-6 mx-auto">
             <h1 class="text-2xl mb-4">{{ $strings.HeaderStatsTop5Genres }}</h1>
@@ -123,6 +222,33 @@ export default {
     },
     totalItems() {
       return this.libraryStats?.totalItems || 0
+    },
+    totalBooksDone() {
+      return this.libraryStats?.totalBooksDone || 0
+    },
+    totalViewedCount() {
+      return this.libraryStats?.totalViewedCount || 0
+    },
+    totalListeningTime() {
+      return this.libraryStats?.listeningStats?.totalTime || 0
+    },
+    averageRating() {
+      return this.libraryStats?.averageRating
+    },
+    averageRatingDisplay() {
+      if (this.averageRating === null || this.averageRating === undefined) return '-'
+      const n = Number(this.averageRating)
+      if (Number.isNaN(n)) return '-'
+      return n.toFixed(2)
+    },
+    topTags() {
+      return this.libraryStats?.topTags || []
+    },
+    topRatedBooks() {
+      return this.libraryStats?.topRatedBooks || []
+    },
+    listeningStats() {
+      return this.libraryStats?.listeningStats || null
     },
     genresWithCount() {
       return this.libraryStats?.genresWithCount || []
