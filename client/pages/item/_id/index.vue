@@ -34,10 +34,10 @@
 
               <p v-if="bookSubtitle" class="text-gray-200 text-xl md:text-2xl">{{ bookSubtitle }}</p>
 
-              <template v-for="(_series, index) in seriesList">
-                <nuxt-link :key="_series.id" :to="`/library/${libraryId}/series/${_series.id}`" class="hover:underline font-sans text-gray-300 text-lg leading-7">{{ _series.text }}</nuxt-link
-                ><span :key="index" v-if="index < seriesList.length - 1">, </span>
-              </template>
+              <span v-for="(_series, index) in seriesList" :key="_series.id || index">
+                <nuxt-link :to="`/library/${libraryId}/series/${_series.id}`" class="hover:underline font-sans text-gray-300 text-lg leading-7">{{ _series.text }}</nuxt-link
+                ><span v-if="index < seriesList.length - 1">, </span>
+              </span>
 
               <p v-if="isPodcast" class="mb-2 mt-0.5 text-gray-200 text-lg md:text-xl">{{ $getString('LabelByAuthor', [podcastAuthor]) }}</p>
               <p v-else-if="authors.length" class="mb-2 mt-0.5 text-gray-200 text-lg md:text-xl max-w-[calc(100vw-2rem)] overflow-hidden text-ellipsis">
@@ -139,6 +139,29 @@
           <tables-library-files-table v-if="libraryFiles.length" :library-item="libraryItem" class="mt-6" />
         </div>
       </div>
+
+      <!-- Transcript - Full Width -->
+      <div v-if="transcriptLibraryFile" class="w-full my-2 mt-6 px-2 lg:px-8">
+        <div class="w-full bg-primary px-4 md:px-6 py-2 flex items-center cursor-pointer" @click.stop="toggleTranscript">
+          <p class="pr-2 md:pr-4">Transcript</p>
+          <div class="grow" />
+          <div class="cursor-pointer h-10 w-10 rounded-full hover:bg-black-400 flex justify-center items-center duration-500" :class="showTranscript ? 'transform rotate-180' : ''">
+            <span class="material-symbols text-4xl">&#xe313;</span>
+          </div>
+        </div>
+        <transition name="slide">
+          <div class="w-full" v-if="showTranscript">
+            <div class="w-full bg-primary/30 px-4 md:px-6 py-4">
+              <div v-if="transcriptLoading" class="flex items-center text-sm text-gray-200">
+                <widgets-loading-spinner class="mr-3" />
+                <span>Loading…</span>
+              </div>
+              <div v-else-if="transcriptLoadError" class="text-sm text-error">Failed to load transcript.</div>
+              <pre v-else class="whitespace-pre-wrap text-base md:text-lg text-gray-100 font-sans w-full">{{ transcriptText }}</pre>
+            </div>
+          </div>
+        </transition>
+      </div>
     </div>
 
     <modals-podcast-episode-feed v-model="showPodcastEpisodeFeed" :library-item="libraryItem" :episodes="podcastFeedEpisodes" :download-queue="episodeDownloadsQueued" :episodes-downloading="episodesDownloading" />
@@ -182,7 +205,11 @@ export default {
       episodeDownloadsQueued: [],
       showBookmarksModal: false,
       isDescriptionClamped: false,
-      showFullDescription: false
+      showFullDescription: false,
+      showTranscript: false,
+      transcriptLoading: false,
+      transcriptLoadError: false,
+      transcriptText: ''
     }
   },
   computed: {
@@ -299,6 +326,31 @@ export default {
     },
     libraryFiles() {
       return this.libraryItem.libraryFiles || []
+    },
+    transcriptLibraryFile() {
+      const transcripts = this.libraryFiles.filter((lf) => (lf?.metadata?.filename || '').toLowerCase() === 'transcript.txt')
+      if (!transcripts.length) return null
+
+      // Prefer a transcript that lives in the same directory as the audio files.
+      const getDir = (relPath) => {
+        if (!relPath || typeof relPath !== 'string') return ''
+        const idx = relPath.lastIndexOf('/')
+        return idx === -1 ? '' : relPath.slice(0, idx)
+      }
+
+      const audioDirs = this.libraryFiles
+        .filter((lf) => lf.fileType === 'audio')
+        .map((lf) => getDir(lf?.metadata?.relPath))
+        .filter((d) => d !== null && d !== undefined)
+
+      if (!audioDirs.length) return null
+
+      const audioDirsSet = new Set(audioDirs)
+      const inAudioDir = transcripts.find((t) => audioDirsSet.has(getDir(t?.metadata?.relPath)))
+      return inAudioDir || null
+    },
+    transcriptFileIno() {
+      return this.transcriptLibraryFile?.ino || null
     },
     ebookFiles() {
       return this.libraryFiles.filter((lf) => lf.fileType === 'ebook')
@@ -433,7 +485,35 @@ export default {
       return items
     }
   },
+  watch: {
+    transcriptFileIno() {
+      this.showTranscript = false
+      this.transcriptLoading = false
+      this.transcriptLoadError = false
+      this.transcriptText = ''
+    }
+  },
   methods: {
+    async toggleTranscript() {
+      this.showTranscript = !this.showTranscript
+      if (this.showTranscript && !this.transcriptText && !this.transcriptLoading && !this.transcriptLoadError) {
+        await this.fetchTranscript()
+      }
+    },
+    async fetchTranscript() {
+      if (!this.transcriptLibraryFile) return
+      this.transcriptLoading = true
+      this.transcriptLoadError = false
+      try {
+        const text = await this.$axios.$get(`/api/items/${this.libraryItemId}/file/${this.transcriptLibraryFile.ino}`)
+        this.transcriptText = typeof text === 'string' ? text : ''
+      } catch (error) {
+        console.error('Failed to fetch transcript', error)
+        this.transcriptLoadError = true
+      } finally {
+        this.transcriptLoading = false
+      }
+    },
     selectBookmark(bookmark) {
       if (!bookmark) return
       if (this.isStreaming) {
@@ -826,6 +906,7 @@ export default {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   max-height: calc(6 * 1lh);
 }
 
@@ -841,6 +922,7 @@ export default {
 
 #item-description.show-full {
   -webkit-line-clamp: unset;
+  line-clamp: unset;
   max-height: 999rem;
 }
 </style>

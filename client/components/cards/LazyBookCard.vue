@@ -1,5 +1,5 @@
 <template>
-  <div ref="card" :id="`book-card-${index}`" tabindex="0" :style="{ minWidth: coverWidth + 'px', maxWidth: coverWidth + 'px' }" class="absolute rounded-xs z-10 cursor-pointer" @mousedown.prevent @mouseup.prevent @mousemove.prevent @mouseover="mouseover" @mouseleave="mouseleave" @click="clickCard">
+  <div ref="card" :id="`book-card-${index}`" tabindex="0" :style="{ minWidth: coverWidth + 'px', maxWidth: coverWidth + 'px' }" class="absolute rounded-xs z-10 cursor-pointer" @mousedown.prevent @mouseup.prevent @mousemove.prevent @mouseover="mouseover" @mouseleave="mouseleave" @click="clickCard" @auxclick.prevent="middleClickCard">
     <div :id="`cover-area-${index}`" class="relative w-full top-0 left-0 rounded-sm overflow-hidden z-10 bg-primary box-shadow-book" :style="{ height: coverHeight + 'px ' }">
       <!-- When cover image does not fill -->
       <div cy-id="coverBg" v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-xs bg-primary">
@@ -145,7 +145,7 @@
     <div cy-id="detailBottom" :id="`description-area-${index}`" v-if="isAlternativeBookshelfView || isAuthorBookshelfView" dir="auto" class="relative mt-2e mb-2e left-0 z-50 w-full">
       <div :style="{ fontSize: 0.9 + 'em' }">
         <ui-tooltip v-if="displayTitle" :text="displayTitle" plaintext :disabled="!displayTitleTruncated" direction="bottom" :delayOnShow="500" class="flex items-center">
-          <p cy-id="title" ref="displayTitle" class="truncate">{{ displayTitle }}</p>
+          <nuxt-link cy-id="title" ref="displayTitle" :to="itemLink" class="truncate hover:underline" @click.native.stop>{{ displayTitle }}</nuxt-link>
           <widgets-explicit-indicator cy-id="explicitIndicator" v-if="isExplicit" />
         </ui-tooltip>
       </div>
@@ -702,6 +702,10 @@ export default {
     },
     showSubtitles() {
       return !this.isPodcast && this.store.getters['user/getUserSetting']('showSubtitles')
+    },
+    itemLink() {
+      if (this.collapsedSeries) return `/library/${this.libraryId}/series/${this.collapsedSeries.id}`
+      return `/item/${this.libraryItemId}`
     }
   },
   methods: {
@@ -754,12 +758,17 @@ export default {
         e.stopPropagation()
         e.preventDefault()
         this.selectBtnClick(e)
-      } else {
-        var router = this.$router || this.$nuxt.$router
-        if (router) {
-          if (this.collapsedSeries) router.push(`/library/${this.libraryId}/series/${this.collapsedSeries.id}`)
-          else router.push(`/item/${this.libraryItemId}`)
-        }
+      }
+      // Navigation is handled by clicking the title link at the bottom
+    },
+    middleClickCard(e) {
+      // Middle-click opens in new tab
+      if (e.button === 1) {
+        e.preventDefault()
+        e.stopPropagation()
+        const config = this.$config || this.$nuxt.$config
+        const routerBasePath = config.routerBasePath || ''
+        window.open(`${routerBasePath}${this.itemLink}`, '_blank')
       }
     },
     editClick() {
