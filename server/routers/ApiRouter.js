@@ -227,12 +227,14 @@ class ApiRouter {
     //
     // Series Routes
     //
-    this.router.get('/series/:id', SeriesController.middleware.bind(this), SeriesController.findOne.bind(this))
-    this.router.patch('/series/:id', SeriesController.middleware.bind(this), SeriesController.update.bind(this))
-    this.router.patch('/series/:id/books', SeriesController.middleware.bind(this), SeriesController.updateBooks.bind(this))
-    this.router.post('/series/:id/cover', SeriesController.middleware.bind(this), SeriesController.uploadCover.bind(this))
-    this.router.delete('/series/:id/cover', SeriesController.middleware.bind(this), SeriesController.deleteCover.bind(this))
-    this.router.get('/series/:id/cover', SeriesController.getCover.bind(this))
+    this.router.get('/series/:id', SeriesController.middleware.bind(SeriesController), SeriesController.findOne.bind(SeriesController))
+    this.router.patch('/series/:id', SeriesController.middleware.bind(SeriesController), SeriesController.update.bind(SeriesController))
+    this.router.delete('/series/:id', SeriesController.middleware.bind(SeriesController), SeriesController.delete.bind(SeriesController))
+    this.router.patch('/series/:id/books', SeriesController.middleware.bind(SeriesController), SeriesController.updateBooks.bind(SeriesController))
+    this.router.delete('/series/:id/books/:bookId', SeriesController.middleware.bind(SeriesController), SeriesController.removeBook.bind(SeriesController))
+    this.router.post('/series/:id/cover', SeriesController.middleware.bind(SeriesController), SeriesController.uploadCover.bind(SeriesController))
+    this.router.delete('/series/:id/cover', SeriesController.middleware.bind(SeriesController), SeriesController.deleteCover.bind(SeriesController))
+    this.router.get('/series/:id/cover', SeriesController.getCover.bind(SeriesController))
 
     //
     // Playback Session Routes

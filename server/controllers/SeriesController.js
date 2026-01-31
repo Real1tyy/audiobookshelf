@@ -411,6 +411,96 @@ class SeriesController {
   }
 
   /**
+   * DELETE: /api/series/:id/books/:bookId
+   * Remove a book from a series
+   *
+   * @param {SeriesControllerRequest} req
+   * @param {Response} res
+   */
+  async removeBook(req, res) {
+    const bookId = req.params.bookId
+    Logger.info(`[SeriesController] Removing book "${bookId}" from series "${req.series.name}"`)
+
+    const bookSeries = await Database.bookSeriesModel.findOne({
+      where: {
+        seriesId: req.series.id,
+        bookId: bookId
+      }
+    })
+
+    if (!bookSeries) {
+      Logger.warn(`[SeriesController] BookSeries not found for seriesId="${req.series.id}" and bookId="${bookId}"`)
+      return res.status(404).send('Book not found in series')
+    }
+
+    await bookSeries.destroy()
+    Logger.info(`[SeriesController] Removed book "${bookId}" from series "${req.series.name}"`)
+
+    // Check if series is now empty and should be removed
+    const remainingBooks = await Database.bookSeriesModel.count({
+      where: {
+        seriesId: req.series.id
+      }
+    })
+
+    if (remainingBooks === 0) {
+      Logger.info(`[SeriesController] Series "${req.series.name}" is now empty, removing series`)
+      await this.removeSeries(req.series)
+      SocketAuthority.emitter('series_removed', req.series.toOldJSON())
+    } else {
+      SocketAuthority.emitter('series_updated', req.series.toOldJSON())
+    }
+
+    res.json({
+      success: true
+    })
+  }
+
+  /**
+   * DELETE: /api/series/:id
+   * Delete a series (removes all book-series associations)
+   *
+   * @param {SeriesControllerRequest} req
+   * @param {Response} res
+   */
+  async delete(req, res) {
+    Logger.info(`[SeriesController] Deleting series "${req.series.name}"`)
+
+    await this.removeSeries(req.series)
+
+    SocketAuthority.emitter('series_removed', req.series.toOldJSON())
+    res.sendStatus(200)
+  }
+
+  /**
+   * Helper method to remove a series and clean up related data
+   * @param {import('../models/Series')} series
+   */
+  async removeSeries(series) {
+    // Remove all book-series associations
+    await Database.bookSeriesModel.destroy({
+      where: {
+        seriesId: series.id
+      }
+    })
+
+    // Remove series cover if it exists
+    if (series.coverPath) {
+      await CacheManager.purgeImageCache(series.id)
+      await CoverManager.removeFile(series.coverPath).catch((error) => {
+        Logger.error(`[SeriesController] Failed to remove cover file at "${series.coverPath}"`, error)
+      })
+    }
+
+    // Close RSS feed if open
+    await RssFeedManager.closeFeedForEntityId(series.id)
+
+    // Remove the series
+    await series.destroy()
+    Logger.info(`[SeriesController] Series "${series.name}" deleted successfully`)
+  }
+
+  /**
    *
    * @param {RequestWithUser} req
    * @param {Response} res

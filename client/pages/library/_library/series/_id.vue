@@ -27,6 +27,11 @@
               <span class="material-symbols text-base">edit</span>
             </button>
 
+            <!-- Delete button -->
+            <button v-if="userCanDelete" class="w-8 h-8 rounded-full flex items-center justify-center mx-2 cursor-pointer text-gray-300 hover:text-error transform hover:scale-125 duration-100 relative z-10" style="pointer-events: auto" @click.stop.prevent="deleteSeries">
+              <span class="material-symbols text-base">delete</span>
+            </button>
+
             <!-- RSS feed button -->
             <ui-tooltip v-if="seriesRssFeed" :text="$strings.LabelOpenRSSFeed" direction="bottom">
               <ui-icon-btn icon="rss_feed" class="mx-2" :size="7" icon-font-size="1.2rem" bg-color="bg-success" outlined @click="showOpenSeriesRSSFeed" />
@@ -158,6 +163,9 @@ export default {
     },
     userCanUpdate() {
       return this.$store.getters['user/getUserCanUpdate']
+    },
+    userCanDelete() {
+      return this.$store.getters['user/getUserCanDelete']
     },
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
@@ -441,10 +449,39 @@ export default {
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
     },
+    deleteSeries() {
+      const payload = {
+        message: this.$strings.MessageConfirmRemoveSeries.replace('{0}', this.series.name),
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.$axios
+              .$delete(`/api/series/${this.seriesId}`)
+              .then(() => {
+                this.$toast.success(this.$strings.ToastSeriesRemoveSuccess)
+                // Redirect to library page
+                this.$router.push(`/library/${this.currentLibraryId}`)
+              })
+              .catch((error) => {
+                console.error('Failed to delete series', error)
+                this.$toast.error(this.$strings.ToastSeriesRemoveFailed)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
     seriesUpdated(series) {
       if (series.id === this.seriesId) {
         // Refresh to get updated items
         this.fetchSeriesData()
+      }
+    },
+    seriesRemoved(series) {
+      if (series.id === this.seriesId) {
+        // Series was deleted, redirect to library
+        this.$toast.info(this.$strings.ToastSeriesRemoveSuccess)
+        this.$router.push(`/library/${this.currentLibraryId}`)
       }
     },
     rssFeedOpen(data) {
@@ -466,6 +503,7 @@ export default {
     this.sortDesc = this.$route.query.desc === '1' ? true : false
 
     this.$root.socket.on('series_updated', this.seriesUpdated)
+    this.$root.socket.on('series_removed', this.seriesRemoved)
     this.$root.socket.on('rss_feed_open', this.rssFeedOpen)
     this.$root.socket.on('rss_feed_closed', this.rssFeedClosed)
     this.$eventBus.$on('bookshelf_clear_selection', this.clearSelectedEntities)
@@ -473,6 +511,7 @@ export default {
   },
   beforeDestroy() {
     this.$root.socket.off('series_updated', this.seriesUpdated)
+    this.$root.socket.off('series_removed', this.seriesRemoved)
     this.$root.socket.off('rss_feed_open', this.rssFeedOpen)
     this.$root.socket.off('rss_feed_closed', this.rssFeedClosed)
     this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)

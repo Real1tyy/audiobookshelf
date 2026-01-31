@@ -1,5 +1,5 @@
 <template>
-  <div ref="card" :id="`collection-card-${index}`" role="button" :style="{ width: cardWidth + 'px' }" class="absolute top-0 left-0 rounded-xs z-30 cursor-pointer" @mousedown.prevent @mouseup.prevent @mousemove.prevent @mouseover="mouseover" @mouseleave="mouseleave" @click="clickCard">
+  <nuxt-link :to="`/collection/${collectionId}`" ref="card" :id="`collection-card-${index}`" :style="{ width: cardWidth + 'px' }" class="absolute top-0 left-0 rounded-xs z-30 cursor-pointer block" @mouseover="mouseover" @mouseleave="mouseleave">
     <div class="relative" :style="{ height: coverHeight + 'px' }">
       <div class="absolute top-0 left-0 w-full box-shadow-book shadow-height" />
       <div class="w-full h-full bg-primary relative rounded-sm overflow-hidden">
@@ -22,7 +22,7 @@
     <div v-else class="relative z-30 left-0 right-0 mx-auto h-8e py-1e rounded-md text-center">
       <p class="truncate" :style="{ fontSize: labelFontSize + 'em' }">{{ title }}</p>
     </div>
-  </div>
+  </nuxt-link>
 </template>
 
 <script>
@@ -69,6 +69,9 @@ export default {
     sizeMultiplier() {
       return this.store.getters['user/getSizeMultiplier']
     },
+    collectionId() {
+      return this.collection ? this.collection.id : ''
+    },
     title() {
       return this.collection ? this.collection.name : ''
     },
@@ -104,11 +107,6 @@ export default {
     },
     mouseleave() {
       this.isHovering = false
-    },
-    clickCard() {
-      if (!this.collection) return
-      var router = this.$router || this.$nuxt.$router
-      router.push(`/collection/${this.collection.id}`)
     },
     clickEdit() {
       this.$emit('edit', this.collection)

@@ -1,5 +1,5 @@
 <template>
-  <div cy-id="card" ref="card" :id="`series-card-${index}`" tabindex="0" :style="{ width: cardWidth + 'px' }" class="absolute rounded-xs z-30 cursor-pointer" @mousedown.prevent @mouseup.prevent @mousemove.prevent @mouseover="mouseover" @mouseleave="mouseleave" @click="clickCard">
+  <nuxt-link :to="`/library/${currentLibraryId}/series/${seriesId}`" cy-id="card" ref="card" :id="`series-card-${index}`" tabindex="0" :style="{ width: cardWidth + 'px' }" class="absolute rounded-xs z-30 cursor-pointer block" @mouseover="mouseover" @mouseleave="mouseleave">
     <div cy-id="covers-area" class="relative" :style="{ height: coverHeight + 'px' }">
       <div class="absolute top-0 left-0 w-full box-shadow-book shadow-height" />
       <div class="w-full h-full bg-primary relative rounded-sm overflow-hidden z-0">
@@ -33,7 +33,7 @@
       <p cy-id="detailBottomDisplayTitle" class="truncate" :style="{ fontSize: labelFontSize + 'em' }">{{ displayTitle }}</p>
       <p cy-id="detailBottomSortLine" v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.8 + 'em' }">{{ displaySortLine }}</p>
     </div>
-  </div>
+  </nuxt-link>
 </template>
 
 <script>
@@ -209,11 +209,6 @@ export default {
     },
     mouseleave() {
       this.isHovering = false
-    },
-    clickCard() {
-      if (!this.series) return
-      var router = this.$router || this.$nuxt.$router
-      router.push(`/library/${this.currentLibraryId}/series/${this.seriesId}`)
     },
     playSeries() {
       if (!this.playableBooks.length) return

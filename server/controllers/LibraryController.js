@@ -840,11 +840,23 @@ class LibraryController {
 
       // Apply sorting
       if (filterSortOptions.sortBy === 'sequence') {
-        // Sort by series sequence number
-        items = naturalSort(items).asc((li) => {
-          const seriesEntry = li.media.series?.find((s) => s.id === series.id)
-          return seriesEntry?.bookSeries?.sequence || ''
+        // Sort by series sequence number using natural/numeric sort
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+        items.sort((a, b) => {
+          const seriesEntryA = a.media.series?.find((s) => s.id === series.id)
+          const seriesEntryB = b.media.series?.find((s) => s.id === series.id)
+          const sequenceA = seriesEntryA?.bookSeries?.sequence || ''
+          const sequenceB = seriesEntryB?.bookSeries?.sequence || ''
+
+          // Empty sequences go to the end
+          if (!sequenceA && sequenceB) return 1
+          if (sequenceA && !sequenceB) return -1
+          if (!sequenceA && !sequenceB) return 0
+
+          // Use natural/numeric comparison
+          return collator.compare(String(sequenceA), String(sequenceB))
         })
+
         if (filterSortOptions.sortDesc) {
           items = items.reverse()
         }

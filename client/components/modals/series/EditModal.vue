@@ -87,6 +87,9 @@
                 <span class="text-gray-400 mr-2 text-sm">#</span>
                 <input v-model="book.sequence" type="text" class="w-16 bg-bg border border-gray-600 rounded px-2 py-1 text-center text-sm focus:border-yellow-400 focus:outline-none" :placeholder="String(index + 1)" @input="markBookChanged(book)" @blur="markBookChanged(book)" />
               </div>
+              <button v-if="userCanDelete" class="ml-2 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer text-gray-400 hover:text-error opacity-0 group-hover:opacity-100 transition-opacity relative z-10" style="pointer-events: auto" @click.stop.prevent="removeBookFromSeries(book)">
+                <span class="material-symbols text-base">delete</span>
+              </button>
             </div>
           </draggable>
 
@@ -288,6 +291,42 @@ export default {
       } finally {
         this.processing = false
       }
+    },
+    removeBookFromSeries(book) {
+      const payload = {
+        message: this.$strings.MessageConfirmRemoveBookFromSeries,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.processing = true
+            this.$axios
+              .$delete(`/api/series/${this.seriesId}/books/${book.bookId}`)
+              .then(() => {
+                this.$toast.success(this.$strings.ToastSeriesUpdateSuccess)
+                // Remove book from the list
+                const index = this.seriesBooks.findIndex((b) => b.id === book.id)
+                if (index !== -1) {
+                  this.seriesBooks.splice(index, 1)
+                }
+                // Remove from changed books if it was there
+                this.$delete(this.changedBookIds, book.id)
+
+                // If no books left, close modal and the series page should handle redirect
+                if (this.seriesBooks.length === 0) {
+                  this.show = false
+                }
+              })
+              .catch((error) => {
+                console.error('Failed to remove book from series', error)
+                this.$toast.error(this.$strings.ToastFailedToUpdate)
+              })
+              .finally(() => {
+                this.processing = false
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
     },
     handleFileSelect(event) {
       const file = event.target.files[0]
