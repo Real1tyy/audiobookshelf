@@ -194,7 +194,8 @@ export default {
     seriesCoverUrl() {
       // Use series cover if available, otherwise fall back to first book's cover
       if (this.series.coverPath) {
-        return `${this.$config.routerBasePath}/api/series/${this.series.id}/cover?ts=${this.series.updatedAt}`
+        const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+        return `${basePath}/api/series/${this.series.id}/cover?ts=${this.series.updatedAt}`
       }
       if (this.libraryItems.length) {
         const firstItem = this.libraryItems[0]

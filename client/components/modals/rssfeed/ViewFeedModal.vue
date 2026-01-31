@@ -71,7 +71,8 @@ export default {
       return this.feed || {}
     },
     feedUrl() {
-      return this.feed ? `${window.origin}${this.$config.routerBasePath}${this.feed.feedUrl}` : ''
+      const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+      return this.feed ? `${window.origin}${basePath}${this.feed.feedUrl}` : ''
     }
   }
 }
@@ -117,4 +118,3 @@ export default {
   background-color: #2f2f2f;
 }
 </style>
-

@@ -194,7 +194,8 @@ export default {
     seriesCoverSrc() {
       if (!this.series?.coverPath) return null
       const config = this.$config || this.$nuxt.$config
-      return `${config.routerBasePath}/api/series/${this.seriesId}/cover?ts=${this.series.updatedAt}`
+      const basePath = config.routerBasePath === '/' ? '' : config.routerBasePath
+      return `${basePath}/api/series/${this.seriesId}/cover?ts=${this.series.updatedAt}`
     }
   },
   methods: {

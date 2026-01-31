@@ -102,17 +102,20 @@ export const getters = {
 
       const lastUpdate = libraryItem.updatedAt || Date.now()
       const libraryItemId = libraryItem.libraryItemId || libraryItem.id // Workaround for /users/:id page showing media progress covers
-      return `${rootState.routerBasePath}/api/items/${libraryItemId}/cover?ts=${lastUpdate}${raw ? '&raw=1' : ''}`
+      const basePath = rootState.routerBasePath === '/' ? '' : rootState.routerBasePath
+      return `${basePath}/api/items/${libraryItemId}/cover?ts=${lastUpdate}${raw ? '&raw=1' : ''}`
     },
   getLibraryItemCoverSrcById:
     (state, getters, rootState, rootGetters) =>
     (libraryItemId, timestamp = null, raw = false) => {
       if (!libraryItemId) return getters.getPlaceholderCoverSrc
 
-      return `${rootState.routerBasePath}/api/items/${libraryItemId}/cover?${raw ? '&raw=1' : ''}${timestamp ? `&ts=${timestamp}` : ''}`
+      const basePath = rootState.routerBasePath === '/' ? '' : rootState.routerBasePath
+      return `${basePath}/api/items/${libraryItemId}/cover?${raw ? '&raw=1' : ''}${timestamp ? `&ts=${timestamp}` : ''}`
     },
   getPlaceholderCoverSrc: (state, getters, rootState, rootGetters) => {
-    return `${rootState.routerBasePath}/book_placeholder.jpg`
+    const basePath = rootState.routerBasePath === '/' ? '' : rootState.routerBasePath
+    return `${basePath}/book_placeholder.jpg`
   },
   getIsBatchSelectingMediaItems: (state) => {
     return state.selectedMediaItems.length

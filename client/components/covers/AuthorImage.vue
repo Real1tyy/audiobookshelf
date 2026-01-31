@@ -53,7 +53,8 @@ export default {
     },
     imgSrc() {
       if (!this.imagePath) return null
-      return `${this.$config.routerBasePath}/api/authors/${this.authorId}/image?ts=${this.updatedAt}`
+      const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+      return `${basePath}/api/authors/${this.authorId}/image?ts=${this.updatedAt}`
     }
   },
   methods: {

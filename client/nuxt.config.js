@@ -1,6 +1,22 @@
 const pkg = require('./package.json')
 
 const routerBasePath = process.env.ROUTER_BASE_PATH ?? '/'
+// Normalize routerBasePath to avoid double-slash URLs (e.g., `//api/...`)
+const normalizedBasePath = routerBasePath === '/' ? '' : routerBasePath
+
+/**
+ * Normalize a base URL/path prefix to avoid double-slash URLs like `//api/...`,
+ * which browsers treat as protocol-relative and can resolve to `https://api/...`.
+ *
+ * - Host URLs: strip trailing slashes (e.g. "https://example.com/")
+ * - Base paths: if "/", treat as empty; otherwise strip trailing slashes
+ */
+function normalizeServerUrl(hostUrl, basePath) {
+  const host = (hostUrl || '').toString().replace(/\/+$/, '')
+  const path = (basePath || '').toString().trim()
+  if (!path || path === '/') return host
+  return host + path.replace(/\/+$/, '')
+}
 // In docker-compose dev, "localhost" points at the *client* container.
 // Allow overriding the backend URL so Nuxt proxy/socket connections can reach the server container.
 const internalServerHostUrl =
@@ -8,10 +24,10 @@ const internalServerHostUrl =
 const publicServerHostUrl =
   process.env.NODE_ENV === 'production' ? '' : (process.env.ABS_SERVER_PUBLIC_URL ?? internalServerHostUrl)
 const serverPaths = ['api/', 'public/', 'hls/', 'auth/', 'feed/', 'status', 'login', 'logout', 'init']
-const proxy = Object.fromEntries(serverPaths.map((path) => [`${routerBasePath}/${path}`, { target: process.env.NODE_ENV !== 'production' ? internalServerHostUrl : '/' }]))
+const proxy = Object.fromEntries(serverPaths.map((path) => [`${normalizedBasePath}/${path}`, { target: process.env.NODE_ENV !== 'production' ? internalServerHostUrl : '/' }]))
 
 // Socket.IO is used with `transports: ['websocket']` so we must enable `ws: true` for the proxy.
-proxy[`${routerBasePath}/socket.io`] = {
+proxy[`${normalizedBasePath}/socket.io`] = {
   target: process.env.NODE_ENV !== 'production' ? internalServerHostUrl : '/',
   ws: true,
   changeOrigin: true
@@ -23,7 +39,10 @@ module.exports = {
   target: 'static',
   dev: process.env.NODE_ENV !== 'production',
   env: {
-    serverUrl: publicServerHostUrl + routerBasePath,
+    // Important: when routerBasePath is "/", this must be "" (not "/"), otherwise
+    // consumers that do `${process.env.serverUrl}/api/...` will generate `//api/...`
+    // and the browser will navigate to `https://api/...`.
+    serverUrl: normalizeServerUrl(publicServerHostUrl, routerBasePath),
     chromecastReceiver: 'FD1F76C5'
   },
   telemetry: false,
@@ -42,8 +61,8 @@ module.exports = {
     meta: [{ charset: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1' }, { hid: 'description', name: 'description', content: '' }, { hid: 'robots', name: 'robots', content: 'noindex' }],
     script: [],
     link: [
-      { rel: 'icon', type: 'image/x-icon', href: routerBasePath + '/favicon.ico' },
-      { rel: 'apple-touch-icon', href: routerBasePath + '/ios_icon.png' }
+      { rel: 'icon', type: 'image/x-icon', href: (routerBasePath === '/' ? '' : routerBasePath) + '/favicon.ico' },
+      { rel: 'apple-touch-icon', href: (routerBasePath === '/' ? '' : routerBasePath) + '/ios_icon.png' }
     ]
   },
 
@@ -105,11 +124,11 @@ module.exports = {
       background_color: '#232323',
       icons: [
         {
-          src: routerBasePath + '/icon.svg',
+          src: (routerBasePath === '/' ? '' : routerBasePath) + '/icon.svg',
           sizes: 'any'
         },
         {
-          src: routerBasePath + '/icon192.png',
+          src: (routerBasePath === '/' ? '' : routerBasePath) + '/icon192.png',
           type: 'image/png',
           sizes: 'any'
         }

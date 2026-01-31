@@ -165,7 +165,8 @@ export default {
     },
     coverSrc() {
       if (this.seriesCopy.coverPath) {
-        return `${this.$config.routerBasePath}/api/series/${this.seriesId}/cover?ts=${this.seriesCopy.updatedAt || Date.now()}`
+        const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+        return `${basePath}/api/series/${this.seriesId}/cover?ts=${this.seriesCopy.updatedAt || Date.now()}`
       }
       return null
     },

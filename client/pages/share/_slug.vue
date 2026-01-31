@@ -65,7 +65,8 @@ export default {
     },
     coverUrl() {
       if (!this.playbackSession.coverPath) return this.$store.getters['globals/getPlaceholderCoverSrc']
-      return `${this.$config.routerBasePath}/public/share/${this.mediaItemShare.slug}/cover`
+      const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+      return `${basePath}/public/share/${this.mediaItemShare.slug}/cover`
     },
     downloadUrl() {
       return `${process.env.serverUrl}/public/share/${this.mediaItemShare.slug}/download`

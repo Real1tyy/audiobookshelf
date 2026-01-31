@@ -125,8 +125,9 @@ export default {
       return this.$strings.LabelUnknown
     },
     coverUrl(feed) {
-      if (!feed.coverPath) return `${this.$config.routerBasePath}/Logo.png`
-      return `${this.$config.routerBasePath}${feed.feedUrl}/cover`
+      const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+      if (!feed.coverPath) return `${basePath}/Logo.png`
+      return `${basePath}${feed.feedUrl}/cover`
     },
     async loadFeeds() {
       const data = await this.$axios.$get(`/api/feeds`).catch((err) => {

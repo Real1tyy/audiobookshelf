@@ -123,11 +123,13 @@ export default {
       return this.$store.state.user.user
     },
     demoShareUrl() {
-      return `${window.origin}${this.$config.routerBasePath}/share/${this.newShareSlug}`
+      const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+      return `${window.origin}${basePath}/share/${this.newShareSlug}`
     },
     currentShareUrl() {
       if (!this.currentShare) return ''
-      return `${window.origin}${this.$config.routerBasePath}/share/${this.currentShare.slug}`
+      const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+      return `${window.origin}${basePath}/share/${this.currentShare.slug}`
     },
     currentShareTimeRemaining() {
       if (!this.currentShare) return 'Error'

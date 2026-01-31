@@ -110,10 +110,12 @@ export default {
       return this.$store.getters['user/getIsAdminOrUp']
     },
     feedUrl() {
-      return this.currentFeed ? `${window.origin}${this.$config.routerBasePath}${this.currentFeed.feedUrl}` : ''
+      const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+      return this.currentFeed ? `${window.origin}${basePath}${this.currentFeed.feedUrl}` : ''
     },
     demoFeedUrl() {
-      return `${window.origin}${this.$config.routerBasePath}/feed/${this.newFeedSlug}`
+      const basePath = this.$config.routerBasePath === '/' ? '' : this.$config.routerBasePath
+      return `${window.origin}${basePath}/feed/${this.newFeedSlug}`
     },
     isHttp() {
       return window.origin.startsWith('http://')
