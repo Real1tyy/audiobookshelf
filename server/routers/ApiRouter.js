@@ -223,6 +223,7 @@ class ApiRouter {
     //
     this.router.get('/series/:id', SeriesController.middleware.bind(this), SeriesController.findOne.bind(this))
     this.router.patch('/series/:id', SeriesController.middleware.bind(this), SeriesController.update.bind(this))
+    this.router.patch('/series/:id/books', SeriesController.middleware.bind(this), SeriesController.updateBooks.bind(this))
     this.router.post('/series/:id/cover', SeriesController.middleware.bind(this), SeriesController.uploadCover.bind(this))
     this.router.delete('/series/:id/cover', SeriesController.middleware.bind(this), SeriesController.deleteCover.bind(this))
     this.router.get('/series/:id/cover', SeriesController.getCover.bind(this))

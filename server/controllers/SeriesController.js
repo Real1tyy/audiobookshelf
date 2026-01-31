@@ -84,6 +84,48 @@ async function saveSeriesImageFromBase64(seriesId, base64Data) {
 }
 
 /**
+ * Save series image from uploaded file
+ * @param {string} seriesId
+ * @param {Object} coverFile - File object from express-fileupload
+ * @returns {Promise<{path?: string, error?: string}>}
+ */
+async function saveSeriesImageFromFile(seriesId, coverFile) {
+  const globals = require('../utils/globals')
+  const extname = Path.extname(coverFile.name.toLowerCase())
+  if (!extname || !globals.SupportedImageTypes.includes(extname.slice(1))) {
+    return {
+      error: `Invalid image type ${extname} (Supported: ${globals.SupportedImageTypes.join(',')})`
+    }
+  }
+
+  const seriesDir = Path.join(global.MetadataPath, 'series')
+
+  if (!(await fs.pathExists(seriesDir))) {
+    await fs.ensureDir(seriesDir)
+  }
+
+  const filename = seriesId + extname
+  const outputPath = Path.join(seriesDir, filename)
+
+  // Move cover from temp upload dir to destination
+  const success = await coverFile
+    .mv(outputPath)
+    .then(() => true)
+    .catch((error) => {
+      Logger.error('[SeriesController] Failed to move cover file', outputPath, error)
+      return false
+    })
+
+  if (!success) {
+    return {
+      error: 'Failed to move cover into destination'
+    }
+  }
+
+  return { path: outputPath }
+}
+
+/**
  * @typedef RequestUserObject
  * @property {import('../models/User')} user
  *
@@ -164,7 +206,7 @@ class SeriesController {
 
   /**
    * POST: /api/series/:id/cover
-   * Upload series cover image from URL or base64
+   * Upload series cover image from URL, base64, or file upload
    *
    * @param {SeriesControllerRequest} req
    * @param {Response} res
@@ -193,6 +235,16 @@ class SeriesController {
         return res.status(500).send('Unknown error occurred')
       }
       coverPath = result.path
+    } else if (req.files?.cover) {
+      // File upload
+      Logger.debug(`[SeriesController] Handling uploaded cover file`)
+      const result = await saveSeriesImageFromFile(req.series.id, req.files.cover)
+      if (result?.error) {
+        return res.status(400).send(result.error)
+      } else if (!result?.path) {
+        return res.status(500).send('Unknown error occurred')
+      }
+      coverPath = result.path
     } else if (req.body.cover) {
       // Base64 cover
       const result = await saveSeriesImageFromBase64(req.series.id, req.body.cover)
@@ -203,8 +255,8 @@ class SeriesController {
       }
       coverPath = result.path
     } else {
-      Logger.error(`[SeriesController] Invalid request payload. 'url' or 'cover' not in request body`)
-      return res.status(400).send(`Invalid request payload. 'url' or 'cover' not in request body`)
+      Logger.error(`[SeriesController] Invalid request payload. 'url', 'cover', or file not in request`)
+      return res.status(400).send(`Invalid request payload. 'url', 'cover', or file not in request`)
     }
 
     if (req.series.coverPath) {
@@ -279,6 +331,56 @@ class SeriesController {
       width: width ? parseInt(width) : null
     }
     return CacheManager.handleSeriesCache(res, seriesId, options)
+  }
+
+  /**
+   * PATCH: /api/series/:id/books
+   * Update book sequences in a series
+   *
+   * @param {SeriesControllerRequest} req
+   * @param {Response} res
+   */
+  async updateBooks(req, res) {
+    const { books } = req.body
+    if (!Array.isArray(books)) {
+      return res.status(400).send('Invalid request body. "books" must be an array')
+    }
+
+    // Validate each book entry has bookId and sequence
+    for (const book of books) {
+      if (!book.bookId || book.sequence === undefined) {
+        return res.status(400).send('Each book must have bookId and sequence')
+      }
+    }
+
+    const updatedBooks = []
+    for (const book of books) {
+      const bookSeries = await Database.bookSeriesModel.findOne({
+        where: {
+          seriesId: req.series.id,
+          bookId: book.bookId
+        }
+      })
+
+      if (bookSeries) {
+        const newSequence = book.sequence === null ? null : String(book.sequence)
+        if (bookSeries.sequence !== newSequence) {
+          bookSeries.sequence = newSequence
+          await bookSeries.save()
+          updatedBooks.push(book.bookId)
+        }
+      }
+    }
+
+    if (updatedBooks.length) {
+      Logger.info(`[SeriesController] Updated sequences for ${updatedBooks.length} books in series "${req.series.name}"`)
+      SocketAuthority.emitter('series_updated', req.series.toOldJSON())
+    }
+
+    res.json({
+      success: true,
+      updatedCount: updatedBooks.length
+    })
   }
 
   /**
