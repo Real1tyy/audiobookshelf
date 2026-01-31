@@ -362,22 +362,28 @@ export default {
       const text = this.transcriptText.trim()
       let paragraphs = text.split(/\n\s*\n/)
 
-      // If no paragraph breaks found, split by single newlines and group every 3-5 sentences
+      // If no paragraph breaks found, split by sentences with word count limit
       if (paragraphs.length === 1) {
         const sentences = text.split(/(?<=[.!?])\s+/)
         paragraphs = []
         let currentPara = ''
         let sentenceCount = 0
+        let wordCount = 0
 
         for (const sentence of sentences) {
+          const sentenceWords = sentence.trim().split(/\s+/).length
           currentPara += (currentPara ? ' ' : '') + sentence
           sentenceCount++
+          wordCount += sentenceWords
 
-          // Create a new paragraph every 4-6 sentences (varying for natural breaks)
-          if (sentenceCount >= 4 && (sentenceCount >= 6 || sentence.match(/[.!?]$/))) {
+          // Split after 4 sentences OR if word count exceeds 200 and this sentence ends properly
+          const shouldSplit = sentenceCount >= 4 || (wordCount > 200 && sentence.match(/[.!?]$/))
+
+          if (shouldSplit) {
             paragraphs.push(currentPara.trim())
             currentPara = ''
             sentenceCount = 0
+            wordCount = 0
           }
         }
 
