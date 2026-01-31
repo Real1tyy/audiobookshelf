@@ -10,14 +10,14 @@
       </div>
 
       <!-- Right side: Search, Filter, Sort -->
-      <div class="flex items-center gap-2 flex-grow justify-end max-w-3xl">
+      <div class="flex items-center gap-2 flex-grow justify-end">
         <!-- Search input -->
-        <div class="flex-grow max-w-md">
+        <div class="w-36 sm:w-44 md:w-48">
           <ui-text-input v-model="searchQuery" :placeholder="$strings.PlaceholderSearch || 'Search books...'" class="w-full" @input="onSearchInput" @keydown.enter="onSearchEnter" @blur="onSearchBlur" />
         </div>
 
         <!-- Filter select -->
-        <controls-library-filter-multi-select v-if="!isBatchSelecting" v-model="filterBy" is-series class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateFilter" />
+        <controls-library-filter-multi-select v-if="!isBatchSelecting" v-model="filterBy" is-series @change="updateFilter" />
 
         <!-- Sort select -->
         <controls-series-books-sort-select v-if="!isBatchSelecting" v-model="sortBy" :descending.sync="sortDesc" class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateSort" />

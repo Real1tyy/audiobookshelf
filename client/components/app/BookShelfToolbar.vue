@@ -84,7 +84,7 @@
       <!-- search page -->
       <template v-else-if="page === 'search'">
         <div class="grow" />
-        <p>{{ $strings.MessageSearchResultsFor }} "{{ searchQuery }}"</p>
+        <p>{{ $strings.MessageSearchResultsFor }} "{{ searchQueryText }}"</p>
         <div class="grow" />
         <ui-context-menu-dropdown v-if="contextMenuItems.length" :items="contextMenuItems" :menu-width="110" class="ml-2" @action="contextMenuAction" />
       </template>
@@ -116,7 +116,10 @@ export default {
       type: Object,
       default: () => null
     },
-    searchQuery: String
+    searchQueryText: {
+      type: String,
+      default: ''
+    }
   },
   data() {
     return {

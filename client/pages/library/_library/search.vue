@@ -1,6 +1,6 @@
 <template>
   <div class="page" :class="streamLibraryItem ? 'streaming' : ''">
-    <app-book-shelf-toolbar is-home page="search" :search-query="query" />
+    <app-book-shelf-toolbar is-home page="search" :search-query-text="query" />
     <app-book-shelf-categorized v-if="hasResults" ref="bookshelf" search :results="results" />
     <div v-else class="w-full py-16">
       <p class="text-xl text-center">{{ $getString('MessageNoSearchResultsFor', [query]) }}</p>
