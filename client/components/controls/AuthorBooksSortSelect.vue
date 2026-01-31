@@ -59,6 +59,10 @@ export default {
           value: 'publishedYear'
         },
         {
+          text: 'Rating',
+          value: 'rating'
+        },
+        {
           text: this.$strings.LabelAddedAt,
           value: 'addedAt'
         },

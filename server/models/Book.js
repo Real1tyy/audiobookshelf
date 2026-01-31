@@ -107,6 +107,8 @@ class Book extends Model {
     this.coverPath
     /** @type {number} */
     this.duration
+    /** @type {number} */
+    this.rating
     /** @type {string[]} */
     this.narrators
     /** @type {AudioFileObject[]} */
@@ -158,6 +160,7 @@ class Book extends Model {
         abridged: DataTypes.BOOLEAN,
         coverPath: DataTypes.STRING,
         duration: DataTypes.FLOAT,
+        rating: DataTypes.FLOAT,
 
         narrators: DataTypes.JSON,
         audioFiles: DataTypes.JSON,
@@ -405,6 +408,15 @@ class Book extends Model {
         this.abridged = !!payload.metadata.abridged
         hasUpdates = true
       }
+      if (payload.metadata.rating !== undefined) {
+        const rating = payload.metadata.rating === null ? null : Number(payload.metadata.rating)
+        if (rating !== null && (isNaN(rating) || rating < 0 || rating > 10)) {
+          Logger.warn(`[Book] "${this.title}" Invalid rating value: ${payload.metadata.rating}. Must be between 0 and 10.`)
+        } else if (this.rating !== rating) {
+          this.rating = rating
+          hasUpdates = true
+        }
+      }
       const arrayOfStringsKeys = ['narrators', 'genres']
       arrayOfStringsKeys.forEach((key) => {
         if (Array.isArray(payload.metadata[key]) && !payload.metadata[key].some((item) => typeof item !== 'string') && JSON.stringify(this[key]) !== JSON.stringify(payload.metadata[key])) {
@@ -569,7 +581,8 @@ class Book extends Model {
       asin: this.asin,
       language: this.language,
       explicit: this.explicit,
-      abridged: this.abridged
+      abridged: this.abridged,
+      rating: this.rating
     }
   }
 
@@ -591,7 +604,8 @@ class Book extends Model {
       asin: this.asin,
       language: this.language,
       explicit: this.explicit,
-      abridged: this.abridged
+      abridged: this.abridged,
+      rating: this.rating
     }
   }
 

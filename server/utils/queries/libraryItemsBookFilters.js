@@ -243,6 +243,25 @@ module.exports = {
       mediaWhere = Sequelize.where(Sequelize.literal('CAST(publishedYear AS INTEGER)'), {
         [Sequelize.Op.between]: [startYear, endYear]
       })
+    } else if (group === 'rating') {
+      // Support rating filters with format: gte-5, lte-3, eq-8, etc.
+      const match = value.match(/^(gte|lte|gt|lt|eq)-(\d+(?:\.\d+)?)$/)
+      if (match) {
+        const operator = match[1]
+        const ratingValue = parseFloat(match[2])
+
+        if (operator === 'gte') {
+          mediaWhere['rating'] = { [Sequelize.Op.gte]: ratingValue }
+        } else if (operator === 'lte') {
+          mediaWhere['rating'] = { [Sequelize.Op.lte]: ratingValue }
+        } else if (operator === 'gt') {
+          mediaWhere['rating'] = { [Sequelize.Op.gt]: ratingValue }
+        } else if (operator === 'lt') {
+          mediaWhere['rating'] = { [Sequelize.Op.lt]: ratingValue }
+        } else if (operator === 'eq') {
+          mediaWhere['rating'] = ratingValue
+        }
+      }
     }
 
     return { mediaWhere, replacements }
@@ -278,6 +297,8 @@ module.exports = {
       return [['duration', dir]]
     } else if (sortBy === 'media.metadata.publishedYear') {
       return [[Sequelize.literal(`CAST(\`book\`.\`publishedYear\` AS INTEGER)`), dir]]
+    } else if (sortBy === 'media.metadata.rating') {
+      return [['rating', dir]]
     } else if (sortBy === 'media.metadata.authorNameLF') {
       // Sort by author name last first, secondary sort by title
       return [[Sequelize.literal('`libraryItem`.`authorNamesLastFirst` COLLATE NOCASE'), dir], getTitleOrder()]

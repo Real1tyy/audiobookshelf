@@ -65,6 +65,15 @@
         <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=languages.${$encode(language)}`" class="hover:underline">{{ language }}</nuxt-link>
       </div>
     </div>
+    <div v-if="!isPodcast && rating !== null && rating !== undefined" role="paragraph" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">Rating</span>
+      </div>
+      <div class="flex items-center">
+        <span class="text-yellow-400 material-symbols fill text-lg mr-1">star</span>
+        <span>{{ rating }} / 10</span>
+      </div>
+    </div>
     <div v-if="tracks.length || (isPodcast && totalPodcastDuration)" role="paragraph" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelDuration }}</span>
@@ -137,6 +146,9 @@ export default {
     },
     language() {
       return this.mediaMetadata.language || null
+    },
+    rating() {
+      return this.mediaMetadata.rating
     },
     durationPretty() {
       if (this.isPodcast) return this.$elapsedPrettyExtended(this.totalPodcastDuration)

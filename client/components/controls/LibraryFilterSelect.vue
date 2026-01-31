@@ -207,6 +207,11 @@ export default {
           sublist: true
         },
         {
+          text: 'Rating',
+          value: 'rating',
+          sublist: true
+        },
+        {
           text: this.$strings.LabelProgress,
           value: 'progress',
           sublist: true
@@ -375,6 +380,38 @@ export default {
     },
     publishedDecades() {
       return this.filterData.publishedDecades || []
+    },
+    rating() {
+      return [
+        {
+          id: 'gte-9',
+          name: '9+ Stars'
+        },
+        {
+          id: 'gte-8',
+          name: '8+ Stars'
+        },
+        {
+          id: 'gte-7',
+          name: '7+ Stars'
+        },
+        {
+          id: 'gte-6',
+          name: '6+ Stars'
+        },
+        {
+          id: 'gte-5',
+          name: '5+ Stars'
+        },
+        {
+          id: 'lte-5',
+          name: '5 or Less Stars'
+        },
+        {
+          id: 'lte-3',
+          name: '3 or Less Stars'
+        }
+      ]
     },
     progress() {
       return [

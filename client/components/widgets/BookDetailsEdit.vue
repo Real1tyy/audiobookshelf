@@ -67,6 +67,12 @@
           </div>
         </div>
       </div>
+
+      <div class="flex flex-wrap mt-2 -mx-1">
+        <div class="w-full md:w-1/4 px-1">
+          <ui-text-input-with-label ref="ratingInput" v-model="details.rating" type="number" label="Rating" :step="0.1" :min="0" :max="10" trim-whitespace @input="handleInputChange" />
+        </div>
+      </div>
     </form>
   </div>
 </template>
@@ -95,7 +101,8 @@ export default {
         asin: null,
         genres: [],
         explicit: false,
-        abridged: false
+        abridged: false,
+        rating: null
       },
       newTags: []
     }
@@ -189,6 +196,7 @@ export default {
       if (this.$refs.asinInput) this.$refs.asinInput.blur()
       if (this.$refs.publisherInput) this.$refs.publisherInput.blur()
       if (this.$refs.languageInput) this.$refs.languageInput.blur()
+      if (this.$refs.ratingInput) this.$refs.ratingInput.blur()
 
       if (this.$refs.authorsSelect && this.$refs.authorsSelect.isFocused) {
         this.$refs.authorsSelect.forceBlur()
@@ -285,6 +293,7 @@ export default {
       this.details.asin = this.mediaMetadata.asin || null
       this.details.explicit = !!this.mediaMetadata.explicit
       this.details.abridged = !!this.mediaMetadata.abridged
+      this.details.rating = this.mediaMetadata.rating || null
       this.newTags = [...(this.media.tags || [])]
     },
     submitForm() {
