@@ -12,6 +12,8 @@ export const state = () => ({
   streamIsPlaying: false,
   playerQueueItems: [],
   playerQueueAutoPlay: true,
+  playerQueueCurrentIndex: 0,
+  playerQueueCurrentTime: 0,
   playerIsFullscreen: false,
   editModalTab: 'details',
   editPodcastModalTab: 'details',
@@ -86,6 +88,72 @@ export const actions = {
           error: errorMsg
         }
       })
+  },
+  async loadPlayerQueue({ commit, dispatch }) {
+    try {
+      const queue = await this.$axios.$get('/api/me/queue')
+      if (queue && queue.items?.length) {
+        commit('setPlayerQueueItems', queue.items)
+        commit('setPlayerQueueAutoPlay', queue.autoPlay !== false)
+        commit('setPlayerQueueCurrentIndex', queue.currentIndex || 0)
+        commit('setPlayerQueueCurrentTime', queue.currentTime || 0)
+
+        // Auto-restore the current item in queue to the player (paused, ready to play)
+        // This shows the queue in the UI without auto-playing
+        const currentIndex = queue.currentIndex || 0
+        const currentItem = queue.items[currentIndex]
+        if (currentItem) {
+          console.log('[Queue] Restoring queue at index', currentIndex, ':', currentItem.title, 'at', queue.currentTime, 'seconds')
+          // Emit event to load the current queue item into player (paused)
+          dispatch('restoreQueueToPlayer', {
+            queueItems: queue.items,
+            currentIndex: currentIndex,
+            currentTime: queue.currentTime || 0
+          })
+        }
+      }
+      return queue
+    } catch (error) {
+      console.error('Failed to load player queue', error)
+      return null
+    }
+  },
+  restoreQueueToPlayer({ state }, payload) {
+    // This will be handled by MediaPlayerContainer via event bus
+    // We emit an event instead of directly calling playLibraryItem to avoid circular dependencies
+    if (typeof window !== 'undefined' && window.$nuxt) {
+      window.$nuxt.$eventBus.$emit('restore-queue', payload)
+    }
+  },
+  savePlayerQueue({ state }, payload = {}) {
+    // Debounce queue saves to prevent too many database writes
+    if (this._saveQueueTimeout) {
+      clearTimeout(this._saveQueueTimeout)
+    }
+
+    this._saveQueueTimeout = setTimeout(async () => {
+      try {
+        await this.$axios.$post('/api/me/queue', {
+          items: state.playerQueueItems,
+          autoPlay: state.playerQueueAutoPlay,
+          currentIndex: payload.currentIndex !== undefined ? payload.currentIndex : state.playerQueueCurrentIndex,
+          currentTime: payload.currentTime !== undefined ? payload.currentTime : state.playerQueueCurrentTime
+        })
+        console.log('Queue saved to server (index:', state.playerQueueCurrentIndex, ', time:', state.playerQueueCurrentTime, ')')
+      } catch (error) {
+        console.error('Failed to save player queue', error)
+      }
+    }, 1000) // Wait 1 second before saving
+  },
+  async clearPlayerQueue({ commit }) {
+    try {
+      await this.$axios.$delete('/api/me/queue')
+      commit('setPlayerQueueItems', [])
+      return true
+    } catch (error) {
+      console.error('Failed to clear player queue', error)
+      return false
+    }
   },
   checkForUpdate({ commit }) {
     const VERSION_CHECK_BUFF = 1000 * 60 * 5 // 5 minutes
@@ -167,11 +235,15 @@ export const mutations = {
       state.streamLibraryItem = null
       state.streamEpisodeId = null
       state.streamIsPlaying = false
-      state.playerQueueItems = []
     } else {
       state.streamLibraryItem = payload.libraryItem
       state.streamEpisodeId = payload.episodeId || null
-      state.playerQueueItems = payload.queueItems || []
+      // Only overwrite the queue when explicitly provided.
+      // This allows the queue to persist across sessions/reloads without being wiped
+      // by normal playback actions that don't include queueItems.
+      if (payload.queueItems !== undefined) {
+        state.playerQueueItems = payload.queueItems || []
+      }
     }
   },
   updateStreamLibraryItem(state, libraryItem) {
@@ -202,6 +274,12 @@ export const mutations = {
   setPlayerQueueAutoPlay(state, autoPlay) {
     state.playerQueueAutoPlay = !!autoPlay
     localStorage.setItem('playerQueueAutoPlay', !!autoPlay ? '1' : '0')
+  },
+  setPlayerQueueCurrentIndex(state, index) {
+    state.playerQueueCurrentIndex = index || 0
+  },
+  setPlayerQueueCurrentTime(state, time) {
+    state.playerQueueCurrentTime = time || 0
   },
   showEditModal(state, libraryItem) {
     state.editModalTab = 'details'

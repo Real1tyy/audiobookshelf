@@ -334,6 +334,8 @@ export default {
         coverPath: this.media.coverPath || null
       }
       this.$store.commit('addItemToQueue', queueItem)
+      // Sync queue to server
+      this.$store.dispatch('savePlayerQueue')
     },
     toggleBatchFinished() {
       this.batchUpdateEpisodesFinished(this.selectedEpisodes, !this.selectedIsFinished)

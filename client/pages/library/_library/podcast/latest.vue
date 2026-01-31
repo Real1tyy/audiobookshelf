@@ -276,6 +276,8 @@ export default {
           coverPath: episode.podcast.coverPath || null
         }
         this.$store.commit('addItemToQueue', queueItem)
+        // Sync queue to server
+        this.$store.dispatch('savePlayerQueue')
       }
     }
   },

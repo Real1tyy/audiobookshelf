@@ -295,9 +295,11 @@ export default {
     },
     jumpForward() {
       this.playerHandler.jumpForward()
+      this.updateQueuePositionImmediate()
     },
     jumpBackward() {
       this.playerHandler.jumpBackward()
+      this.updateQueuePositionImmediate()
     },
     setVolume(volume) {
       this.playerHandler.setVolume(volume)
@@ -308,6 +310,7 @@ export default {
     },
     seek(time) {
       this.playerHandler.seek(time)
+      this.updateQueuePositionImmediate()
     },
     cycleRepeatMode() {
       // Cycle through: off -> all -> one -> off
@@ -333,6 +336,14 @@ export default {
       if (this.sleepTimerType === this.$constants.SleepTimerTypes.CHAPTER && this.sleepTimerSet) {
         this.checkChapterEnd()
       }
+
+      // Update queue position in store (will be debounced when saved)
+      this.$store.commit('setPlayerQueueCurrentTime', time)
+
+      if (!this._lastQueueSaveTime || Date.now() - this._lastQueueSaveTime > 3000) {
+        this._lastQueueSaveTime = Date.now()
+        this.updateQueuePosition()
+      }
     },
     setDuration(duration) {
       this.totalDuration = duration
@@ -356,6 +367,7 @@ export default {
     closePlayer() {
       this.playerHandler.closePlayer()
       this.$store.commit('setMediaPlaying', null)
+      // Note: Queue persists when player is closed, so we don't clear it
     },
     mediaSessionPlay() {
       console.log('Media session play')
@@ -522,6 +534,66 @@ export default {
         queueItems: this.playerQueueItems
       })
     },
+    async restoreQueueToPlayer(payload) {
+      // Restore queue to player UI without auto-playing (paused, ready to play)
+      const queueItems = payload.queueItems || []
+      if (!queueItems.length) return
+
+      const currentIndex = payload.currentIndex || 0
+      const currentTime = payload.currentTime || 0
+      const currentItem = queueItems[currentIndex]
+
+      if (!currentItem) {
+        console.error('[MediaPlayerContainer] Invalid queue index:', currentIndex)
+        return
+      }
+
+      console.log('[MediaPlayerContainer] Restoring queue to player:', currentItem.title, 'at index', currentIndex, 'time', currentTime)
+
+      // Load the current item in the queue (paused) at the saved position
+      await this.playLibraryItem({
+        libraryItemId: currentItem.libraryItemId,
+        episodeId: currentItem.episodeId || null,
+        queueItems: queueItems,
+        play: false, // Don't auto-play, just load it paused
+        startTime: currentTime // Resume from saved position
+      })
+    },
+    updateQueuePosition() {
+      const currentIndex = this.currentPlayerQueueIndex
+      if (currentIndex >= 0 && this.playerQueueItems.length) {
+        this.$store.commit('setPlayerQueueCurrentIndex', currentIndex)
+        this.$store.dispatch('savePlayerQueue', {
+          currentIndex: currentIndex,
+          currentTime: this.currentTime
+        })
+      }
+    },
+    updateQueuePositionImmediate() {
+      const currentIndex = this.currentPlayerQueueIndex
+      if (currentIndex >= 0 && this.playerQueueItems.length) {
+        this.$store.commit('setPlayerQueueCurrentIndex', currentIndex)
+        // Clear any pending debounced save
+        if (this.$store._saveQueueTimeout) {
+          clearTimeout(this.$store._saveQueueTimeout)
+          this.$store._saveQueueTimeout = null
+        }
+        // Save immediately
+        this.$axios
+          .$post('/api/me/queue', {
+            items: this.$store.state.playerQueueItems,
+            autoPlay: this.$store.state.playerQueueAutoPlay,
+            currentIndex: currentIndex,
+            currentTime: this.currentTime
+          })
+          .then(() => {
+            console.log('Queue position saved immediately (index:', currentIndex, ', time:', this.currentTime, ')')
+          })
+          .catch((error) => {
+            console.error('Failed to save queue position immediately', error)
+          })
+      }
+    },
     async playLibraryItem(payload) {
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId || null
@@ -544,8 +616,23 @@ export default {
       this.$store.commit('setMediaPlaying', {
         libraryItem,
         episodeId,
-        queueItems: payload.queueItems || []
+        queueItems: payload.queueItems
       })
+
+      // Update current queue index when starting playback
+      const currentIndex = this.currentPlayerQueueIndex
+      if (currentIndex >= 0) {
+        this.$store.commit('setPlayerQueueCurrentIndex', currentIndex)
+      }
+
+      // Sync queue to server when playing starts with a queue
+      if (payload.queueItems?.length) {
+        this.$store.dispatch('savePlayerQueue', {
+          currentIndex: currentIndex >= 0 ? currentIndex : 0,
+          currentTime: payload.startTime || 0
+        })
+      }
+
       // Set cover aspect ratio for this item's library since the library may change
       this.coverAspectRatio = this.$store.getters['libraries/getBookCoverAspectRatio']
 
@@ -553,7 +640,9 @@ export default {
         if (this.$refs.audioPlayer) this.$refs.audioPlayer.checkUpdateChapterTrack()
       })
 
-      this.playerHandler.load(libraryItem, episodeId, true, this.currentPlaybackRate, payload.startTime)
+      // Use payload.play to control auto-play (defaults to true for backwards compatibility)
+      const shouldPlay = payload.play !== false
+      this.playerHandler.load(libraryItem, episodeId, shouldPlay, this.currentPlaybackRate, payload.startTime)
     },
     pauseItem() {
       this.playerHandler.pause()
@@ -577,6 +666,7 @@ export default {
     this.$eventBus.$on('play-queue-item', this.playQueueItem)
     this.$eventBus.$on('play-item', this.playLibraryItem)
     this.$eventBus.$on('pause-item', this.pauseItem)
+    this.$eventBus.$on('restore-queue', this.restoreQueueToPlayer)
   },
   beforeDestroy() {
     this.$eventBus.$off('cast-session-active', this.castSessionActive)
@@ -585,6 +675,7 @@ export default {
     this.$eventBus.$off('play-queue-item', this.playQueueItem)
     this.$eventBus.$off('play-item', this.playLibraryItem)
     this.$eventBus.$off('pause-item', this.pauseItem)
+    this.$eventBus.$off('restore-queue', this.restoreQueueToPlayer)
   }
 }
 </script>

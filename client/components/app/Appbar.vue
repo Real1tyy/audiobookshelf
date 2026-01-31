@@ -360,6 +360,9 @@ export default {
         this.$store.commit('addItemToQueue', queueItem)
       })
 
+      // Sync queue to server
+      this.$store.dispatch('savePlayerQueue')
+
       this.$toast.success(this.$getString('MessageItemsAddedToQueue', [libraryItems.length]))
       this.$store.commit('setProcessingBatch', false)
       this.$store.commit('globals/resetSelectedMediaItems', [])

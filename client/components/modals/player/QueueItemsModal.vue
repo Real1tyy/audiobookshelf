@@ -46,6 +46,8 @@ export default {
       },
       set(val) {
         this.$store.commit('setPlayerQueueAutoPlay', val)
+        // Sync to server
+        this.$store.dispatch('savePlayerQueue')
       }
     },
     playerQueueItems() {
@@ -72,6 +74,7 @@ export default {
     },
     removeItem(item) {
       this.$store.commit('removeItemFromQueue', item)
+      this.saveQueueImmediate()
     },
     clearAll() {
       // Keep only the currently playing item in the queue
@@ -99,7 +102,60 @@ export default {
         this.$store.commit('setPlayerQueueItems', [])
       }
 
+      this.saveQueueImmediate()
+
       this.$toast.success(this.$strings.ToastQueueCleared || 'Queue cleared')
+    },
+    saveQueueImmediate() {
+      // Get current playback state from the player
+      const currentIndex = this.getCurrentQueueIndex()
+      const currentTime = this.getCurrentPlaybackTime()
+
+      // Clear any pending debounced save
+      if (this.$store._saveQueueTimeout) {
+        clearTimeout(this.$store._saveQueueTimeout)
+        this.$store._saveQueueTimeout = null
+      }
+
+      // Update store state
+      this.$store.commit('setPlayerQueueCurrentIndex', currentIndex)
+      this.$store.commit('setPlayerQueueCurrentTime', currentTime)
+
+      // Save immediately
+      this.$axios
+        .$post('/api/me/queue', {
+          items: this.$store.state.playerQueueItems,
+          autoPlay: this.$store.state.playerQueueAutoPlay,
+          currentIndex: currentIndex,
+          currentTime: currentTime
+        })
+        .then(() => {
+          console.log('Queue saved immediately after modification (items:', this.$store.state.playerQueueItems.length, ')')
+        })
+        .catch((error) => {
+          console.error('Failed to save queue immediately', error)
+        })
+    },
+    getCurrentQueueIndex() {
+      // Find the index of the currently playing item in the queue
+      const currentLibraryItemId = this.currentlyPlayingLibraryItemId
+      const currentEpisodeId = this.currentlyPlayingEpisodeId
+
+      if (!currentLibraryItemId) return 0
+
+      const index = this.playerQueueItems.findIndex((item) => {
+        if (currentEpisodeId) {
+          return item.libraryItemId === currentLibraryItemId && item.episodeId === currentEpisodeId
+        }
+        return item.libraryItemId === currentLibraryItemId && !item.episodeId
+      })
+
+      return index >= 0 ? index : 0
+    },
+    getCurrentPlaybackTime() {
+      // Try to get current playback time from the global store
+      // This will be the most recent time from setCurrentTime
+      return this.$store.state.playerQueueCurrentTime || 0
     }
   }
 }

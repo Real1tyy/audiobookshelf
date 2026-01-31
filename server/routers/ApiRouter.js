@@ -191,6 +191,9 @@ class ApiRouter {
     this.router.get('/me/series/:id/readd-to-continue-listening', MeController.readdSeriesFromContinueListening.bind(this))
     this.router.get('/me/stats/year/:year', MeController.getStatsForYear.bind(this))
     this.router.post('/me/ereader-devices', MeController.updateUserEReaderDevices.bind(this))
+    this.router.get('/me/queue', MeController.getPlayerQueue.bind(this))
+    this.router.post('/me/queue', MeController.savePlayerQueue.bind(this))
+    this.router.delete('/me/queue', MeController.clearPlayerQueue.bind(this))
 
     //
     // Backup Routes

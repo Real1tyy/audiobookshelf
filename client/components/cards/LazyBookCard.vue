@@ -943,10 +943,14 @@ export default {
         }
       }
       this.store.commit('addItemToQueue', queueItem)
+      // Sync queue to server
+      this.store.dispatch('savePlayerQueue')
     },
     removeFromQueue() {
       const episodeId = this.recentEpisode ? this.recentEpisode.id : null
       this.store.commit('removeItemFromQueue', { libraryItemId: this.libraryItemId, episodeId })
+      // Sync queue to server
+      this.store.dispatch('savePlayerQueue')
     },
     openCollections() {
       this.store.commit('setSelectedLibraryItem', this.libraryItem)

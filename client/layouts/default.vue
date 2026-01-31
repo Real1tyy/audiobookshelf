@@ -373,6 +373,14 @@ export default {
 
       this.$store.commit('libraries/setEReaderDevices', data.ereaderDevices)
     },
+    userQueueUpdated(data) {
+      // Queue was updated from another device/session
+      console.log('[Socket] User queue updated from another session', data)
+      this.$store.commit('setPlayerQueueItems', data.items || [])
+      this.$store.commit('setPlayerQueueAutoPlay', data.autoPlay !== false)
+      this.$store.commit('setPlayerQueueCurrentIndex', data.currentIndex || 0)
+      this.$store.commit('setPlayerQueueCurrentTime', data.currentTime || 0)
+    },
     customMetadataProviderAdded(provider) {
       if (!provider?.id) return
       // Refresh providers cache
@@ -477,6 +485,9 @@ export default {
 
       // EReader Device Listeners
       this.socket.on('ereader-devices-updated', this.ereaderDevicesUpdated)
+
+      // Queue Listeners
+      this.socket.on('user_queue_updated', this.userQueueUpdated)
 
       this.socket.on('backup_applied', this.backupApplied)
 
@@ -625,6 +636,9 @@ export default {
     this.$store.dispatch('libraries/load')
 
     this.initLocalStorage()
+
+    // Load player queue from server
+    this.$store.dispatch('loadPlayerQueue')
 
     this.checkVersionUpdate()
 

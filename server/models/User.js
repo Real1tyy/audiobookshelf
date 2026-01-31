@@ -939,6 +939,54 @@ class User extends Model {
   }
 
   /**
+   * Get user's saved player queue
+   *
+   * @returns {Object} queue object with items, autoPlay, currentIndex, and currentTime
+   */
+  getPlayerQueue() {
+    if (!this.extraData) return { items: [], autoPlay: true, currentIndex: 0, currentTime: 0 }
+    return {
+      items: this.extraData.playerQueueItems || [],
+      autoPlay: this.extraData.playerQueueAutoPlay !== false,
+      currentIndex: this.extraData.playerQueueCurrentIndex || 0,
+      currentTime: this.extraData.playerQueueCurrentTime || 0
+    }
+  }
+
+  /**
+   * Set user's player queue
+   *
+   * @param {Object[]} queueItems - array of queue item objects
+   * @param {boolean} autoPlay - whether to auto-play next item
+   * @param {number} currentIndex - index of currently playing item
+   * @param {number} currentTime - current playback position in seconds
+   * @returns {Promise<boolean>}
+   */
+  async setPlayerQueue(queueItems, autoPlay = true, currentIndex = 0, currentTime = 0) {
+    if (!this.extraData) this.extraData = {}
+    this.extraData.playerQueueItems = queueItems || []
+    this.extraData.playerQueueAutoPlay = !!autoPlay
+    this.extraData.playerQueueCurrentIndex = currentIndex || 0
+    this.extraData.playerQueueCurrentTime = currentTime || 0
+    this.changed('extraData', true)
+    await this.save()
+    return true
+  }
+
+  /**
+   * Clear user's player queue
+   *
+   * @returns {Promise<boolean>}
+   */
+  async clearPlayerQueue() {
+    if (!this.extraData) this.extraData = {}
+    this.extraData.playerQueueItems = []
+    this.changed('extraData', true)
+    await this.save()
+    return true
+  }
+
+  /**
    * Update user permissions from external JSON
    *
    * @param {Object} absPermissions JSON containing user permissions

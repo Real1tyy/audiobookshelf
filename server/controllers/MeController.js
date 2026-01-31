@@ -473,5 +473,71 @@ class MeController {
     const data = await userStats.getStatsForYear(req.user.id, year)
     res.json(data)
   }
+
+  /**
+   * GET: /api/me/queue
+   * Get user's saved player queue
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  getPlayerQueue(req, res) {
+    const queue = req.user.getPlayerQueue()
+    res.json(queue)
+  }
+
+  /**
+   * POST: /api/me/queue
+   * Save user's player queue
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async savePlayerQueue(req, res) {
+    const { items, autoPlay, currentIndex, currentTime } = req.body
+    if (!Array.isArray(items)) {
+      return res.status(400).send('Invalid payload. items array required')
+    }
+
+    // Validate queue items
+    for (const item of items) {
+      if (!item.libraryItemId) {
+        return res.status(400).send('Invalid payload. Each queue item must have libraryItemId')
+      }
+    }
+
+    await req.user.setPlayerQueue(items, autoPlay !== false, currentIndex || 0, currentTime || 0)
+
+    // Emit to other user sessions for real-time sync
+    SocketAuthority.clientEmitter(req.user.id, 'user_queue_updated', {
+      items,
+      autoPlay: autoPlay !== false,
+      currentIndex: currentIndex || 0,
+      currentTime: currentTime || 0
+    })
+
+    res.json({ success: true })
+  }
+
+  /**
+   * DELETE: /api/me/queue
+   * Clear user's player queue
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async clearPlayerQueue(req, res) {
+    await req.user.clearPlayerQueue()
+
+    // Emit to other user sessions for real-time sync
+    SocketAuthority.clientEmitter(req.user.id, 'user_queue_updated', {
+      items: [],
+      autoPlay: true,
+      currentIndex: 0,
+      currentTime: 0
+    })
+
+    res.json({ success: true })
+  }
 }
 module.exports = new MeController()
