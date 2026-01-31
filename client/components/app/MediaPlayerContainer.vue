@@ -198,11 +198,22 @@ export default {
         console.error('Media finished not found in queue - using first in queue', this.playerQueueItems)
         currentQueueIndex = -1
       }
+
+      let nextItemInQueue = null
       if (currentQueueIndex === this.playerQueueItems.length - 1) {
-        console.log('Finished last item in queue')
-        return
+        // Last item in queue
+        if (this.repeatMode === 'all') {
+          // Repeat All: loop back to first item in queue
+          console.log('Repeat All - looping back to first item in queue')
+          nextItemInQueue = this.playerQueueItems[0]
+        } else {
+          console.log('Finished last item in queue')
+          return
+        }
+      } else {
+        nextItemInQueue = this.playerQueueItems[currentQueueIndex + 1]
       }
-      const nextItemInQueue = this.playerQueueItems[currentQueueIndex + 1]
+
       if (nextItemInQueue) {
         this.playLibraryItem({
           libraryItemId: nextItemInQueue.libraryItemId,

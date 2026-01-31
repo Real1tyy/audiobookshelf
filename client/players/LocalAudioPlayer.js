@@ -83,23 +83,33 @@ export default class LocalAudioPlayer extends EventEmitter {
 
     const isLastTrack = this.currentTrackIndex >= this.audioTracks.length - 1
 
-    // Repeat All: advance to next track or loop back to start
+    // Repeat All: advance to next track, or emit finished to let queue handler loop the queue
     if (this.repeatMode === 'all') {
       if (isLastTrack) {
-        console.log(`[LocalPlayer] Repeat All - looping back to start`)
-        this.currentTrackIndex = 0
-        this.startTime = 0
+        // Last track of current item - emit finished to let queue handler decide
+        // Queue handler will loop back to first item in queue
+        console.log(`[LocalPlayer] Repeat All - finished last track, letting queue handler continue`)
+        this.emit('finished')
+        return
       } else {
         console.log(`[LocalPlayer] Repeat All - loading next track ${this.currentTrackIndex + 1}`)
         this.currentTrackIndex++
         this.startTime = this.currentTrack.startOffset
+        loadAndPlay()
+        return
       }
+    }
+
+    // Repeat Off: advance to next track or stop at end
+    if (!isLastTrack) {
+      console.log(`[LocalPlayer] Loading next track ${this.currentTrackIndex + 1}`)
+      this.currentTrackIndex++
+      this.startTime = this.currentTrack.startOffset
       loadAndPlay()
       return
     }
 
-    // Repeat Off: stop playback
-    console.log(`[LocalPlayer] ${isLastTrack ? 'Ended' : 'Repeat Off - stopping playback'}`)
+    console.log(`[LocalPlayer] Ended - finished last track`)
     this.emit('finished')
   }
   evtError(error) {
