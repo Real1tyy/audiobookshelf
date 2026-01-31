@@ -11,7 +11,7 @@ const CoverManager = require('../managers/CoverManager')
 
 const libraryItemsBookFilters = require('../utils/queries/libraryItemsBookFilters')
 const { reqSupportsWebp } = require('../utils/index')
-const { downloadImageFile } = require('../utils/fileUtils')
+const { downloadImageFile, encodeUriPath } = require('../utils/fileUtils')
 
 /**
  * Save series image from URL
@@ -308,7 +308,12 @@ class SeriesController {
       query: { width, height, format, raw }
     } = req
 
+    if (req.query.ts) res.set('Cache-Control', 'private, max-age=86400')
+
     const seriesId = req.params.id
+    if (!seriesId) {
+      return res.sendStatus(400)
+    }
 
     if (raw) {
       const series = await Database.seriesModel.findByPk(seriesId)
@@ -320,6 +325,13 @@ class SeriesController {
       if (!series.coverPath || !(await fs.pathExists(series.coverPath))) {
         Logger.warn(`[SeriesController] Series "${series.name}" has invalid coverPath: ${series.coverPath}`)
         return res.sendStatus(404)
+      }
+
+      // any value
+      if (global.XAccel) {
+        const encodedURI = encodeUriPath(global.XAccel + series.coverPath)
+        Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
+        return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
       }
 
       return res.sendFile(series.coverPath)

@@ -158,6 +158,12 @@ class CacheManager {
 
     // Cache exists
     if (await fs.pathExists(cachePath)) {
+      if (global.XAccel) {
+        const encodedURI = encodeUriPath(global.XAccel + cachePath)
+        Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
+        return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
+      }
+
       const r = fs.createReadStream(cachePath)
       const ps = new stream.PassThrough()
       stream.pipeline(r, ps, (err) => {
@@ -177,6 +183,12 @@ class CacheManager {
 
     const writtenFile = await resizeImage(imagePath, cachePath, width, height)
     if (!writtenFile) return res.sendStatus(500)
+
+    if (global.XAccel) {
+      const encodedURI = encodeUriPath(global.XAccel + writtenFile)
+      Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
+      return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
+    }
 
     const readStream = fs.createReadStream(writtenFile)
     readStream.pipe(res)
