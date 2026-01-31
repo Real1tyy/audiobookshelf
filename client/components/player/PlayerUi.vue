@@ -358,6 +358,9 @@ export default {
       else if (action === this.$hotkeys.AudioPlayer.SHOW_CHAPTERS) this.showChapters()
       else if (action === this.$hotkeys.AudioPlayer.INCREASE_PLAYBACK_RATE) this.increasePlaybackRate()
       else if (action === this.$hotkeys.AudioPlayer.DECREASE_PLAYBACK_RATE) this.decreasePlaybackRate()
+      else if (action === this.$hotkeys.AudioPlayer.SHOW_BOOKMARKS) this.$emit('showBookmarks')
+      else if (action === this.$hotkeys.AudioPlayer.SPEED_DOWN) this.decreasePlaybackRate()
+      else if (action === this.$hotkeys.AudioPlayer.SPEED_UP) this.increasePlaybackRate()
       else if (action === this.$hotkeys.AudioPlayer.CLOSE) this.closePlayer()
     }
   },

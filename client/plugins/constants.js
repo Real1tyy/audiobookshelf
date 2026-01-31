@@ -53,8 +53,11 @@ const KeyNames = {
   38: 'ArrowUp',
   39: 'ArrowRight',
   40: 'ArrowDown',
+  73: 'KeyI',
   76: 'KeyL',
-  77: 'KeyM'
+  77: 'KeyM',
+  79: 'KeyO',
+  80: 'KeyP'
 }
 const Hotkeys = {
   AudioPlayer: {
@@ -67,6 +70,9 @@ const Hotkeys = {
     SHOW_CHAPTERS: 'KeyL',
     INCREASE_PLAYBACK_RATE: 'Shift-ArrowUp',
     DECREASE_PLAYBACK_RATE: 'Shift-ArrowDown',
+    SHOW_BOOKMARKS: 'Shift-KeyI',
+    SPEED_DOWN: 'Shift-KeyO',
+    SPEED_UP: 'Shift-KeyP',
     CLOSE: 'Escape'
   },
   EReader: {

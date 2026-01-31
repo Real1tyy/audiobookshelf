@@ -386,7 +386,7 @@ export default {
         }
       }
 
-      return paragraphs.filter(p => p.length > 0)
+      return paragraphs.filter((p) => p.length > 0)
     },
     ebookFiles() {
       return this.libraryFiles.filter((lf) => lf.fileType === 'ebook')
