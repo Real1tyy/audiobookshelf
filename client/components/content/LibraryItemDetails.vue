@@ -74,6 +74,17 @@
         <span>{{ rating }} / 10</span>
       </div>
     </div>
+    <div v-if="url" role="paragraph" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">URL</span>
+      </div>
+      <div>
+        <a :href="url" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 hover:underline flex items-center">
+          {{ url }}
+          <span class="material-symbols text-sm ml-1">open_in_new</span>
+        </a>
+      </div>
+    </div>
     <div v-if="tracks.length || (isPodcast && totalPodcastDuration)" role="paragraph" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelDuration }}</span>
@@ -149,6 +160,9 @@ export default {
     },
     rating() {
       return this.mediaMetadata.rating
+    },
+    url() {
+      return this.mediaMetadata.url
     },
     durationPretty() {
       if (this.isPodcast) return this.$elapsedPrettyExtended(this.totalPodcastDuration)

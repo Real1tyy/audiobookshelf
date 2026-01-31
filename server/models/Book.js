@@ -109,6 +109,8 @@ class Book extends Model {
     this.duration
     /** @type {number} */
     this.rating
+    /** @type {string} */
+    this.url
     /** @type {string[]} */
     this.narrators
     /** @type {AudioFileObject[]} */
@@ -161,6 +163,7 @@ class Book extends Model {
         coverPath: DataTypes.STRING,
         duration: DataTypes.FLOAT,
         rating: DataTypes.FLOAT,
+        url: DataTypes.STRING,
 
         narrators: DataTypes.JSON,
         audioFiles: DataTypes.JSON,
@@ -375,7 +378,7 @@ class Book extends Model {
     let hasUpdates = false
 
     if (payload.metadata) {
-      const metadataStringKeys = ['title', 'subtitle', 'publishedYear', 'publishedDate', 'publisher', 'description', 'isbn', 'asin', 'language']
+      const metadataStringKeys = ['title', 'subtitle', 'publishedYear', 'publishedDate', 'publisher', 'description', 'isbn', 'asin', 'language', 'url']
       metadataStringKeys.forEach((key) => {
         if (typeof payload.metadata[key] == 'number') {
           payload.metadata[key] = String(payload.metadata[key])
@@ -582,7 +585,8 @@ class Book extends Model {
       language: this.language,
       explicit: this.explicit,
       abridged: this.abridged,
-      rating: this.rating
+      rating: this.rating,
+      url: this.url
     }
   }
 
@@ -605,7 +609,8 @@ class Book extends Model {
       language: this.language,
       explicit: this.explicit,
       abridged: this.abridged,
-      rating: this.rating
+      rating: this.rating,
+      url: this.url
     }
   }
 

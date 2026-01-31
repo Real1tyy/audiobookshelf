@@ -72,6 +72,9 @@
         <div class="w-full md:w-1/4 px-1">
           <ui-text-input-with-label ref="ratingInput" v-model="details.rating" type="number" label="Rating" :step="0.1" :min="0" :max="10" trim-whitespace @input="handleInputChange" />
         </div>
+        <div class="w-full md:w-3/4 px-1 mt-2 md:mt-0">
+          <ui-text-input-with-label ref="urlInput" v-model="details.url" label="URL" trim-whitespace @input="handleInputChange" />
+        </div>
       </div>
     </form>
   </div>
@@ -102,7 +105,8 @@ export default {
         genres: [],
         explicit: false,
         abridged: false,
-        rating: null
+        rating: null,
+        url: null
       },
       newTags: []
     }
@@ -197,6 +201,7 @@ export default {
       if (this.$refs.publisherInput) this.$refs.publisherInput.blur()
       if (this.$refs.languageInput) this.$refs.languageInput.blur()
       if (this.$refs.ratingInput) this.$refs.ratingInput.blur()
+      if (this.$refs.urlInput) this.$refs.urlInput.blur()
 
       if (this.$refs.authorsSelect && this.$refs.authorsSelect.isFocused) {
         this.$refs.authorsSelect.forceBlur()
@@ -294,6 +299,7 @@ export default {
       this.details.explicit = !!this.mediaMetadata.explicit
       this.details.abridged = !!this.mediaMetadata.abridged
       this.details.rating = this.mediaMetadata.rating || null
+      this.details.url = this.mediaMetadata.url || null
       this.newTags = [...(this.media.tags || [])]
     },
     submitForm() {
