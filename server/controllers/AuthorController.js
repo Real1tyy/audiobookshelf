@@ -403,15 +403,18 @@ class AuthorController {
    */
   async getListeningStats(req, res) {
     const authorId = req.author.id
-    const authorName = req.author.name
+    // Prefer filtering by libraryItemId (canonical) instead of author name/id in stored mediaMetadata.
+    // mediaMetadata can be stale (renames/merges), and name matches can collide and inflate totals.
+    const authorLibraryItems = await Database.libraryItemModel.getForAuthor(req.author, req.user)
+    const authorLibraryItemIds = new Set(authorLibraryItems.map((li) => li.id))
 
-    // Get all listening sessions for the user
+    // Get all listening sessions for the user and filter to this author's items
     const listeningSessions = await Database.getPlaybackSessions({ userId: req.user.id })
-
-    // Filter sessions for books by this author
     const authorSessions = listeningSessions.filter((session) => {
-      const authors = session.mediaMetadata?.authors || []
-      return authors.some((au) => au.id === authorId || au.name === authorName)
+      if (!session?.libraryItemId) return false
+      // Author stats are for books; skip non-book sessions just in case
+      if (session.mediaType && session.mediaType !== 'book') return false
+      return authorLibraryItemIds.has(session.libraryItemId)
     })
 
     // Calculate stats
@@ -427,10 +430,7 @@ class AuthorController {
     stats.recentSessions = authorSessions.slice(0, 10)
 
     authorSessions.forEach((session) => {
-      let timeListening = session.timeListening
-      if (typeof timeListening === 'string') {
-        timeListening = Number(timeListening)
-      }
+      const timeListening = Number(session.timeListening) || 0
 
       stats.totalTime += timeListening
 
@@ -446,7 +446,7 @@ class AuthorController {
           id: session.libraryItemId,
           timeListening: timeListening,
           mediaMetadata: session.mediaMetadata,
-          lastUpdate: session.lastUpdate
+          lastUpdate: session.updatedAt
         }
       } else {
         stats.items[session.libraryItemId].timeListening += timeListening
@@ -455,14 +455,19 @@ class AuthorController {
 
     // Get finished books count for this author
     const userMediaProgress = req.user.mediaProgresses || []
-    const authorLibraryItems = await Database.libraryItemModel.getForAuthor(req.author, req.user)
-    const authorLibraryItemIds = authorLibraryItems.map((li) => li.id)
+    const authorLibraryItemIdsArr = authorLibraryItems.map((li) => li.id)
+    const authorLibraryItemIdsSet = new Set(authorLibraryItemIdsArr)
 
-    const finishedItems = userMediaProgress.filter(
-      (mp) => mp.isFinished && authorLibraryItemIds.includes(mp.libraryItemId)
+    // MediaProgress is keyed by mediaItemId (bookId/episodeId). The corresponding libraryItemId is stored in extraData.
+    // Use extraData.libraryItemId so we only count finishes for this author's library items.
+    const finishedLibraryItemIds = new Set(
+      userMediaProgress
+        .filter((mp) => mp?.mediaItemType === 'book' && mp.isFinished)
+        .map((mp) => mp.extraData?.libraryItemId)
+        .filter((liId) => liId && authorLibraryItemIdsSet.has(liId))
     )
 
-    stats.booksFinished = finishedItems.length
+    stats.booksFinished = finishedLibraryItemIds.size
     stats.totalBooks = authorLibraryItems.length
 
     res.json(stats)

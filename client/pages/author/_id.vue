@@ -97,19 +97,29 @@
         </div>
       </div>
 
-      <!-- Series Galleries -->
-      <div v-for="series in authorSeries" :key="series.id" class="py-4">
-        <div class="flex items-center mb-4">
-          <nuxt-link :to="`/library/${currentLibraryId}/series/${series.id}`" class="hover:underline">
+      <!-- Series Galleries (Collapsible) -->
+      <div v-for="series in authorSeries" :key="series.id" class="py-4 bg-primary/20 rounded-lg overflow-hidden mb-2">
+        <button class="w-full flex items-center justify-between px-4 py-3 hover:bg-primary/30 transition-colors" @click="toggleSeries(series.id)">
+          <div class="flex items-center">
             <h2 class="text-lg">{{ series.name }}</h2>
-          </nuxt-link>
-          <p class="text-white/40 text-base px-2">{{ $strings.LabelSeries }}</p>
-        </div>
-        <div class="flex flex-wrap">
-          <div v-for="item in series.items" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
-            <cards-lazy-book-card :ref="`book-card-${item.id}`" :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" @select="selectItem" />
+            <p class="text-white/40 text-base px-2">{{ $strings.LabelSeries }} ({{ series.items.length }})</p>
           </div>
-        </div>
+          <div class="flex items-center">
+            <nuxt-link :to="`/library/${currentLibraryId}/series/${series.id}`" class="text-sm text-white/60 hover:text-white hover:underline mr-3" @click.native.stop>
+              {{ $strings.ButtonViewAll || 'View All' }}
+            </nuxt-link>
+            <span class="material-symbols text-2xl text-white/60 transition-transform" :class="{ 'rotate-180': expandedSeries[series.id] }">expand_more</span>
+          </div>
+        </button>
+        <transition name="slide">
+          <div v-show="expandedSeries[series.id]" class="px-2 pb-2">
+            <div class="flex flex-wrap">
+              <div v-for="item in series.items" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
+                <cards-lazy-book-card :ref="`book-card-${item.id}`" :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" @select="selectItem" />
+              </div>
+            </div>
+          </div>
+        </transition>
       </div>
     </div>
   </div>
@@ -163,7 +173,8 @@ export default {
       sortDesc: true,
       isLoadingSearch: false,
       authorStats: null,
-      showAuthorStats: false
+      showAuthorStats: false,
+      expandedSeries: {}
     }
   },
   watch: {
@@ -405,6 +416,9 @@ export default {
         libraryItemId: session.libraryItemId,
         episodeId: session.episodeId || null
       })
+    },
+    toggleSeries(seriesId) {
+      this.$set(this.expandedSeries, seriesId, !this.expandedSeries[seriesId])
     },
     playAll() {
       if (!this.playableBooks.length) return

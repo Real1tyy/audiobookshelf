@@ -406,7 +406,7 @@ class PlaybackSessionManager {
         data: updateResponse.mediaProgress.getOldMediaProgress()
       })
     }
-    this.saveSession(session)
+    await this.saveSession(session)
 
     return true
   }
@@ -434,11 +434,19 @@ class PlaybackSessionManager {
     if (!session.timeListening) return // Do not save a session with no listening time
 
     // Track listening stats for books
-    if (session.mediaItemType === 'book' && session.mediaItemId) {
+    // `PlaybackSession` objects use `mediaType` and `bookId` (not `mediaItemType/mediaItemId`).
+    if (session.mediaType === 'book' && session.bookId) {
       try {
-        const book = await Database.bookModel.findByPk(session.mediaItemId)
-        if (book) {
-          await book.incrementListeningTime(session.timeListening)
+        // `session.timeListening` is total seconds listened for this session.
+        // We only want to add the delta since the last time we updated stats to avoid double counting.
+        const lastStatsSeconds = session.lastStatsTimeListening || 0
+        const deltaSeconds = Math.max(0, session.timeListening - lastStatsSeconds)
+        if (deltaSeconds > 0) {
+          const book = await Database.bookModel.findByPk(session.bookId)
+          if (book) {
+            await book.incrementListeningTime(deltaSeconds)
+            session.lastStatsTimeListening = session.timeListening
+          }
         }
       } catch (error) {
         Logger.error(`[PlaybackSessionManager] Failed to update book stats for session ${session.id}:`, error)

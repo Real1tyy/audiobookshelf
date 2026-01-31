@@ -540,13 +540,13 @@ class Book extends Model {
 
   /**
    * Increment listening time for this book
-   * @param {number} timeListeningMs - Time in milliseconds
+   * @param {number} timeListeningSeconds - Time in seconds
    * @returns {Promise<void>}
    */
-  async incrementListeningTime(timeListeningMs) {
-    if (!timeListeningMs || timeListeningMs <= 0) return
+  async incrementListeningTime(timeListeningSeconds) {
+    if (!timeListeningSeconds || timeListeningSeconds <= 0) return
 
-    const timeListeningMinutes = timeListeningMs / 1000 / 60
+    const timeListeningMinutes = timeListeningSeconds / 60
     this.totalListeningTime = (this.totalListeningTime || 0) + timeListeningMinutes
     this.changed('totalListeningTime', true)
     await this.save()
