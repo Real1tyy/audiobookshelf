@@ -430,8 +430,20 @@ class PlaybackSessionManager {
     return this.removeSession(session.id)
   }
 
-  saveSession(session) {
+  async saveSession(session) {
     if (!session.timeListening) return // Do not save a session with no listening time
+
+    // Track listening stats for books
+    if (session.mediaItemType === 'book' && session.mediaItemId) {
+      try {
+        const book = await Database.bookModel.findByPk(session.mediaItemId)
+        if (book) {
+          await book.incrementListeningTime(session.timeListening)
+        }
+      } catch (error) {
+        Logger.error(`[PlaybackSessionManager] Failed to update book stats for session ${session.id}:`, error)
+      }
+    }
 
     if (session.lastSave) {
       return Database.updatePlaybackSession(session)

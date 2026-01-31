@@ -88,6 +88,24 @@
         </template>
       </div>
     </div>
+    <div v-if="!isPodcast && viewedCount > 0" role="paragraph" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">Times Completed</span>
+      </div>
+      <div class="flex items-center">
+        <span class="text-success material-symbols text-lg mr-1">check_circle</span>
+        <span>{{ viewedCount }} {{ viewedCount === 1 ? 'time' : 'times' }}</span>
+      </div>
+    </div>
+    <div v-if="!isPodcast && totalListeningTime > 0" role="paragraph" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">Total Listening Time</span>
+      </div>
+      <div class="flex items-center">
+        <span class="text-blue-400 material-symbols text-lg mr-1">schedule</span>
+        <span>{{ totalListeningTimeFormatted }}</span>
+      </div>
+    </div>
     <div v-if="language" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelLanguage }}</span>
@@ -179,6 +197,21 @@ export default {
     },
     relatedBooks() {
       return this.mediaMetadata.relatedBooks || []
+    },
+    viewedCount() {
+      return this.mediaMetadata.viewedCount || 0
+    },
+    totalListeningTime() {
+      return this.mediaMetadata.totalListeningTime || 0
+    },
+    totalListeningTimeFormatted() {
+      if (!this.totalListeningTime) return '0m'
+      const hours = Math.floor(this.totalListeningTime / 60)
+      const minutes = Math.round(this.totalListeningTime % 60)
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`
+      }
+      return `${minutes}m`
     },
     durationPretty() {
       if (this.isPodcast) return this.$elapsedPrettyExtended(this.totalPodcastDuration)

@@ -113,6 +113,10 @@ class Book extends Model {
     this.url
     /** @type {string[]} */
     this.relatedBooks
+    /** @type {number} */
+    this.viewedCount
+    /** @type {number} */
+    this.totalListeningTime
     /** @type {string[]} */
     this.narrators
     /** @type {AudioFileObject[]} */
@@ -167,6 +171,16 @@ class Book extends Model {
         rating: DataTypes.FLOAT,
         url: DataTypes.STRING,
         relatedBooks: DataTypes.JSON,
+        viewedCount: {
+          type: DataTypes.INTEGER,
+          allowNull: false,
+          defaultValue: 0
+        },
+        totalListeningTime: {
+          type: DataTypes.FLOAT,
+          allowNull: false,
+          defaultValue: 0
+        },
 
         narrators: DataTypes.JSON,
         audioFiles: DataTypes.JSON,
@@ -525,6 +539,32 @@ class Book extends Model {
   }
 
   /**
+   * Increment listening time for this book
+   * @param {number} timeListeningMs - Time in milliseconds
+   * @returns {Promise<void>}
+   */
+  async incrementListeningTime(timeListeningMs) {
+    if (!timeListeningMs || timeListeningMs <= 0) return
+
+    const timeListeningMinutes = timeListeningMs / 1000 / 60
+    this.totalListeningTime = (this.totalListeningTime || 0) + timeListeningMinutes
+    this.changed('totalListeningTime', true)
+    await this.save()
+    Logger.debug(`[Book] Incremented listening time for "${this.title}" by ${timeListeningMinutes.toFixed(2)} minutes. Total: ${this.totalListeningTime.toFixed(2)} minutes`)
+  }
+
+  /**
+   * Increment viewed count when book is finished
+   * @returns {Promise<void>}
+   */
+  async incrementViewedCount() {
+    this.viewedCount = (this.viewedCount || 0) + 1
+    this.changed('viewedCount', true)
+    await this.save()
+    Logger.info(`[Book] Incremented viewed count for "${this.title}". Total views: ${this.viewedCount}`)
+  }
+
+  /**
    * Creates or removes authors from the book using the author names from the request
    *
    * @param {string[]} authors
@@ -652,7 +692,9 @@ class Book extends Model {
       abridged: this.abridged,
       rating: this.rating,
       url: this.url,
-      relatedBooks: this.relatedBooks || []
+      relatedBooks: this.relatedBooks || [],
+      viewedCount: this.viewedCount || 0,
+      totalListeningTime: this.totalListeningTime || 0
     }
   }
 
@@ -677,7 +719,9 @@ class Book extends Model {
       abridged: this.abridged,
       rating: this.rating,
       url: this.url,
-      relatedBooks: this.relatedBooks || []
+      relatedBooks: this.relatedBooks || [],
+      viewedCount: this.viewedCount || 0,
+      totalListeningTime: this.totalListeningTime || 0
     }
   }
 

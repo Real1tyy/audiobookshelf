@@ -185,6 +185,7 @@ class MediaProgress extends Model {
    */
   async applyProgressUpdate(progressPayload) {
     if (!this.extraData) this.extraData = {}
+    const wasNotFinished = !this.isFinished
     if (progressPayload.isFinished !== undefined) {
       if (progressPayload.isFinished && !this.isFinished) {
         this.finishedAt = progressPayload.finishedAt || Date.now()
@@ -244,6 +245,18 @@ class MediaProgress extends Model {
     }
 
     await this.save()
+
+    // Increment viewed count when book is finished for the first time
+    if (this.isFinished && wasNotFinished && this.mediaItemType === 'book') {
+      try {
+        const book = await this.sequelize.models.book.findByPk(this.mediaItemId)
+        if (book) {
+          await book.incrementViewedCount()
+        }
+      } catch (error) {
+        Logger.error(`[MediaProgress] Failed to increment viewed count for book ${this.mediaItemId}:`, error)
+      }
+    }
 
     // For local sync
     if (progressPayload.lastUpdate) {
