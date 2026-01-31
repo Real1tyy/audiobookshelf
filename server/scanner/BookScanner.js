@@ -841,7 +841,10 @@ class BookScanner {
       asin: libraryItem.media.asin,
       language: libraryItem.media.language,
       explicit: !!libraryItem.media.explicit,
-      abridged: !!libraryItem.media.abridged
+      abridged: !!libraryItem.media.abridged,
+      rating: libraryItem.media.rating,
+      url: libraryItem.media.url,
+      relatedBooks: libraryItem.media.relatedBooks || []
     }
     return fsExtra
       .writeFile(metadataFilePath, JSON.stringify(jsonObject, null, 2))

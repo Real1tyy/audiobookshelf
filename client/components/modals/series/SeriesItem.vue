@@ -12,6 +12,7 @@
 
 <script>
 export default {
+  name: 'ModalsSeriesSeriesItem',
   props: {
     series: {
       type: Object,

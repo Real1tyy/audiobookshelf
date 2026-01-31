@@ -40,6 +40,10 @@ function parseJsonMetadataText(text) {
     if (abmetadataData.genres?.length) {
       abmetadataData.genres = [...new Set(abmetadataData.genres.map((t) => t?.trim()).filter((t) => t))]
     }
+    // clean relatedBooks array - ensure it's an array of strings and remove dupes
+    if (abmetadataData.relatedBooks?.length) {
+      abmetadataData.relatedBooks = [...new Set(abmetadataData.relatedBooks.filter((id) => typeof id === 'string' && id.trim()))]
+    }
     return abmetadataData
   } catch (error) {
     Logger.error(`[abmetadataGenerator] Invalid metadata.json JSON`, error)

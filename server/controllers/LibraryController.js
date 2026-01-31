@@ -743,6 +743,7 @@ class LibraryController {
   /**
    * GET: /api/libraries/:id/series
    * Optional query string: `?include=rssfeed` that adds `rssFeed` to series if a feed is open
+   * Optional query string: `?search=query` to search series by name
    *
    * @param {LibraryControllerRequest} req
    * @param {Response} res
@@ -762,11 +763,12 @@ class LibraryController {
       sortDesc: req.query.desc === '1',
       filterBy: req.query.filter,
       minified: req.query.minified === '1',
-      include: include.join(',')
+      include: include.join(','),
+      search: req.query.search || null
     }
 
     const offset = payload.page * payload.limit
-    const { series, count } = await seriesFilters.getFilteredSeries(req.library, req.user, payload.filterBy, payload.sortBy, payload.sortDesc, include, payload.limit, offset)
+    const { series, count } = await seriesFilters.getFilteredSeries(req.library, req.user, payload.filterBy, payload.sortBy, payload.sortDesc, include, payload.limit, offset, payload.search)
 
     payload.total = count
     payload.results = series

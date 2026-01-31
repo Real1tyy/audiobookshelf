@@ -9,11 +9,11 @@ class AbsMetadataFileScanner {
 
   /**
    * Check for metadata.json file and set book metadata
-   * 
-   * @param {import('./LibraryScan')} libraryScan 
-   * @param {import('./LibraryItemScanData')} libraryItemData 
-   * @param {Object} bookMetadata 
-   * @param {string} [existingLibraryItemId] 
+   *
+   * @param {import('./LibraryScan')} libraryScan
+   * @param {import('./LibraryItemScanData')} libraryItemData
+   * @param {Object} bookMetadata
+   * @param {string} [existingLibraryItemId]
    */
   async scanBookMetadataFile(libraryScan, libraryItemData, bookMetadata, existingLibraryItemId = null) {
     const metadataLibraryFile = libraryItemData.metadataJsonLibraryFile
@@ -40,6 +40,7 @@ class AbsMetadataFileScanner {
         if (key === 'genres' && !abMetadata.genres?.length) continue
         if (key === 'tags' && !abMetadata.tags?.length) continue
         if (key === 'chapters' && !abMetadata.chapters?.length) continue
+        if (key === 'relatedBooks' && !abMetadata.relatedBooks?.length) continue
 
         bookMetadata[key] = abMetadata[key]
       }
@@ -48,11 +49,11 @@ class AbsMetadataFileScanner {
 
   /**
    * Check for metadata.json file and set podcast metadata
-   * 
-   * @param {import('./LibraryScan')} libraryScan 
-   * @param {import('./LibraryItemScanData')} libraryItemData 
-   * @param {Object} podcastMetadata 
-   * @param {string} [existingLibraryItemId] 
+   *
+   * @param {import('./LibraryScan')} libraryScan
+   * @param {import('./LibraryItemScanData')} libraryItemData
+   * @param {Object} podcastMetadata
+   * @param {string} [existingLibraryItemId]
    */
   async scanPodcastMetadataFile(libraryScan, libraryItemData, podcastMetadata, existingLibraryItemId = null) {
     const metadataLibraryFile = libraryItemData.metadataJsonLibraryFile

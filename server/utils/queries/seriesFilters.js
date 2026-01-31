@@ -19,9 +19,10 @@ module.exports = {
    * @param {string[]} include
    * @param {number} limit
    * @param {number} offset
+   * @param {string} search - Optional search query for series name
    * @returns {Promise<{ series:object[], count:number }>}
    */
-  async getFilteredSeries(library, user, filterBy, sortBy, sortDesc, include, limit, offset) {
+  async getFilteredSeries(library, user, filterBy, sortBy, sortDesc, include, limit, offset, search = null) {
     let filterValue = null
     let filterGroup = null
     if (filterBy) {
@@ -45,6 +46,15 @@ module.exports = {
         libraryId: library.id
       }
     ]
+
+    // Handle search query
+    if (search) {
+      seriesWhere.push({
+        name: {
+          [Sequelize.Op.like]: `%${search}%`
+        }
+      })
+    }
 
     // Handle library setting to hide single book series
     // TODO: Merge with existing query

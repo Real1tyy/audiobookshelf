@@ -224,6 +224,31 @@ class Book extends Model {
     Book.addHook('afterCreate', async (instance) => {
       libraryItemsBookFilters.clearCountCache('afterCreate')
     })
+
+    Book.addHook('afterUpdate', async (instance, options) => {
+      libraryItemsBookFilters.clearCountCache('afterUpdate')
+
+      // Automatically sync metadata.json file when book metadata is updated
+      // Skip if only stats fields (viewedCount, totalListeningTime) changed
+      /** @type {string[]} */
+      const changedFields = Array.isArray(options?.fields) ? options.fields : instance.changed() || []
+      const metadataFields = ['title', 'subtitle', 'publishedYear', 'publishedDate', 'publisher', 'description', 'isbn', 'asin', 'language', 'explicit', 'abridged', 'rating', 'url', 'relatedBooks', 'narrators', 'genres', 'tags', 'chapters']
+      const hasMetadataChanges = changedFields.some(field => metadataFields.includes(field))
+
+      if (hasMetadataChanges) {
+        try {
+          const libraryItem = await instance.sequelize.models.libraryItem.findOne({
+            where: { mediaId: instance.id }
+          })
+          if (libraryItem) {
+            await libraryItem.saveMetadataFile()
+            Logger.debug(`[Book] Metadata file synced for "${instance.title}" after update`)
+          }
+        } catch (error) {
+          Logger.error(`[Book] afterUpdate hook failed to save metadata file for book "${instance.title}":`, error)
+        }
+      }
+    })
   }
 
   /**
@@ -380,7 +405,10 @@ class Book extends Model {
       asin: this.asin,
       language: this.language,
       explicit: !!this.explicit,
-      abridged: !!this.abridged
+      abridged: !!this.abridged,
+      rating: this.rating,
+      url: this.url,
+      relatedBooks: this.relatedBooks || []
     }
   }
 

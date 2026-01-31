@@ -11,15 +11,34 @@
         <div class="py-4 px-4">
           <h1 class="text-2xl">{{ $getString('LabelAddToSeriesBatch', [selectedBookIds.length]) }}</h1>
         </div>
+
+        <div class="px-4 pb-2">
+          <ui-text-input v-model="searchQuery" :placeholder="$strings.LabelSearchSeries || 'Search series...'" class="w-full" @input="searchSeries" />
+        </div>
+
         <div class="w-full overflow-y-auto overflow-x-hidden max-h-96">
-          <transition-group name="list-complete" tag="div">
-            <modals-series-series-item v-for="series in sortedSeries" :key="series.id" :series="series" class="list-complete-item" @add="addToSeries" />
+          <div v-if="loadingSeries" class="flex h-32 items-center justify-center">
+            <ui-loading-indicator />
+          </div>
+          <transition-group v-else name="list-complete" tag="div">
+            <series-item v-for="series in displayedSeries" :key="series.id" :series="series" class="list-complete-item" @add="addToSeries" />
           </transition-group>
         </div>
-        <div v-if="!seriesList.length" class="flex h-32 items-center justify-center text-center px-2">
+
+        <div v-if="!loadingSeries && !displayedSeries.length && !searchQuery" class="flex h-32 items-center justify-center text-center px-2">
           <div>
             <p class="text-xl mb-2">{{ $strings.MessageNoSeries }}</p>
           </div>
+        </div>
+
+        <div v-if="!loadingSeries && !displayedSeries.length && searchQuery" class="flex h-32 items-center justify-center text-center px-2">
+          <div>
+            <p class="text-xl mb-2">{{ $strings.MessageNoResults || 'No results found' }}</p>
+          </div>
+        </div>
+
+        <div v-if="hasMoreSeries && !searchQuery" class="flex justify-center py-2 px-4">
+          <ui-btn small @click="loadMoreSeries">{{ $strings.ButtonLoadMore || 'Load More' }}</ui-btn>
         </div>
 
         <div class="w-full h-px bg-white/10" />
@@ -37,16 +56,30 @@
 </template>
 
 <script>
+import SeriesItem from './SeriesItem.vue'
+
 export default {
+  components: {
+    SeriesItem
+  },
   data() {
     return {
       newSeriesName: '',
-      processing: false
+      processing: false,
+      searchQuery: '',
+      searchTimeout: null,
+      displayedSeries: [],
+      loadingSeries: false,
+      currentPage: 0,
+      totalSeries: 0,
+      seriesPerPage: 5
     }
   },
   watch: {
     show(newVal) {
       if (newVal) {
+        this.searchQuery = ''
+        this.currentPage = 0
         this.loadSeries()
         this.newSeriesName = ''
       }
@@ -64,29 +97,54 @@ export default {
     title() {
       return this.$getString('MessageItemsSelected', [this.selectedBookIds.length])
     },
-    filterData() {
-      return this.$store.state.libraries.filterData || {}
-    },
-    seriesList() {
-      return this.filterData.series || []
-    },
-    sortedSeries() {
-      return [...this.seriesList].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-    },
     selectedBookIds() {
       return (this.$store.state.globals.selectedMediaItems || []).map((i) => i.id)
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
+    },
+    hasMoreSeries() {
+      return this.displayedSeries.length < this.totalSeries
     }
   },
   methods: {
-    loadSeries() {
-      // Series data is already available in filterData which is loaded with the library
-      // No need to make an additional API call
-      console.log('loadSeries called, filterData:', this.filterData)
-      console.log('seriesList:', this.seriesList)
-      this.processing = false
+    async loadSeries(append = false) {
+      this.loadingSeries = true
+      try {
+        const params = new URLSearchParams()
+        params.append('limit', this.seriesPerPage)
+        params.append('page', this.currentPage)
+        params.append('sort', 'name')
+        params.append('desc', '0')
+        if (this.searchQuery) {
+          params.append('search', this.searchQuery)
+        }
+
+        const response = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/series?${params.toString()}`)
+
+        if (append) {
+          this.displayedSeries = [...this.displayedSeries, ...response.results]
+        } else {
+          this.displayedSeries = response.results
+        }
+        this.totalSeries = response.total
+      } catch (error) {
+        console.error('Failed to load series', error)
+        this.$toast.error(this.$strings.ToastFailedToLoadData)
+      } finally {
+        this.loadingSeries = false
+      }
+    },
+    loadMoreSeries() {
+      this.currentPage++
+      this.loadSeries(true)
+    },
+    searchSeries() {
+      clearTimeout(this.searchTimeout)
+      this.searchTimeout = setTimeout(() => {
+        this.currentPage = 0
+        this.loadSeries()
+      }, 300)
     },
     async addToSeries(series) {
       if (!this.selectedBookIds.length) return

@@ -275,6 +275,7 @@ class LibraryItemController {
       req.libraryItem.changed('updatedAt', true)
       await req.libraryItem.save()
 
+      // Always keep metadata file in sync for edits (series/authors changes may not update Book directly)
       await req.libraryItem.saveMetadataFile()
 
       if (isPodcastAutoDownloadUpdated) {
@@ -697,6 +698,7 @@ class LibraryItemController {
         libraryItem.changed('updatedAt', true)
         await libraryItem.save()
 
+        // Always keep metadata file in sync for edits (series/authors changes may not update Book directly)
         await libraryItem.saveMetadataFile()
 
         Logger.debug(`[LibraryItemController] Updated library item media "${libraryItem.media.title}"`)

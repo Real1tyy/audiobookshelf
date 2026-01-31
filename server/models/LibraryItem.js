@@ -568,8 +568,41 @@ class LibraryItem extends Model {
 
     const metadataFilePath = Path.join(metadataPath, `metadata.${global.ServerSettings.metadataFileFormat}`)
 
-    // Expanded with series, authors, podcastEpisodes
-    const mediaExpanded = this.media || (await this.getMediaExpanded())
+    // Ensure media is loaded with authors and series for books
+    let mediaExpanded = this.media
+    if (!mediaExpanded || (this.mediaType === 'book' && (!mediaExpanded.authors || !mediaExpanded.series))) {
+      // Reload media with all required associations
+      if (this.mediaType === 'podcast') {
+        mediaExpanded = await this.getMedia({
+          include: [
+            {
+              model: this.sequelize.models.podcastEpisode
+            }
+          ]
+        })
+      } else {
+        mediaExpanded = await this.getMedia({
+          include: [
+            {
+              model: this.sequelize.models.author,
+              through: {
+                attributes: []
+              }
+            },
+            {
+              model: this.sequelize.models.series,
+              through: {
+                attributes: ['id', 'sequence']
+              }
+            }
+          ],
+          order: [
+            [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
+            [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
+          ]
+        })
+      }
+    }
 
     let jsonObject = {}
     if (this.mediaType === 'book') {
@@ -594,7 +627,10 @@ class LibraryItem extends Model {
         asin: mediaExpanded.asin,
         language: mediaExpanded.language,
         explicit: !!mediaExpanded.explicit,
-        abridged: !!mediaExpanded.abridged
+        abridged: !!mediaExpanded.abridged,
+        rating: mediaExpanded.rating,
+        url: mediaExpanded.url,
+        relatedBooks: mediaExpanded.relatedBooks || []
       }
     } else {
       jsonObject = {
