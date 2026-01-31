@@ -245,6 +245,18 @@
       <!-- Books Gallery -->
       <div class="py-4">
         <app-books-toolbar :total-books="filteredLibraryItems.length" :initial-search="searchQuery" :initial-filter="filterBy" :initial-sort="sortBy" :initial-sort-desc="sortDesc" @change="onToolbarChange" />
+
+        <!-- Book Size Slider - Separate Row -->
+        <div class="flex items-center justify-between px-4 md:px-8 py-3 bg-primary/20 border-b border-white/10">
+          <span class="text-sm text-white/80 font-medium">{{ $strings.LabelBookSize || 'Book Size' }}</span>
+          <div class="flex items-center gap-3">
+            <span class="material-symbols text-lg text-white/60">photo_size_select_small</span>
+            <input type="range" :min="minBookWidth" :max="maxBookWidth" :value="bookWidth" @input="updateBookWidth(Number($event.target.value))" class="w-32 sm:w-48 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider" :title="`Book width: ${bookWidth}px`" />
+            <span class="material-symbols text-2xl text-white/60">photo_size_select_large</span>
+            <span class="text-sm text-white/60 ml-2 min-w-12 text-right">{{ bookWidth }}px</span>
+          </div>
+        </div>
+
         <div class="flex flex-wrap mt-4">
           <div v-for="item in filteredLibraryItems" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
             <cards-lazy-book-card :ref="`book-card-${item.id}`" :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" @select="selectItem" />
@@ -330,7 +342,9 @@ export default {
       authorStats: null,
       showAuthorStats: false,
       showGlobalStats: false,
-      expandedSeries: {}
+      expandedSeries: {},
+      bookWidth: 196, // Default book width in pixels
+      windowWidth: 0
     }
   },
   watch: {
@@ -372,17 +386,30 @@ export default {
       return this.$store.getters['user/getSizeMultiplier']
     },
     bookCoverHeight() {
-      return 160
+      // Calculate height based on configurable width and aspect ratio
+      return this.bookWidth * this.bookCoverAspectRatio
     },
     coverHeight() {
       return this.bookCoverHeight * this.sizeMultiplier
     },
     cardWidth() {
-      return this.coverHeight / this.bookCoverAspectRatio
+      return this.bookWidth * this.sizeMultiplier
     },
     cardHeight() {
       // Cover height + space for title/author text below (approximately 4em = 64px)
       return this.coverHeight + 64
+    },
+    minBookWidth() {
+      // Minimum width based on viewport
+      if (this.windowWidth < 640) return 80 // mobile
+      if (this.windowWidth < 1024) return 100 // tablet
+      return 120 // desktop
+    },
+    maxBookWidth() {
+      // Maximum width based on viewport
+      if (this.windowWidth < 640) return 150 // mobile
+      if (this.windowWidth < 1024) return 200 // tablet
+      return 300 // desktop
     },
     selectedMediaItems() {
       return this.$store.state.globals.selectedMediaItems || []
@@ -632,6 +659,20 @@ export default {
       })
 
       this.$toast.success(this.$getString('MessageItemsAddedToQueue', [queueItems.length]) || `${queueItems.length} items added to queue`)
+    },
+    handleResize() {
+      this.windowWidth = window.innerWidth
+      // Clamp bookWidth to new min/max if needed
+      if (this.bookWidth < this.minBookWidth) {
+        this.bookWidth = this.minBookWidth
+      } else if (this.bookWidth > this.maxBookWidth) {
+        this.bookWidth = this.maxBookWidth
+      }
+    },
+    updateBookWidth(width) {
+      this.bookWidth = width
+      // Save preference
+      this.$store.dispatch('user/updateUserSettings', { authorPageBookWidth: width })
     }
   },
   mounted() {
@@ -644,6 +685,18 @@ export default {
     this.sortBy = this.$route.query.sort || 'addedAt'
     this.sortDesc = this.$route.query.desc === '0' ? false : true
 
+    // Load saved book width preference
+    const savedWidth = this.$store.getters['user/getUserSetting']('authorPageBookWidth')
+    if (savedWidth) {
+      this.bookWidth = savedWidth
+    }
+
+    // Set initial window width
+    this.windowWidth = window.innerWidth
+
+    // Add resize listener
+    window.addEventListener('resize', this.handleResize)
+
     // Fetch author-specific listening stats
     this.fetchAuthorStats()
 
@@ -653,6 +706,7 @@ export default {
     this.$eventBus.$on('bookshelf_select_all', this.selectAllEntities)
   },
   beforeDestroy() {
+    window.removeEventListener('resize', this.handleResize)
     this.$root.socket.off('author_updated', this.authorUpdated)
     this.$root.socket.off('author_removed', this.authorRemoved)
     this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)
@@ -667,12 +721,61 @@ export default {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   max-height: 6.25rem;
   transition: all 0.3s ease-in-out;
 }
 #author-description.show-full {
   -webkit-line-clamp: unset;
+  line-clamp: unset;
   max-height: 999rem;
+}
+
+/* Range slider styling */
+.slider {
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.5) 100%);
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: #4ade80;
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(74, 222, 128, 0.4);
+}
+
+.slider::-webkit-slider-thumb:active {
+  transform: scale(1.1);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.slider::-moz-range-thumb:hover {
+  background: #4ade80;
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(74, 222, 128, 0.4);
+}
+
+.slider::-moz-range-thumb:active {
+  transform: scale(1.1);
 }
 .slide-enter-active,
 .slide-leave-active {
