@@ -145,6 +145,22 @@ function applyAdvancedFilter(libraryItems, filterGroup, filterValue) {
       case 'explicit':
         return media.explicit === true
 
+      case 'rating':
+        // Support rating filters with format: gte-5, lte-3, eq-8, etc.
+        const match = filterValue.match(/^(gte|lte|gt|lt|eq)-(\d+(?:\.\d+)?)$/)
+        if (!match) return true
+
+        const operator = match[1]
+        const ratingValue = parseFloat(match[2])
+        const itemRating = media.rating || media.metadata?.rating || 0
+
+        if (operator === 'gte') return itemRating >= ratingValue
+        if (operator === 'lte') return itemRating <= ratingValue
+        if (operator === 'gt') return itemRating > ratingValue
+        if (operator === 'lt') return itemRating < ratingValue
+        if (operator === 'eq') return itemRating === ratingValue
+        return true
+
       case 'issues':
         return li.isMissing || li.isInvalid
 
@@ -175,6 +191,8 @@ function getSortValue(libraryItem, sortBy, user) {
       return title.toLowerCase()
     case 'publishedYear':
       return libraryItem.media?.publishedYear || libraryItem.media?.metadata?.publishedYear || 0
+    case 'rating':
+      return libraryItem.media?.rating || libraryItem.media?.metadata?.rating || 0
     case 'addedAt':
       return libraryItem.addedAt || 0
     case 'size':
@@ -195,7 +213,7 @@ function getSortValue(libraryItem, sortBy, user) {
 /**
  * Sort library items
  * @param {Array} libraryItems - Array of library items to sort
- * @param {string} sortBy - Sort field: 'title'|'publishedYear'|'addedAt'|'size'|'duration'|'progress'|'random'
+ * @param {string} sortBy - Sort field: 'title'|'publishedYear'|'rating'|'addedAt'|'size'|'duration'|'progress'|'random'
  * @param {boolean} sortDesc - Sort descending if true
  * @param {Object} user - User object (for progress sorting)
  * @returns {Array} Sorted library items
@@ -281,7 +299,7 @@ function parseFilters(filterBy) {
  * @param {Object} options - Filter and sort options
  * @param {string} options.searchQuery - Search query string
  * @param {string} options.filterBy - Progress filter: 'all'|'finished'|'in-progress'|'not-started'|'not-finished' or complex filter
- * @param {string} options.sortBy - Sort field: 'title'|'publishedYear'|'addedAt'|'size'|'duration'|'progress'|'random'
+ * @param {string} options.sortBy - Sort field: 'title'|'publishedYear'|'rating'|'addedAt'|'size'|'duration'|'progress'|'random'
  * @param {boolean} options.sortDesc - Sort descending if true
  * @param {Object} options.user - User object
  * @returns {Array} Filtered and sorted library items

@@ -38,7 +38,7 @@ class AuthorController {
    * ?include=items,series
    * ?search=query
    * ?filter=all|finished|in-progress|not-started|not-finished
-   * ?sort=title|publishedYear|addedAt|size|duration|progress|random
+   * ?sort=title|publishedYear|rating|addedAt|size|duration|progress|random
    * ?desc=0|1
    *
    * @param {AuthorControllerRequest} req

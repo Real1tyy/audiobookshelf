@@ -342,19 +342,30 @@ class SeriesController {
    */
   async updateBooks(req, res) {
     const { books } = req.body
+    Logger.debug(`[SeriesController] updateBooks called for series "${req.series.id}" with ${books?.length || 0} books`)
+
     if (!Array.isArray(books)) {
+      Logger.warn(`[SeriesController] Invalid request body - books is not an array`)
       return res.status(400).send('Invalid request body. "books" must be an array')
+    }
+
+    if (books.length === 0) {
+      Logger.debug(`[SeriesController] No books to update`)
+      return res.json({ success: true, updatedCount: 0 })
     }
 
     // Validate each book entry has bookId and sequence
     for (const book of books) {
       if (!book.bookId || book.sequence === undefined) {
+        Logger.warn(`[SeriesController] Invalid book entry - missing bookId or sequence: ${JSON.stringify(book)}`)
         return res.status(400).send('Each book must have bookId and sequence')
       }
     }
 
     const updatedBooks = []
     for (const book of books) {
+      Logger.debug(`[SeriesController] Looking for BookSeries with seriesId="${req.series.id}" and bookId="${book.bookId}"`)
+
       const bookSeries = await Database.bookSeriesModel.findOne({
         where: {
           seriesId: req.series.id,
@@ -364,11 +375,15 @@ class SeriesController {
 
       if (bookSeries) {
         const newSequence = book.sequence === null ? null : String(book.sequence)
+        Logger.debug(`[SeriesController] Found BookSeries. Current sequence: "${bookSeries.sequence}", new sequence: "${newSequence}"`)
         if (bookSeries.sequence !== newSequence) {
           bookSeries.sequence = newSequence
           await bookSeries.save()
           updatedBooks.push(book.bookId)
+          Logger.debug(`[SeriesController] Updated sequence for bookId="${book.bookId}"`)
         }
+      } else {
+        Logger.warn(`[SeriesController] BookSeries not found for seriesId="${req.series.id}" and bookId="${book.bookId}"`)
       }
     }
 
