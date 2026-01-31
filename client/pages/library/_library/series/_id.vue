@@ -172,7 +172,8 @@ export default {
       // Use first book's cover
       if (this.libraryItems.length) {
         const firstItem = this.libraryItems[0]
-        return this.$store.getters['globals/getLibraryItemCoverSrcById'](firstItem.id)
+        // Use getLibraryItemCoverSrc which handles both libraryItemId and id properties
+        return this.$store.getters['globals/getLibraryItemCoverSrc'](firstItem)
       }
       return null
     },
