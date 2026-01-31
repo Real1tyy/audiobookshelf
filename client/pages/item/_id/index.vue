@@ -151,13 +151,17 @@
         </div>
         <transition name="slide">
           <div class="w-full" v-if="showTranscript">
-            <div class="w-full bg-primary/30 px-4 md:px-6 py-4">
+            <div class="w-full bg-primary/30 px-4 md:px-6 py-6">
               <div v-if="transcriptLoading" class="flex items-center text-sm text-gray-200">
                 <widgets-loading-spinner class="mr-3" />
                 <span>Loading…</span>
               </div>
               <div v-else-if="transcriptLoadError" class="text-sm text-error">Failed to load transcript.</div>
-              <pre v-else class="whitespace-pre-wrap text-base md:text-lg text-gray-100 font-sans w-full">{{ transcriptText }}</pre>
+              <div v-else class="transcript-content">
+                <p v-for="(paragraph, index) in transcriptParagraphs" :key="index" class="transcript-paragraph">
+                  {{ paragraph }}
+                </p>
+              </div>
             </div>
           </div>
         </transition>
@@ -351,6 +355,38 @@ export default {
     },
     transcriptFileIno() {
       return this.transcriptLibraryFile?.ino || null
+    },
+    transcriptParagraphs() {
+      if (!this.transcriptText) return []
+      // Split by double newlines for paragraphs, or single newlines if no double newlines exist
+      const text = this.transcriptText.trim()
+      let paragraphs = text.split(/\n\s*\n/)
+
+      // If no paragraph breaks found, split by single newlines and group every 3-5 sentences
+      if (paragraphs.length === 1) {
+        const sentences = text.split(/(?<=[.!?])\s+/)
+        paragraphs = []
+        let currentPara = ''
+        let sentenceCount = 0
+
+        for (const sentence of sentences) {
+          currentPara += (currentPara ? ' ' : '') + sentence
+          sentenceCount++
+
+          // Create a new paragraph every 4-6 sentences (varying for natural breaks)
+          if (sentenceCount >= 4 && (sentenceCount >= 6 || sentence.match(/[.!?]$/))) {
+            paragraphs.push(currentPara.trim())
+            currentPara = ''
+            sentenceCount = 0
+          }
+        }
+
+        if (currentPara) {
+          paragraphs.push(currentPara.trim())
+        }
+      }
+
+      return paragraphs.filter(p => p.length > 0)
     },
     ebookFiles() {
       return this.libraryFiles.filter((lf) => lf.fileType === 'ebook')
@@ -924,5 +960,82 @@ export default {
   -webkit-line-clamp: unset;
   line-clamp: unset;
   max-height: 999rem;
+}
+
+/* Transcript styling for better readability */
+.transcript-content {
+  max-width: 100%;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+}
+
+.transcript-paragraph {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #e5e7eb;
+  position: relative;
+  cursor: text;
+}
+
+@media (min-width: 768px) {
+  .transcript-paragraph {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+}
+
+.transcript-paragraph:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  transform: translateX(2px);
+}
+
+.transcript-paragraph::selection {
+  background-color: rgba(96, 165, 250, 0.4);
+  color: #fff;
+}
+
+.transcript-paragraph::-moz-selection {
+  background-color: rgba(96, 165, 250, 0.4);
+  color: #fff;
+}
+
+/* Active reading indicator - shows when text is selected */
+.transcript-paragraph:has(::selection) {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #60a5fa;
+  padding-left: calc(1rem - 3px);
+}
+
+@media (min-width: 768px) {
+  .transcript-paragraph:has(::selection) {
+    padding-left: calc(1.25rem - 3px);
+  }
+}
+
+/* Alternating subtle background for easier tracking */
+.transcript-paragraph:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.transcript-paragraph:nth-child(even):hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* First paragraph emphasis */
+.transcript-paragraph:first-child {
+  font-size: 1.0625rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .transcript-paragraph:first-child {
+    font-size: 1.1875rem;
+  }
 }
 </style>
