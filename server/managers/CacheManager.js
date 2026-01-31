@@ -138,20 +138,23 @@ class CacheManager {
   }
 
   /**
+   * Generic handler for entity image caching (authors, series, etc.)
    *
    * @param {import('express').Response} res
-   * @param {String} authorId
+   * @param {string} entityId
+   * @param {import('sequelize').Model} model - Sequelize model to query
+   * @param {string} imagePathField - Field name containing the image path (e.g., 'imagePath', 'coverPath')
    * @param {{ format?: string, width?: number, height?: number }} options
    * @returns
    */
-  async handleAuthorCache(res, authorId, options = {}) {
+  async handleEntityImageCache(res, entityId, model, imagePathField, options = {}) {
     const format = options.format || 'webp'
     const width = options.width || 400
     const height = options.height || null
 
     res.type(`image/${format}`)
 
-    var cachePath = Path.join(this.ImageCachePath, `${authorId}_${width}${height ? `x${height}` : ''}`) + '.' + format
+    const cachePath = Path.join(this.ImageCachePath, `${entityId}_${width}${height ? `x${height}` : ''}`) + '.' + format
 
     // Cache exists
     if (await fs.pathExists(cachePath)) {
@@ -166,16 +169,39 @@ class CacheManager {
       return ps.pipe(res)
     }
 
-    const author = await Database.authorModel.findByPk(authorId)
-    if (!author || !author.imagePath || !(await fs.pathExists(author.imagePath))) {
+    const entity = await model.findByPk(entityId)
+    const imagePath = entity?.[imagePathField]
+    if (!entity || !imagePath || !(await fs.pathExists(imagePath))) {
       return res.sendStatus(404)
     }
 
-    let writtenFile = await resizeImage(author.imagePath, cachePath, width, height)
+    const writtenFile = await resizeImage(imagePath, cachePath, width, height)
     if (!writtenFile) return res.sendStatus(500)
 
-    var readStream = fs.createReadStream(writtenFile)
+    const readStream = fs.createReadStream(writtenFile)
     readStream.pipe(res)
+  }
+
+  /**
+   *
+   * @param {import('express').Response} res
+   * @param {string} authorId
+   * @param {{ format?: string, width?: number, height?: number }} options
+   * @returns
+   */
+  handleAuthorCache(res, authorId, options = {}) {
+    return this.handleEntityImageCache(res, authorId, Database.authorModel, 'imagePath', options)
+  }
+
+  /**
+   *
+   * @param {import('express').Response} res
+   * @param {string} seriesId
+   * @param {{ format?: string, width?: number, height?: number }} options
+   * @returns
+   */
+  handleSeriesCache(res, seriesId, options = {}) {
+    return this.handleEntityImageCache(res, seriesId, Database.seriesModel, 'coverPath', options)
   }
 }
 module.exports = new CacheManager()

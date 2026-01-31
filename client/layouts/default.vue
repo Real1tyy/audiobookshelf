@@ -17,6 +17,7 @@
     <modals-podcast-edit-episode />
     <modals-podcast-view-episode />
     <modals-authors-edit-modal />
+    <modals-series-edit-modal />
     <modals-batch-quick-match-model />
     <modals-series-batch-add-modal />
     <modals-batch-tags-modal />

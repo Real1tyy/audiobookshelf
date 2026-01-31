@@ -53,7 +53,8 @@ export default {
   },
   computed: {
     cover() {
-      return this.src
+      // Always provide a valid URL so <img> doesn't try to fetch "null"/empty
+      return this.src || this.placeholderUrl
     },
     sizeMultiplier() {
       return this.width / 120

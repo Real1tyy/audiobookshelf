@@ -18,12 +18,14 @@ export const state = () => ({
   showRawCoverPreviewModal: false,
   confirmPromptOptions: null,
   showEditAuthorModal: false,
+  showEditSeriesModal: false,
   rssFeedEntity: null,
   selectedEpisode: null,
   selectedPlaylistItems: null,
   selectedPlaylist: null,
   selectedCollection: null,
   selectedAuthor: null,
+  selectedSeries: null,
   selectedMediaItems: [],
   selectedRawCoverUrl: null,
   selectedMediaItemShare: null,
@@ -197,6 +199,16 @@ export const mutations = {
   },
   setSelectedAuthor(state, author) {
     state.selectedAuthor = author
+  },
+  showEditSeriesModal(state, series) {
+    state.selectedSeries = series
+    state.showEditSeriesModal = true
+  },
+  setShowEditSeriesModal(state, val) {
+    state.showEditSeriesModal = val
+  },
+  setSelectedSeries(state, series) {
+    state.selectedSeries = series
   },
   setChromecastInitialized(state, val) {
     state.isChromecastInitialized = val

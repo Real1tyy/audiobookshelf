@@ -3,7 +3,8 @@
     <div cy-id="covers-area" class="relative" :style="{ height: coverHeight + 'px' }">
       <div class="absolute top-0 left-0 w-full box-shadow-book shadow-height" />
       <div class="w-full h-full bg-primary relative rounded-sm overflow-hidden z-0">
-        <covers-group-cover v-if="series" ref="cover" :id="seriesId" :name="displayTitle" :book-items="books" :width="cardWidth" :height="coverHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+        <covers-preview-cover v-if="series && seriesCoverSrc" :src="seriesCoverSrc" :width="cardWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+        <covers-group-cover v-else-if="series" ref="cover" :id="seriesId" :name="displayTitle" :book-items="books" :width="cardWidth" :height="coverHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
 
       <div cy-id="seriesLengthMarker" class="absolute rounded-lg bg-black/90 box-shadow-md z-20" :style="{ top: 0.375 + 'em', right: 0.375 + 'em', padding: `0.1em 0.25em` }" style="background-color: #cd9d49dd">
@@ -153,6 +154,7 @@ export default {
       return `/library/${this.currentLibraryId}/series/${this.seriesId}`
     },
     hasValidCovers() {
+      if (this.series?.coverPath) return true
       var validCovers = this.books.map((bookItem) => bookItem.media.coverPath)
       return !!validCovers.length
     },
@@ -162,6 +164,11 @@ export default {
     },
     rssFeed() {
       return this.series?.rssFeed
+    },
+    seriesCoverSrc() {
+      if (!this.series?.coverPath) return null
+      const config = this.$config || this.$nuxt.$config
+      return `${config.routerBasePath}/api/series/${this.seriesId}/cover?ts=${this.series.updatedAt}`
     }
   },
   methods: {

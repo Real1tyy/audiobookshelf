@@ -12,6 +12,11 @@
           <div class="flex items-center mb-4">
             <h1 class="text-2xl">{{ series.name }}</h1>
 
+            <!-- Edit button -->
+            <button v-if="userCanUpdate" class="w-8 h-8 rounded-full flex items-center justify-center mx-4 cursor-pointer text-gray-300 hover:text-warning transform hover:scale-125 duration-100" @click="editSeries">
+              <span class="material-symbols text-base">edit</span>
+            </button>
+
             <!-- RSS feed button -->
             <ui-tooltip v-if="seriesRssFeed" :text="$strings.LabelOpenRSSFeed" direction="bottom">
               <ui-icon-btn icon="rss_feed" class="mx-2" :size="7" icon-font-size="1.2rem" bg-color="bg-success" outlined @click="showOpenSeriesRSSFeed" />
@@ -169,7 +174,10 @@ export default {
       return this.$store.state.globals.selectedMediaItems || []
     },
     seriesCoverUrl() {
-      // Use first book's cover
+      // Use series cover if available, otherwise fall back to first book's cover
+      if (this.series.coverPath) {
+        return `${this.$config.routerBasePath}/api/series/${this.series.id}/cover?ts=${this.series.updatedAt}`
+      }
       if (this.libraryItems.length) {
         const firstItem = this.libraryItems[0]
         // Use getLibraryItemCoverSrc which handles both libraryItemId and id properties
@@ -260,6 +268,9 @@ export default {
       } finally {
         this.isLoadingSearch = false
       }
+    },
+    editSeries() {
+      this.$store.commit('globals/showEditSeriesModal', this.series)
     },
     editItem(libraryItem) {
       const itemIds = this.filteredLibraryItems.map((e) => e.id)

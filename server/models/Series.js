@@ -14,6 +14,8 @@ class Series extends Model {
     this.nameIgnorePrefix
     /** @type {string} */
     this.description
+    /** @type {string} */
+    this.coverPath
     /** @type {UUIDV4} */
     this.libraryId
     /** @type {Date} */
@@ -96,7 +98,8 @@ class Series extends Model {
         },
         name: DataTypes.STRING,
         nameIgnorePrefix: DataTypes.STRING,
-        description: DataTypes.TEXT
+        description: DataTypes.TEXT,
+        coverPath: DataTypes.STRING
       },
       {
         sequelize,
@@ -171,6 +174,7 @@ class Series extends Model {
       name: this.name,
       nameIgnorePrefix: getTitlePrefixAtEnd(this.name),
       description: this.description,
+      coverPath: this.coverPath,
       addedAt: this.createdAt.valueOf(),
       updatedAt: this.updatedAt.valueOf(),
       libraryId: this.libraryId
