@@ -508,7 +508,7 @@ class AuthorController {
     const averageRating = ratingCount ? ratingSum / ratingCount : null
     const topRatedBooks = ratedBooks
       .sort((a, b) => b.rating - a.rating || (a.title || '').localeCompare(b.title || ''))
-      .slice(0, 10)
+      .slice(0, 5)
 
     const topTags = Object.keys(topTagMap)
       .map((tag) => ({ tag, count: topTagMap[tag] }))
@@ -605,12 +605,59 @@ class AuthorController {
       }
     }
 
+    // Top genres for this author's books
+    const topGenreMap = {}
+    for (const li of authorLibraryItems) {
+      const book = li.media
+      if (!book) continue
+      const genres = Array.isArray(book.genres) ? book.genres : []
+      for (const g of genres) {
+        if (!g || typeof g !== 'string') continue
+        const genre = g.trim()
+        if (!genre) continue
+        topGenreMap[genre] = (topGenreMap[genre] || 0) + 1
+      }
+    }
+    const topGenres = Object.keys(topGenreMap)
+      .map((genre) => ({ genre, count: topGenreMap[genre] }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    // Longest books (by duration)
+    const longestBooks = authorLibraryItems
+      .map((li) => {
+        const book = li.media
+        if (!book) return null
+        const duration = Number(book.duration) || 0
+        if (duration <= 0) return null
+        return { id: li.id, title: book.title || '', duration }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 5)
+
+    // Largest books (by size)
+    const largestBooks = authorLibraryItems
+      .map((li) => {
+        const book = li.media
+        if (!book) return null
+        const size = Number(book.size) || 0
+        if (size <= 0) return null
+        return { id: li.id, title: book.title || '', size }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.size - a.size)
+      .slice(0, 5)
+
     stats.global = {
       totalViewedCount,
       totalBooksDone,
       averageRating,
       topRatedBooks,
       topTags,
+      topGenres,
+      longestBooks,
+      largestBooks,
       listeningStats: {
         totalTime: globalTotalTime,
         days: globalDays,

@@ -125,35 +125,87 @@
                     </div>
                   </div>
 
-                  <div class="flex flex-col lg:flex-row gap-6">
-                    <div class="w-full lg:w-80">
-                      <h1 class="text-2xl mb-4">{{ $strings.HeaderTopTags || 'Top 5 Tags' }}</h1>
-                      <p v-if="!topTags.length">{{ $strings.MessageNoTags || 'No tags' }}</p>
-                      <div v-for="tag in topTags" :key="tag.tag" class="w-full py-2">
+                  <div class="flex flex-col xl:flex-row flex-wrap justify-between gap-4 mt-4">
+                    <div class="flex-1 min-w-[200px]">
+                      <h1 class="text-xl mb-3">{{ $strings.HeaderTopTags || 'Top 5 Tags' }}</h1>
+                      <p v-if="!topTags.length" class="text-sm text-white/60">{{ $strings.MessageNoTags || 'No tags' }}</p>
+                      <div v-for="tag in topTags.slice(0, 5)" :key="tag.tag" class="w-full py-1.5">
                         <div class="flex items-end mb-1">
-                          <p class="text-2xl font-bold">{{ Math.round((100 * tag.count) / Math.max(1, authorStats.totalBooks)) }}&nbsp;%</p>
+                          <p class="text-lg font-bold">{{ Math.round((100 * tag.count) / Math.max(1, authorStats.totalBooks)) }}%</p>
                           <div class="grow" />
-                          <nuxt-link :to="`/library/${currentLibraryId}/bookshelf?filter=tags.${$encode(tag.tag)}`" class="text-base text-white/70 hover:underline">
+                          <nuxt-link :to="`/library/${currentLibraryId}/bookshelf?filter=tags.${$encode(tag.tag)}`" class="text-sm text-white/70 hover:underline truncate max-w-[120px]">
                             {{ tag.tag }}
                           </nuxt-link>
                         </div>
-                        <div class="w-full rounded-full h-3 bg-primary/50 overflow-hidden">
+                        <div class="w-full rounded-full h-2 bg-primary/50 overflow-hidden">
                           <div class="bg-yellow-400 h-full rounded-full" :style="{ width: Math.round((100 * tag.count) / Math.max(1, authorStats.totalBooks)) + '%' }" />
                         </div>
                       </div>
                     </div>
 
-                    <div class="w-full lg:w-80">
-                      <h1 class="text-2xl mb-4">{{ $strings.HeaderTopRatedBooks || 'Top Rated Books' }}</h1>
-                      <p v-if="!topRatedBooks.length">{{ $strings.MessageNoItems || 'No items' }}</p>
-                      <div v-for="(b, index) in topRatedBooks" :key="b.id" class="w-full py-2">
-                        <div class="flex items-center mb-1">
-                          <p class="text-sm text-white/70 w-44 pr-2 truncate">
-                            {{ index + 1 }}.&nbsp;&nbsp;&nbsp;&nbsp;<nuxt-link :to="`/item/${b.id}`" class="hover:underline">{{ b.title }}</nuxt-link>
-                          </p>
+                    <div class="flex-1 min-w-[200px]">
+                      <h1 class="text-xl mb-3">{{ $strings.HeaderStatsTop5Genres || 'Top 5 Genres' }}</h1>
+                      <p v-if="!topGenres.length" class="text-sm text-white/60">{{ $strings.MessageNoGenres || 'No genres' }}</p>
+                      <div v-for="genre in topGenres.slice(0, 5)" :key="genre.genre" class="w-full py-1.5">
+                        <div class="flex items-end mb-1">
+                          <p class="text-lg font-bold">{{ Math.round((100 * genre.count) / Math.max(1, authorStats.totalBooks)) }}%</p>
                           <div class="grow" />
-                          <div class="w-12 text-right">
-                            <p class="text-sm font-bold">{{ b.rating == null ? '-' : Number(b.rating).toFixed(1) }}</p>
+                          <nuxt-link :to="`/library/${currentLibraryId}/bookshelf?filter=genres.${$encode(genre.genre)}`" class="text-sm text-white/70 hover:underline truncate max-w-[120px]">
+                            {{ genre.genre }}
+                          </nuxt-link>
+                        </div>
+                        <div class="w-full rounded-full h-2 bg-primary/50 overflow-hidden">
+                          <div class="bg-yellow-400 h-full rounded-full" :style="{ width: Math.round((100 * genre.count) / Math.max(1, authorStats.totalBooks)) + '%' }" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex-1 min-w-[200px]">
+                      <h1 class="text-xl mb-3">{{ $strings.HeaderTopRatedBooks || 'Top 5 Rated' }}</h1>
+                      <p v-if="!topRatedBooks.length" class="text-sm text-white/60">{{ $strings.MessageNoItems || 'No items' }}</p>
+                      <div v-for="(b, index) in topRatedBooks.slice(0, 5)" :key="b.id" class="w-full py-1.5">
+                        <div class="flex items-center">
+                          <p class="text-xs text-white/70 flex-1 pr-2 truncate">
+                            {{ index + 1 }}.&nbsp;<nuxt-link :to="`/item/${b.id}`" class="hover:underline">{{ b.title }}</nuxt-link>
+                          </p>
+                          <div class="w-8 text-right">
+                            <p class="text-xs font-bold">{{ b.rating == null ? '-' : Number(b.rating).toFixed(1) }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex-1 min-w-[200px]">
+                      <h1 class="text-xl mb-3">{{ $strings.HeaderStatsLongestItems || 'Longest (hrs)' }}</h1>
+                      <p v-if="!longestBooks.length" class="text-sm text-white/60">{{ $strings.MessageNoItems || 'No items' }}</p>
+                      <div v-for="(b, index) in longestBooks.slice(0, 5)" :key="b.id" class="w-full py-1.5">
+                        <div class="flex items-center">
+                          <p class="text-xs text-white/70 flex-1 pr-2 truncate">
+                            {{ index + 1 }}.&nbsp;<nuxt-link :to="`/item/${b.id}`" class="hover:underline">{{ b.title }}</nuxt-link>
+                          </p>
+                          <div class="grow rounded-full h-1.5 bg-primary/0 overflow-hidden mx-2 max-w-[60px]">
+                            <div class="bg-yellow-400 h-full rounded-full" :style="{ width: longestBookDuration > 0 ? Math.round((100 * b.duration) / longestBookDuration) + '%' : '0%' }" />
+                          </div>
+                          <div class="w-8 text-right">
+                            <p class="text-xs font-bold">{{ (b.duration / 3600).toFixed(1) }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex-1 min-w-[200px]">
+                      <h1 class="text-xl mb-3">{{ $strings.HeaderStatsLargestItems || 'Largest' }}</h1>
+                      <p v-if="!largestBooks.length" class="text-sm text-white/60">{{ $strings.MessageNoItems || 'No items' }}</p>
+                      <div v-for="(b, index) in largestBooks.slice(0, 5)" :key="b.id" class="w-full py-1.5">
+                        <div class="flex items-center">
+                          <p class="text-xs text-white/70 flex-1 pr-2 truncate">
+                            {{ index + 1 }}.&nbsp;<nuxt-link :to="`/item/${b.id}`" class="hover:underline">{{ b.title }}</nuxt-link>
+                          </p>
+                          <div class="grow rounded-full h-1.5 bg-primary/0 overflow-hidden mx-2 max-w-[60px]">
+                            <div class="bg-yellow-400 h-full rounded-full" :style="{ width: largestBookSize > 0 ? Math.round((100 * b.size) / largestBookSize) + '%' : '0%' }" />
+                          </div>
+                          <div class="w-10 text-right">
+                            <p class="text-xs font-bold whitespace-nowrap">{{ $bytesPretty(b.size) }}</p>
                           </div>
                         </div>
                       </div>
@@ -363,6 +415,23 @@ export default {
       const n = Number(avg)
       if (Number.isNaN(n)) return '-'
       return n.toFixed(2)
+    },
+    topGenres() {
+      return this.authorStats?.global?.topGenres || []
+    },
+    longestBooks() {
+      return this.authorStats?.global?.longestBooks || []
+    },
+    longestBookDuration() {
+      if (!this.longestBooks.length) return 0
+      return Math.max(...this.longestBooks.map((b) => b.duration || 0))
+    },
+    largestBooks() {
+      return this.authorStats?.global?.largestBooks || []
+    },
+    largestBookSize() {
+      if (!this.largestBooks.length) return 0
+      return Math.max(...this.largestBooks.map((b) => b.size || 0))
     },
     playableBooks() {
       // Get all playable books from both main items and series
