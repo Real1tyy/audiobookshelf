@@ -28,6 +28,10 @@
         <p v-if="isAuthorsPage" class="text-sm">{{ $strings.ButtonAuthors }}</p>
         <span v-else class="material-symbols text-lg">groups</span>
       </nuxt-link>
+      <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/tags`" class="grow h-full flex justify-center items-center" :class="isTagsPage ? 'bg-primary/80' : 'bg-primary/40'">
+        <p v-if="isTagsPage" class="text-sm">{{ $strings.LabelTags }}</p>
+        <span v-else class="material-symbols text-lg">label</span>
+      </nuxt-link>
       <nuxt-link v-if="isPodcastLibrary && userIsAdminOrUp" :to="`/library/${currentLibraryId}/podcast/search`" class="grow h-full flex justify-center items-center" :class="isPodcastSearchPage ? 'bg-primary/80' : 'bg-primary/40'">
         <p class="text-sm">{{ $strings.ButtonAdd }}</p>
       </nuxt-link>
@@ -280,6 +284,9 @@ export default {
     isAuthorsPage() {
       return this.page === 'authors'
     },
+    isTagsPage() {
+      return this.page === 'tags'
+    },
     numShowing() {
       return this.totalEntities
     },
@@ -290,6 +297,7 @@ export default {
       if (this.isCollectionsPage) return this.$strings.LabelCollections
       if (this.isPlaylistsPage) return this.$strings.LabelPlaylists
       if (this.isAuthorsPage) return this.$strings.LabelAuthors
+      if (this.isTagsPage) return this.$strings.LabelTags
       return ''
     },
     seriesId() {

@@ -1447,6 +1447,141 @@ class LibraryController {
   }
 
   /**
+   * GET: /api/libraries/:id/tags
+   * Get all tags in library
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async getTags(req, res) {
+    // Get all books with tags
+    const booksWithTags = await Database.bookModel.findAll({
+      where: Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col('tags')), {
+        [Sequelize.Op.gt]: 0
+      }),
+      include: {
+        model: Database.libraryItemModel,
+        attributes: ['id', 'libraryId'],
+        where: {
+          libraryId: req.library.id
+        }
+      },
+      attributes: ['id', 'tags']
+    })
+
+    const tags = {}
+    for (const book of booksWithTags) {
+      book.tags.forEach((t) => {
+        if (typeof t !== 'string') {
+          Logger.error(`[LibraryController] getTags: Invalid tag "${t}" on book "${book.title}"`)
+        } else if (!tags[t]) {
+          tags[t] = {
+            id: encodeURIComponent(Buffer.from(t).toString('base64')),
+            name: t,
+            numBooks: 1
+          }
+        } else {
+          tags[t].numBooks++
+        }
+      })
+    }
+
+    res.json({
+      tags: naturalSort(Object.values(tags)).asc((t) => t.name)
+    })
+  }
+
+  /**
+   * PATCH: /api/libraries/:id/tags/:tagId
+   * Update tag name
+   * :tagId is base64 encoded name
+   * req.body { name }
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async updateTag(req, res) {
+    if (!req.user.canUpdate) {
+      Logger.error(`[LibraryController] Unauthorized user "${req.user.username}" attempted to update tag`)
+      return res.sendStatus(403)
+    }
+
+    const tagName = libraryFilters.decode(req.params.tagId)
+    const updatedName = req.body.name
+    if (!updatedName) {
+      return res.status(400).send('Invalid request payload. Name not specified.')
+    }
+
+    // Update filter data
+    Database.replaceTagInFilterData(tagName, updatedName)
+
+    const itemsUpdated = []
+
+    const itemsWithTag = await libraryItemFilters.getAllLibraryItemsWithTags([tagName])
+
+    for (const libraryItem of itemsWithTag) {
+      libraryItem.media.tags = libraryItem.media.tags.filter((t) => t !== tagName)
+      if (!libraryItem.media.tags.includes(updatedName)) {
+        libraryItem.media.tags.push(updatedName)
+      }
+      await libraryItem.media.update({
+        tags: libraryItem.media.tags
+      })
+
+      itemsUpdated.push(libraryItem)
+    }
+
+    if (itemsUpdated.length) {
+      SocketAuthority.libraryItemsEmitter('items_updated', itemsUpdated)
+    }
+
+    res.json({
+      updated: itemsUpdated.length
+    })
+  }
+
+  /**
+   * DELETE: /api/libraries/:id/tags/:tagId
+   * Remove tag
+   * :tagId is base64 encoded name
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async removeTag(req, res) {
+    if (!req.user.canUpdate) {
+      Logger.error(`[LibraryController] Unauthorized user "${req.user.username}" attempted to remove tag`)
+      return res.sendStatus(403)
+    }
+
+    const tagName = libraryFilters.decode(req.params.tagId)
+
+    // Update filter data
+    Database.removeTagFromFilterData(tagName)
+
+    const itemsUpdated = []
+
+    const itemsWithTag = await libraryItemFilters.getAllLibraryItemsWithTags([tagName])
+
+    for (const libraryItem of itemsWithTag) {
+      libraryItem.media.tags = libraryItem.media.tags.filter((t) => t !== tagName)
+      await libraryItem.media.update({
+        tags: libraryItem.media.tags
+      })
+
+      itemsUpdated.push(libraryItem)
+    }
+
+    if (itemsUpdated.length) {
+      SocketAuthority.libraryItemsEmitter('items_updated', itemsUpdated)
+    }
+
+    res.json({
+      updated: itemsUpdated.length
+    })
+  }
+
+  /**
    * GET: /api/libraries/:id/matchall
    * Quick match all library items. Book libraries only.
    *

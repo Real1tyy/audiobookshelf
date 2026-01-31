@@ -470,6 +470,159 @@ class AuthorController {
     stats.booksFinished = finishedLibraryItemIds.size
     stats.totalBooks = authorLibraryItems.length
 
+    // Global (library-wide) author stats based on this author's books.
+    // These are scoped to the books the current user can access (since authorLibraryItems is permission-filtered).
+    const topTagMap = {}
+    let totalViewedCount = 0
+    let totalBooksDone = 0
+    let ratingSum = 0
+    let ratingCount = 0
+
+    /** @type {{ id: string, title: string, rating: number }[]} */
+    const ratedBooks = []
+
+    for (const li of authorLibraryItems) {
+      const book = li.media
+      if (!book) continue
+
+      const viewedCount = Number(book.viewedCount) || 0
+      totalViewedCount += viewedCount
+      if (viewedCount > 0) totalBooksDone += 1
+
+      if (book.rating !== null && book.rating !== undefined && !isNaN(Number(book.rating))) {
+        const r = Number(book.rating)
+        ratingSum += r
+        ratingCount += 1
+        ratedBooks.push({ id: li.id, title: book.title || '', rating: r })
+      }
+
+      const tags = Array.isArray(book.tags) ? book.tags : []
+      for (const t of tags) {
+        if (!t || typeof t !== 'string') continue
+        const tag = t.trim()
+        if (!tag) continue
+        topTagMap[tag] = (topTagMap[tag] || 0) + 1
+      }
+    }
+
+    const averageRating = ratingCount ? ratingSum / ratingCount : null
+    const topRatedBooks = ratedBooks
+      .sort((a, b) => b.rating - a.rating || (a.title || '').localeCompare(b.title || ''))
+      .slice(0, 10)
+
+    const topTags = Object.keys(topTagMap)
+      .map((tag) => ({ tag, count: topTagMap[tag] }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    // Listening analytics for this author's books across all users (seconds), last 365 days.
+    // We query by libraryItemId stored in playbackSessions.extraData.libraryItemId.
+    const authorLibraryItemIdsArrAll = authorLibraryItems.map((li) => li.id).filter(Boolean)
+    const chunkSize = 400
+    const chunks = []
+    for (let i = 0; i < authorLibraryItemIdsArrAll.length; i += chunkSize) {
+      chunks.push(authorLibraryItemIdsArrAll.slice(i, i + chunkSize))
+    }
+
+    const libraryId = req.author.libraryId
+    const daysBack = 365
+    const startDateObj = new Date()
+    startDateObj.setDate(startDateObj.getDate() - (daysBack - 1))
+    const startDate = startDateObj.toISOString().slice(0, 10)
+
+    let globalTotalTime = 0
+    const globalDays = {}
+    const weeklyMap = {}
+    const monthlyMap = {}
+
+    for (const ids of chunks) {
+      if (!ids.length) continue
+
+      const [totalRows] = await Database.sequelize.query(
+        `
+        SELECT SUM(COALESCE(timeListening, 0)) AS totalTime
+        FROM playbackSessions
+        WHERE libraryId = :libraryId
+          AND mediaItemType = 'book'
+          AND json_extract(extraData, '$.libraryItemId') IN (:ids);
+        `,
+        { replacements: { libraryId, ids } }
+      )
+      globalTotalTime += Number(totalRows?.[0]?.totalTime) || 0
+
+      const [dailyRows] = await Database.sequelize.query(
+        `
+        SELECT date AS bucket, SUM(COALESCE(timeListening, 0)) AS timeListening
+        FROM playbackSessions
+        WHERE libraryId = :libraryId
+          AND mediaItemType = 'book'
+          AND date IS NOT NULL
+          AND date >= :startDate
+          AND json_extract(extraData, '$.libraryItemId') IN (:ids)
+        GROUP BY date;
+        `,
+        { replacements: { libraryId, startDate, ids } }
+      )
+      for (const row of dailyRows || []) {
+        if (!row.bucket) continue
+        globalDays[row.bucket] = (globalDays[row.bucket] || 0) + (Number(row.timeListening) || 0)
+      }
+
+      const [weeklyRows] = await Database.sequelize.query(
+        `
+        SELECT strftime('%Y-W%W', date) AS bucket, SUM(COALESCE(timeListening, 0)) AS timeListening
+        FROM playbackSessions
+        WHERE libraryId = :libraryId
+          AND mediaItemType = 'book'
+          AND date IS NOT NULL
+          AND date >= :startDate
+          AND json_extract(extraData, '$.libraryItemId') IN (:ids)
+        GROUP BY bucket;
+        `,
+        { replacements: { libraryId, startDate, ids } }
+      )
+      for (const row of weeklyRows || []) {
+        if (!row.bucket) continue
+        weeklyMap[row.bucket] = (weeklyMap[row.bucket] || 0) + (Number(row.timeListening) || 0)
+      }
+
+      const [monthlyRows] = await Database.sequelize.query(
+        `
+        SELECT strftime('%Y-%m', date) AS bucket, SUM(COALESCE(timeListening, 0)) AS timeListening
+        FROM playbackSessions
+        WHERE libraryId = :libraryId
+          AND mediaItemType = 'book'
+          AND date IS NOT NULL
+          AND date >= :startDate
+          AND json_extract(extraData, '$.libraryItemId') IN (:ids)
+        GROUP BY bucket;
+        `,
+        { replacements: { libraryId, startDate, ids } }
+      )
+      for (const row of monthlyRows || []) {
+        if (!row.bucket) continue
+        monthlyMap[row.bucket] = (monthlyMap[row.bucket] || 0) + (Number(row.timeListening) || 0)
+      }
+    }
+
+    stats.global = {
+      totalViewedCount,
+      totalBooksDone,
+      averageRating,
+      topRatedBooks,
+      topTags,
+      listeningStats: {
+        totalTime: globalTotalTime,
+        days: globalDays,
+        weekly: Object.keys(weeklyMap)
+          .sort()
+          .map((bucket) => ({ bucket, timeListening: weeklyMap[bucket] })),
+        monthly: Object.keys(monthlyMap)
+          .sort()
+          .map((bucket) => ({ bucket, timeListening: monthlyMap[bucket] }))
+      }
+    }
+
     res.json(stats)
   }
 
