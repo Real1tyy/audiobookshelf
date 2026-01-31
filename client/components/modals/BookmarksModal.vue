@@ -24,7 +24,7 @@
               </p>
             </div>
             <div class="grow px-2">
-              <ui-text-input v-model="newBookmarkTitle" placeholder="Note" class="w-full h-10" />
+              <ui-text-input ref="bookmarkTitleInput" v-model="newBookmarkTitle" placeholder="Note" class="w-full h-10" @keyup="inputKeyup" />
             </div>
             <ui-btn type="submit" color="bg-success" :padding-x="4" class="h-10"><span class="material-symbols text-2xl -mt-px">add</span></ui-btn>
           </div>
@@ -63,6 +63,13 @@ export default {
         this.selectedBookmark = null
         this.showBookmarkTitleInput = false
         this.newBookmarkTitle = ''
+        // Auto-focus the bookmark title input when modal opens
+        // Use setTimeout to wait for modal transition to complete
+        setTimeout(() => {
+          if (this.$refs.bookmarkTitleInput && this.$refs.bookmarkTitleInput.setFocus) {
+            this.$refs.bookmarkTitleInput.setFocus()
+          }
+        }, 100)
       }
     }
   },
@@ -105,6 +112,11 @@ export default {
     },
     clickBookmark(bm) {
       this.$emit('select', bm)
+    },
+    inputKeyup(e) {
+      if (e.key === 'Escape') {
+        this.show = false
+      }
     },
     submitCreateBookmark() {
       if (!this.newBookmarkTitle) {

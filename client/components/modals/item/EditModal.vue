@@ -271,13 +271,24 @@ export default {
     },
     registerListeners() {
       window.addEventListener('orientationchange', this.orientationChange)
+      window.addEventListener('keydown', this.keydownListener)
       this.$eventBus.$on('modal-hotkey', this.hotkey)
       this.$eventBus.$on(`${this.selectedLibraryItemId}_updated`, this.libraryItemUpdated)
     },
     unregisterListeners() {
       window.removeEventListener('orientationchange', this.orientationChange)
+      window.removeEventListener('keydown', this.keydownListener)
       this.$eventBus.$off('modal-hotkey', this.hotkey)
       this.$eventBus.$off(`${this.selectedLibraryItemId}_updated`, this.libraryItemUpdated)
+    },
+    keydownListener(e) {
+      // Ctrl+Enter or Cmd+Enter to save and close from anywhere in the modal
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        e.stopPropagation()
+        // Emit event to trigger saveAndClose on the active tab component
+        this.$eventBus.$emit('edit-modal-save')
+      }
     },
     orientationChange() {
       setTimeout(this.setHeight, 50)

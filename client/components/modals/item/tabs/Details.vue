@@ -206,6 +206,10 @@ export default {
   },
   mounted() {
     this.setResizeObserver()
+    this.$eventBus.$on('edit-modal-save', this.saveAndClose)
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('edit-modal-save', this.saveAndClose)
   }
 }
 </script>
