@@ -15,6 +15,12 @@
             <button v-if="userCanUpdate" class="w-8 h-8 rounded-full flex items-center justify-center mx-4 cursor-pointer text-gray-300 hover:text-warning transform hover:scale-125 duration-100" @click="editAuthor">
               <span class="material-symbols text-base">edit</span>
             </button>
+
+            <!-- Play All Button -->
+            <button v-if="hasPlayableBooks" class="flex items-center px-3 py-1.5 rounded-full bg-success hover:bg-success/80 text-white transition-colors" @click="playAll">
+              <span class="material-symbols text-lg mr-1">play_arrow</span>
+              <span class="text-sm font-medium">{{ $strings.LabelPlayAll || 'Play All' }}</span>
+            </button>
           </div>
 
           <p v-if="author.description" class="text-white/60 uppercase text-xs mb-2">{{ $strings.LabelDescription }}</p>
@@ -229,6 +235,26 @@ export default {
     totalDaysListened() {
       if (!this.authorStats?.days) return 0
       return Object.keys(this.authorStats.days).length
+    },
+    playableBooks() {
+      // Get all playable books from both main items and series
+      const allBooks = [...this.filteredLibraryItems]
+      this.authorSeries.forEach((series) => {
+        series.items.forEach((item) => {
+          if (!allBooks.find((b) => b.id === item.id)) {
+            allBooks.push(item)
+          }
+        })
+      })
+
+      // Filter to only books with audio tracks
+      return allBooks.filter((item) => {
+        const numTracks = item.media?.numTracks || 0
+        return numTracks > 0
+      })
+    },
+    hasPlayableBooks() {
+      return this.playableBooks.length > 0
     }
   },
   methods: {
@@ -379,6 +405,33 @@ export default {
         libraryItemId: session.libraryItemId,
         episodeId: session.episodeId || null
       })
+    },
+    playAll() {
+      if (!this.playableBooks.length) return
+
+      // Build queue items from all playable books
+      const queueItems = this.playableBooks.map((item) => {
+        const authorName = item.media?.metadata?.authorName || ''
+        return {
+          libraryItemId: item.id,
+          libraryId: item.libraryId || this.currentLibraryId,
+          episodeId: null,
+          title: item.media?.metadata?.title || 'Unknown',
+          subtitle: authorName,
+          caption: this.author.name,
+          duration: item.media?.duration || null,
+          coverPath: item.media?.coverPath || null
+        }
+      })
+
+      // Play the first item with the full queue
+      this.$eventBus.$emit('play-item', {
+        libraryItemId: queueItems[0].libraryItemId,
+        episodeId: null,
+        queueItems
+      })
+
+      this.$toast.success(this.$getString('MessageItemsAddedToQueue', [queueItems.length]) || `${queueItems.length} items added to queue`)
     }
   },
   mounted() {

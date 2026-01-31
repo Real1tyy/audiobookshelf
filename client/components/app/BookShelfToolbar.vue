@@ -76,6 +76,12 @@
         <!-- series sort select -->
         <controls-sort-select v-if="isSeriesPage && !isBatchSelecting" v-model="settings.seriesSortBy" :descending.sync="settings.seriesSortDesc" :items="seriesSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateSeriesSort" />
 
+        <!-- Play All button for book library -->
+        <button v-if="isBookLibrary && isLibraryPage && !isBatchSelecting" class="flex items-center px-2 sm:px-3 py-1 ml-2 sm:ml-4 rounded-full bg-success hover:bg-success/80 text-white text-sm transition-colors" :disabled="playingAll" @click="playAll">
+          <span class="material-symbols text-lg mr-0 sm:mr-1">play_arrow</span>
+          <span class="hidden sm:inline">{{ $strings.LabelPlayAll || 'Play All' }}</span>
+        </button>
+
         <!-- issues page remove all button -->
         <ui-btn v-if="isIssuesFilter && userCanDelete && !isBatchSelecting" :loading="processingIssues" color="bg-error" small class="ml-4" @click="removeAllIssues">{{ $strings.ButtonRemoveAll }} {{ $formatNumber(numShowing) }} {{ entityName }}</ui-btn>
 
@@ -129,6 +135,7 @@ export default {
       processingSeries: false,
       processingIssues: false,
       processingAuthors: false,
+      playingAll: false,
       searchQuery: '',
       searchDebounceTimeout: null
     }
@@ -433,6 +440,75 @@ export default {
     },
     exportOPML() {
       this.$downloadFile(`/api/libraries/${this.currentLibraryId}/opml?token=${this.$store.getters['user/getToken']}`, null, true)
+    },
+    async playAll() {
+      if (this.playingAll) return
+      this.playingAll = true
+
+      try {
+        // Build query string for current filter/sort settings
+        let searchParams = new URLSearchParams()
+        if (this.settings.librarySearchQuery) {
+          searchParams.set('q', this.settings.librarySearchQuery)
+        }
+        if (this.settings.filterBy && this.settings.filterBy !== 'all') {
+          searchParams.set('filter', this.settings.filterBy)
+        }
+        if (this.settings.orderBy) {
+          searchParams.set('sort', this.settings.orderBy)
+          searchParams.set('desc', this.settings.orderDesc ? 1 : 0)
+        }
+        const sfQueryString = searchParams.toString() ? searchParams.toString() + '&' : ''
+
+        // Fetch all items matching current filter (limit=0 means all)
+        const payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/items?${sfQueryString}limit=0&minified=1`).catch((error) => {
+          console.error('Failed to fetch items for play all', error)
+          return null
+        })
+
+        if (!payload || !payload.results || !payload.results.length) {
+          this.$toast.warning(this.$strings.MessageNoItemsFound || 'No items found')
+          return
+        }
+
+        // Filter to only playable books (those with audio tracks)
+        const playableItems = payload.results.filter((item) => {
+          if (item.collapsedSeries) return false
+          const numTracks = item.media?.numTracks || 0
+          return numTracks > 0
+        })
+
+        if (!playableItems.length) {
+          this.$toast.warning(this.$strings.MessageNoPlayableItems || 'No playable items found')
+          return
+        }
+
+        // Build queue items
+        const queueItems = playableItems.map((item) => {
+          const authorName = item.media?.metadata?.authorName || ''
+          return {
+            libraryItemId: item.id,
+            libraryId: item.libraryId || this.currentLibraryId,
+            episodeId: null,
+            title: item.media?.metadata?.title || 'Unknown',
+            subtitle: authorName,
+            caption: '',
+            duration: item.media?.duration || null,
+            coverPath: item.media?.coverPath || null
+          }
+        })
+
+        // Play the first item with the full queue
+        this.$eventBus.$emit('play-item', {
+          libraryItemId: queueItems[0].libraryItemId,
+          episodeId: null,
+          queueItems
+        })
+
+        this.$toast.success(this.$getString('MessageItemsAddedToQueue', [queueItems.length]) || `${queueItems.length} items added to queue`)
+      } finally {
+        this.playingAll = false
+      }
     },
     seriesContextMenuAction({ action }) {
       if (action === 'open-rss-feed') {

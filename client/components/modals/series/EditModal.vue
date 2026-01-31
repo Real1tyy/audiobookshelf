@@ -11,7 +11,14 @@
         <button class="px-4 py-2 -mb-px" :class="activeTab === 'details' ? 'border-b-2 border-yellow-400 text-yellow-400' : 'text-gray-400 hover:text-white'" @click="activeTab = 'details'">
           {{ $strings.LabelDetails }}
         </button>
-        <button class="px-4 py-2 -mb-px" :class="activeTab === 'books' ? 'border-b-2 border-yellow-400 text-yellow-400' : 'text-gray-400 hover:text-white'" @click="activeTab = 'books'; loadBooks()">
+        <button
+          class="px-4 py-2 -mb-px"
+          :class="activeTab === 'books' ? 'border-b-2 border-yellow-400 text-yellow-400' : 'text-gray-400 hover:text-white'"
+          @click="
+            activeTab = 'books'
+            loadBooks()
+          "
+        >
           {{ $strings.LabelBooks }} ({{ bookCount }})
         </button>
       </div>
@@ -78,13 +85,7 @@
               </div>
               <div class="flex items-center ml-2">
                 <span class="text-gray-400 mr-2 text-sm">#</span>
-                <input
-                  v-model="book.sequence"
-                  type="text"
-                  class="w-16 bg-bg border border-gray-600 rounded px-2 py-1 text-center text-sm focus:border-yellow-400 focus:outline-none"
-                  :placeholder="String(index + 1)"
-                  @blur="markBookChanged(book)"
-                />
+                <input v-model="book.sequence" type="text" class="w-16 bg-bg border border-gray-600 rounded px-2 py-1 text-center text-sm focus:border-yellow-400 focus:outline-none" :placeholder="String(index + 1)" @input="markBookChanged(book)" @blur="markBookChanged(book)" />
               </div>
             </div>
           </draggable>
@@ -120,7 +121,8 @@ export default {
       seriesBooks: [],
       originalBooks: [],
       loadingBooks: false,
-      changedBookIds: new Set()
+      // Vue 2 reactivity does not track Set/Map mutations reliably; use a plain object map instead.
+      changedBookIds: {}
     }
   },
   watch: {
@@ -168,7 +170,7 @@ export default {
       return this.series?.libraryItems?.length || this.seriesBooks.length || 0
     },
     hasBookChanges() {
-      return this.changedBookIds.size > 0
+      return Object.keys(this.changedBookIds).length > 0
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
@@ -181,7 +183,7 @@ export default {
       this.activeTab = 'details'
       this.seriesBooks = []
       this.originalBooks = []
-      this.changedBookIds = new Set()
+      this.changedBookIds = {}
       this.seriesCopy = {
         ...this.series
       }
@@ -195,15 +197,17 @@ export default {
         const libraryItems = data.libraryItems || []
 
         this.seriesBooks = libraryItems.map((item) => {
-          const seriesInfo = item.media?.metadata?.series?.find((s) => s.id === this.seriesId)
+          // Backend adds sequence at top level of library item (not nested in metadata.series)
+          const sequence = item.sequence || ''
+          console.log(`[EditModal] Loaded book: id=${item.id}, bookId=${item.media?.id}, title="${item.media?.metadata?.title}", sequence="${sequence}"`)
           return {
             id: item.id,
             bookId: item.media?.id,
             title: item.media?.metadata?.title || 'Unknown',
             authorName: item.media?.metadata?.authorName || '',
             coverPath: item.media?.coverPath,
-            sequence: seriesInfo?.sequence || '',
-            originalSequence: seriesInfo?.sequence || ''
+            sequence: sequence,
+            originalSequence: sequence
           }
         })
 
@@ -228,43 +232,56 @@ export default {
       return this.$store.getters['globals/getLibraryItemCoverSrc']({ id: book.id, media: { coverPath: book.coverPath } })
     },
     markBookChanged(book) {
-      const original = this.originalBooks.find((b) => b.id === book.id)
-      if (original && original.originalSequence !== book.sequence) {
-        this.changedBookIds.add(book.id)
+      // Compare current sequence with the original sequence stored on the book itself
+      if (book.originalSequence !== book.sequence) {
+        this.$set(this.changedBookIds, book.id, true)
+        console.log(`[EditModal] Book "${book.title}" marked as changed. Original: "${book.originalSequence}", Current: "${book.sequence}"`)
       } else {
-        this.changedBookIds.delete(book.id)
+        this.$delete(this.changedBookIds, book.id)
+        console.log(`[EditModal] Book "${book.title}" unchanged. Sequence: "${book.sequence}"`)
       }
     },
     onDragEnd() {
       // Update sequences based on new order
+      console.log('[EditModal] onDragEnd - updating sequences')
       this.seriesBooks.forEach((book, index) => {
         const newSequence = String(index + 1)
         if (book.sequence !== newSequence) {
+          console.log(`[EditModal] Updating "${book.title}" sequence from "${book.sequence}" to "${newSequence}"`)
           book.sequence = newSequence
-          this.changedBookIds.add(book.id)
+          this.$set(this.changedBookIds, book.id, true)
         }
       })
+      console.log('[EditModal] Changed book IDs after drag:', Object.keys(this.changedBookIds))
     },
     async saveBookOrder() {
-      if (!this.hasBookChanges) return
+      if (!this.hasBookChanges) {
+        console.log('[EditModal] No book changes to save')
+        return
+      }
+
+      console.log('[EditModal] Saving book order. Changed IDs:', Object.keys(this.changedBookIds))
 
       this.processing = true
       try {
         const books = this.seriesBooks
-          .filter((b) => this.changedBookIds.has(b.id))
+          .filter((b) => !!this.changedBookIds[b.id])
           .map((b) => ({
             bookId: b.bookId,
             sequence: b.sequence || null
           }))
 
+        console.log('[EditModal] Sending books to update:', books)
+
         await this.$axios.$patch(`/api/series/${this.seriesId}/books`, { books })
+        console.log('[EditModal] Update successful')
         this.$toast.success(this.$strings.ToastSeriesUpdateSuccess)
 
         // Update original sequences
         this.seriesBooks.forEach((book) => {
           book.originalSequence = book.sequence
         })
-        this.changedBookIds.clear()
+        this.changedBookIds = {}
       } catch (error) {
         console.error('Failed to save book order', error)
         this.$toast.error(error.response?.data || this.$strings.ToastFailedToUpdate)

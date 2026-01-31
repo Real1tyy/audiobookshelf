@@ -9,8 +9,12 @@
       <div v-if="show" class="w-full h-full">
         <div class="pb-4 px-4 flex items-center">
           <p class="text-base text-gray-200">{{ $strings.HeaderPlayerQueue }}</p>
-          <p class="text-base text-gray-400 px-4">{{ playerQueueItems.length }} Items</p>
+          <p class="text-base text-gray-400 px-4">{{ playerQueueItems.length }} {{ $strings.LabelItems || 'Items' }}</p>
           <div class="grow" />
+          <button v-if="playerQueueItems.length > 0" class="flex items-center px-3 py-1 mr-4 rounded bg-error/80 hover:bg-error text-white text-sm transition-colors" @click="clearAll">
+            <span class="material-symbols text-base mr-1">delete_sweep</span>
+            {{ $strings.ButtonClearAll || 'Clear All' }}
+          </button>
           <ui-checkbox v-model="playerQueueAutoPlay" label="Auto Play" medium checkbox-bg="primary" border-color="gray-600" label-class="pl-2 mb-px" />
         </div>
         <modals-player-queue-item-row v-for="(item, index) in playerQueueItems" :key="index" :item="item" :index="index" @play="playItem(index)" @remove="removeItem" />
@@ -57,6 +61,10 @@ export default {
     },
     removeItem(item) {
       this.$store.commit('removeItemFromQueue', item)
+    },
+    clearAll() {
+      this.$store.commit('setPlayerQueueItems', [])
+      this.$toast.success(this.$strings.ToastQueueCleared || 'Queue cleared')
     }
   }
 }
