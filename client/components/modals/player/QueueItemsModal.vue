@@ -11,7 +11,7 @@
           <p class="text-base text-gray-200">{{ $strings.HeaderPlayerQueue }}</p>
           <p class="text-base text-gray-400 px-4">{{ playerQueueItems.length }} {{ $strings.LabelItems || 'Items' }}</p>
           <div class="grow" />
-          <button v-if="playerQueueItems.length > 0" class="flex items-center px-3 py-1 mr-4 rounded bg-error/80 hover:bg-error text-white text-sm transition-colors" @click="clearAll">
+          <button v-if="hasItemsToClear" class="flex items-center px-3 py-1 mr-4 rounded bg-error/80 hover:bg-error text-white text-sm transition-colors" @click="clearAll">
             <span class="material-symbols text-base mr-1">delete_sweep</span>
             {{ $strings.ButtonClearAll || 'Clear All' }}
           </button>
@@ -50,6 +50,17 @@ export default {
     },
     playerQueueItems() {
       return this.$store.state.playerQueueItems || []
+    },
+    currentlyPlayingLibraryItemId() {
+      return this.$store.state.streamLibraryItem?.id || null
+    },
+    currentlyPlayingEpisodeId() {
+      return this.$store.state.streamEpisodeId || null
+    },
+    // Check if there are items to clear (more than just the currently playing item)
+    hasItemsToClear() {
+      if (this.playerQueueItems.length <= 1) return false
+      return this.playerQueueItems.length > 1
     }
   },
   methods: {
@@ -63,7 +74,31 @@ export default {
       this.$store.commit('removeItemFromQueue', item)
     },
     clearAll() {
-      this.$store.commit('setPlayerQueueItems', [])
+      // Keep only the currently playing item in the queue
+      const currentLibraryItemId = this.currentlyPlayingLibraryItemId
+      const currentEpisodeId = this.currentlyPlayingEpisodeId
+
+      if (currentLibraryItemId) {
+        // Find the currently playing item in the queue
+        const currentItem = this.playerQueueItems.find((item) => {
+          if (currentEpisodeId) {
+            return item.libraryItemId === currentLibraryItemId && item.episodeId === currentEpisodeId
+          }
+          return item.libraryItemId === currentLibraryItemId && !item.episodeId
+        })
+
+        if (currentItem) {
+          // Keep only the current item
+          this.$store.commit('setPlayerQueueItems', [currentItem])
+        } else {
+          // Current item not in queue, clear everything
+          this.$store.commit('setPlayerQueueItems', [])
+        }
+      } else {
+        // Nothing playing, clear everything
+        this.$store.commit('setPlayerQueueItems', [])
+      }
+
       this.$toast.success(this.$strings.ToastQueueCleared || 'Queue cleared')
     }
   }
