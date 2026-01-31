@@ -3,17 +3,27 @@
     <div>
       <!-- Series Header -->
       <div class="flex flex-wrap sm:flex-nowrap justify-center sm:justify-start mb-6">
-        <div class="w-32 min-w-32">
+        <div class="w-32 min-w-32 relative">
           <div class="w-full h-40">
             <covers-preview-cover :src="seriesCoverUrl" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+          </div>
+          <!-- Play button overlay -->
+          <div v-if="hasPlayableBooks" class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer rounded" @click="playSeries">
+            <span class="material-symbols fill text-white text-5xl">play_arrow</span>
           </div>
         </div>
         <div class="grow py-4 sm:py-0 px-4 md:px-8">
           <div class="flex items-center mb-4">
             <h1 class="text-2xl">{{ series.name }}</h1>
 
+            <!-- Play button -->
+            <ui-btn v-if="hasPlayableBooks" color="bg-success" :padding-x="4" small class="flex items-center h-9 mx-4" @click="playSeries">
+              <span class="material-symbols fill text-xl -ml-1 pr-1 text-white">play_arrow</span>
+              {{ $strings.ButtonPlay }}
+            </ui-btn>
+
             <!-- Edit button -->
-            <button v-if="userCanUpdate" class="w-8 h-8 rounded-full flex items-center justify-center mx-4 cursor-pointer text-gray-300 hover:text-warning transform hover:scale-125 duration-100" @click="editSeries">
+            <button v-if="userCanUpdate" class="w-8 h-8 rounded-full flex items-center justify-center mx-2 cursor-pointer text-gray-300 hover:text-warning transform hover:scale-125 duration-100" @click="editSeries">
               <span class="material-symbols text-base">edit</span>
             </button>
 
@@ -188,6 +198,25 @@ export default {
     isSeriesFinished() {
       return this.seriesProgress && !!this.seriesProgress.isFinished
     },
+    hasPlayableBooks() {
+      return this.playableBooks.length > 0
+    },
+    playableBooks() {
+      // Get books that have audio tracks, sorted by sequence
+      return this.libraryItems
+        .filter((item) => {
+          const numTracks = item.media?.numTracks || item.media?.tracks?.length || 0
+          return numTracks > 0
+        })
+        .sort((a, b) => {
+          const seqA = a.sequence || ''
+          const seqB = b.sequence || ''
+          if (!seqA && !seqB) return 0
+          if (!seqA) return 1
+          if (!seqB) return -1
+          return String(seqA).localeCompare(String(seqB), undefined, { numeric: true })
+        })
+    },
     isSeriesRemovedFromContinueListening() {
       return this.$store.getters['user/getIsSeriesRemovedFromContinueListening'](this.seriesId)
     },
@@ -271,6 +300,31 @@ export default {
     },
     editSeries() {
       this.$store.commit('globals/showEditSeriesModal', this.series)
+    },
+    playSeries() {
+      if (!this.playableBooks.length) return
+
+      // Build queue items from all playable books in sequence order
+      const queueItems = this.playableBooks.map((item) => {
+        const authors = item.media?.metadata?.authors || []
+        return {
+          libraryItemId: item.id,
+          libraryId: item.libraryId,
+          episodeId: null,
+          title: item.media?.metadata?.title || 'Unknown',
+          subtitle: authors.map((a) => a.name).join(', '),
+          caption: this.series.name,
+          duration: item.media?.duration || null,
+          coverPath: item.media?.coverPath || null
+        }
+      })
+
+      // Play the first item and set the queue
+      this.$eventBus.$emit('play-item', {
+        libraryItemId: queueItems[0].libraryItemId,
+        episodeId: null,
+        queueItems
+      })
     },
     editItem(libraryItem) {
       const itemIds = this.filteredLibraryItems.map((e) => e.id)

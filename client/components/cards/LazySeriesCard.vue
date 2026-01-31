@@ -13,8 +13,12 @@
 
       <div cy-id="seriesProgressBar" v-if="seriesPercentInProgress > 0" class="absolute bottom-0 left-0 h-1e shadow-xs max-w-full z-10 rounded-b w-full box-shadow-progressbar" :class="isSeriesFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: seriesPercentInProgress * 100 + '%' }" />
 
-      <div cy-id="hoveringDisplayTitle" v-if="hasValidCovers" aria-hidden="true" class="bg-black/60 absolute top-0 left-0 w-full h-full flex items-center justify-center text-center transition-opacity" :class="isHovering ? '' : 'opacity-0'" :style="{ padding: '1em' }">
-        <p :style="{ fontSize: 1.2 + 'em' }">{{ displayTitle }}</p>
+      <!-- Hover overlay with play button -->
+      <div cy-id="hoverOverlay" v-if="hasValidCovers || hasPlayableBooks" aria-hidden="true" class="bg-black/60 absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center text-center transition-opacity z-20" :class="isHovering ? '' : 'opacity-0'" :style="{ padding: '0.5em' }">
+        <div v-if="hasPlayableBooks" class="hover:text-white text-gray-200 hover:scale-110 transform duration-200 cursor-pointer" @click.stop.prevent="playSeries">
+          <span class="material-symbols fill" :style="{ fontSize: playIconFontSize + 'em' }">play_arrow</span>
+        </div>
+        <p :style="{ fontSize: 1 + 'em' }" class="mt-1">{{ displayTitle }}</p>
       </div>
 
       <span cy-id="rssFeedMarker" v-if="!isHovering && rssFeed" class="absolute z-10 material-symbols text-success" :style="{ top: 0.5 + 'em', left: 0.5 + 'em', fontSize: 1.5 + 'em' }">rss_feed</span>
@@ -165,6 +169,28 @@ export default {
     rssFeed() {
       return this.series?.rssFeed
     },
+    playIconFontSize() {
+      return Math.max(2, 3 * this.sizeMultiplier)
+    },
+    playableBooks() {
+      // Get books that have audio tracks, sorted by sequence
+      return this.books
+        .filter((book) => {
+          const numTracks = book.media?.numTracks || book.numTracks || 0
+          return numTracks > 0
+        })
+        .sort((a, b) => {
+          const seqA = a.sequence || ''
+          const seqB = b.sequence || ''
+          if (!seqA && !seqB) return 0
+          if (!seqA) return 1
+          if (!seqB) return -1
+          return String(seqA).localeCompare(String(seqB), undefined, { numeric: true })
+        })
+    },
+    hasPlayableBooks() {
+      return this.playableBooks.length > 0
+    },
     seriesCoverSrc() {
       if (!this.series?.coverPath) return null
       const config = this.$config || this.$nuxt.$config
@@ -188,6 +214,33 @@ export default {
       if (!this.series) return
       var router = this.$router || this.$nuxt.$router
       router.push(`/library/${this.currentLibraryId}/series/${this.seriesId}`)
+    },
+    playSeries() {
+      if (!this.playableBooks.length) return
+
+      const eventBus = this.$eventBus || this.$nuxt.$eventBus
+
+      // Build queue items from all playable books in sequence order
+      const queueItems = this.playableBooks.map((book) => {
+        const authorName = book.media?.metadata?.authorName || book.authorName || ''
+        return {
+          libraryItemId: book.id,
+          libraryId: book.libraryId || this.currentLibraryId,
+          episodeId: null,
+          title: book.media?.metadata?.title || book.title || 'Unknown',
+          subtitle: authorName,
+          caption: this.series?.name || '',
+          duration: book.media?.duration || book.duration || null,
+          coverPath: book.media?.coverPath || book.coverPath || null
+        }
+      })
+
+      // Play the first item and set the queue
+      eventBus.$emit('play-item', {
+        libraryItemId: queueItems[0].libraryItemId,
+        episodeId: null,
+        queueItems
+      })
     },
     imageLoaded() {
       this.imageReady = true
