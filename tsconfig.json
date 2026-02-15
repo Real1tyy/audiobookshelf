@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+
+    // CRITICAL: Allow JS and TS to coexist
+    "allowJs": true,
+    "checkJs": false,
+
+    // Don't emit - we still run .js files directly
+    "noEmit": true,
+
+    // Start lenient, tighten later
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Paths for cleaner imports
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["server/*"],
+      "@server/*": ["server/*"]
+    }
+  },
+  "include": [
+    "server/**/*",
+    "index.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "client",
+    "dist",
+    "build",
+    "test"
+  ]
+}
