@@ -103,21 +103,28 @@
           <p :style="{ fontSize: 0.8 + 'em' }">#{{ seriesSequence }}</p>
         </div>
 
-        <!-- Rating display -->
+        <!-- Rating and Tags container -->
         <div
-          cy-id="ratingDisplay"
-          v-if="!isPodcast && rating !== null && !isHovering && !isSelectionMode && !booksInSeries"
-          class="absolute left-0 z-10 flex items-center bg-yellow-500/95 text-black font-bold rounded-sm shadow-md"
-          :style="{ bottom: displayTags.length ? (userProgressPercent > 0 ? '2.5em' : '2.3em') : userProgressPercent > 0 ? '0.5em' : '0.3em', left: '0.3em', fontSize: 0.75 + 'em', padding: '0.2em 0.4em' }"
+          v-if="((!isPodcast && rating !== null) || displayTags.length) && !isHovering && !isSelectionMode && !booksInSeries"
+          class="absolute left-0 right-0 z-10 flex flex-col items-start"
+          :style="{ bottom: userProgressPercent > 0 ? '0.5em' : '0.3em', padding: '0 0.3em', gap: '0.25em' }"
         >
-          <span class="material-symbols fill text-base mr-1" style="font-size: 1em">star</span>
-          <span>{{ rating }}</span>
-        </div>
+          <!-- Rating display -->
+          <div
+            cy-id="ratingDisplay"
+            v-if="!isPodcast && rating !== null"
+            class="flex items-center bg-yellow-500/95 text-black font-bold rounded-sm shadow-md"
+            :style="{ fontSize: 0.75 + 'em', padding: '0.2em 0.4em' }"
+          >
+            <span class="material-symbols fill text-base mr-1" style="font-size: 1em">star</span>
+            <span>{{ rating }}</span>
+          </div>
 
-        <!-- Tags display -->
-        <div cy-id="tagsDisplay" v-if="displayTags.length && !isHovering && !isSelectionMode && !booksInSeries" class="absolute left-0 right-0 z-10 flex flex-wrap" :style="{ bottom: userProgressPercent > 0 ? '0.5em' : '0.3em', padding: '0 0.3em', gap: '0.25em' }">
-          <div v-for="tag in displayTags" :key="tag" class="bg-black/85 text-white font-semibold rounded-sm truncate" :style="{ fontSize: 0.75 + 'em', padding: '0.15em 0.4em', maxWidth: '100%' }">
-            {{ tag }}
+          <!-- Tags display -->
+          <div cy-id="tagsDisplay" v-if="displayTags.length" class="flex flex-wrap" :style="{ gap: '0.25em' }">
+            <div v-for="tag in displayTags" :key="tag" class="bg-black/85 text-white font-semibold rounded-sm truncate" :style="{ fontSize: 0.75 + 'em', padding: '0.15em 0.4em', maxWidth: '100%' }">
+              {{ tag }}
+            </div>
           </div>
         </div>
 
