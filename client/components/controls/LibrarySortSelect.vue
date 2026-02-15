@@ -147,6 +147,14 @@ export default {
           value: 'progress.finishedAt'
         },
         {
+          text: 'Minutes Listened',
+          value: 'totalListeningTime'
+        },
+        {
+          text: 'Listen Count',
+          value: 'viewedCount'
+        },
+        {
           text: this.$strings.LabelRandomly,
           value: 'random'
         }

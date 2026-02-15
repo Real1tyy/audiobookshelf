@@ -205,6 +205,10 @@ function getSortValue(libraryItem, sortBy, user) {
         return progress?.progress || 0
       }
       return 0
+    case 'totalListeningTime':
+      return libraryItem.media?.totalListeningTime || 0
+    case 'viewedCount':
+      return libraryItem.media?.viewedCount || 0
     default:
       return libraryItem.addedAt || 0
   }

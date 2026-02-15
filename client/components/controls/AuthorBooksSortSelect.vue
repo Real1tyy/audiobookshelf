@@ -79,6 +79,14 @@ export default {
           value: 'progress'
         },
         {
+          text: 'Minutes Listened',
+          value: 'totalListeningTime'
+        },
+        {
+          text: 'Listen Count',
+          value: 'viewedCount'
+        },
+        {
           text: this.$strings.LabelRandomly,
           value: 'random'
         }

@@ -319,6 +319,10 @@ module.exports = {
       return [[Sequelize.literal(`mediaProgresses.createdAt ${dir} NULLS LAST`)]]
     } else if (sortBy === 'progress.finishedAt') {
       return [[Sequelize.literal(`mediaProgresses.finishedAt ${dir} NULLS LAST`)]]
+    } else if (sortBy === 'totalListeningTime') {
+      return [[Sequelize.literal('`book`.`totalListeningTime`'), dir]]
+    } else if (sortBy === 'viewedCount') {
+      return [[Sequelize.literal('`book`.`viewedCount`'), dir]]
     } else if (sortBy === 'random') {
       return [Database.sequelize.random()]
     }
