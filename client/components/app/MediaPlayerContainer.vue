@@ -89,7 +89,8 @@ export default {
       syncFailedToast: null,
       coverAspectRatio: 1,
       lastChapterId: null,
-      repeatMode: 'off' // 'off', 'all', 'one'
+      repeatMode: 'off', // 'off', 'all', 'one'
+      _playRequestId: 0 // generation counter to discard stale playLibraryItem calls
     }
   },
   computed: {
@@ -607,11 +608,20 @@ export default {
         return
       }
 
+      // Increment generation counter so any in-flight playLibraryItem call is discarded
+      const requestId = ++this._playRequestId
+
       const libraryItem = await this.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
         console.error('Failed to fetch full item', error)
         return null
       })
       if (!libraryItem) return
+
+      // A newer play request was made while we were fetching — discard this stale one
+      if (requestId !== this._playRequestId) {
+        console.log('[MediaPlayerContainer] Discarding stale playLibraryItem for', libraryItemId)
+        return
+      }
 
       this.$store.commit('setMediaPlaying', {
         libraryItem,

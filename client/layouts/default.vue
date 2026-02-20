@@ -596,6 +596,9 @@ export default {
       // Queue auto play
       var playerQueueAutoPlay = localStorage.getItem('playerQueueAutoPlay')
       this.$store.commit('setPlayerQueueAutoPlay', playerQueueAutoPlay !== '0')
+
+      // Load persisted user settings (cover size, sort/filter, playback rate, etc.)
+      this.$store.dispatch('user/loadUserSettings')
     },
     loadTasks() {
       this.$axios
