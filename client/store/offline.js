@@ -261,6 +261,38 @@ export const actions = {
     dispatch('_saveToStorage')
   },
 
+  /**
+   * Download multiple items sequentially, skipping already-downloaded or in-progress items.
+   * Returns { downloaded, skipped, failed }.
+   */
+  async downloadItems({ state, dispatch }, { libraryItems, token }) {
+    let downloaded = 0
+    let skipped = 0
+    let failed = 0
+
+    for (const item of libraryItems) {
+      const itemId = item.id
+      if (state.downloadedItems[itemId] || state.downloading[itemId]) {
+        skipped++
+        continue
+      }
+      try {
+        await dispatch('downloadItem', { libraryItem: item, token })
+        // Check if it actually got stored (downloadItem silently returns on some errors)
+        if (state.downloadedItems[itemId]) {
+          downloaded++
+        } else {
+          failed++
+        }
+      } catch (e) {
+        console.error('[Offline] Failed to download item', itemId, e)
+        failed++
+      }
+    }
+
+    return { downloaded, skipped, failed }
+  },
+
   cancelDownload({ commit }, itemId) {
     const controller = abortControllers[itemId]
     if (controller) {

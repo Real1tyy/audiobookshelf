@@ -22,6 +22,12 @@
               {{ $strings.ButtonPlay }}
             </ui-btn>
 
+            <!-- Download All button -->
+            <ui-btn v-if="libraryItems.length" color="bg-info" :padding-x="4" small class="flex items-center h-9" :loading="downloadingSeries" @click="downloadAllSeries">
+              <span class="material-symbols text-xl -ml-1 pr-1 text-white">cloud_download</span>
+              {{ downloadProgressText }}
+            </ui-btn>
+
             <!-- Edit button -->
             <button v-if="userCanUpdate" class="w-8 h-8 rounded-full flex items-center justify-center mx-2 cursor-pointer text-gray-300 hover:text-warning transform hover:scale-125 duration-100" @click="editSeries">
               <span class="material-symbols text-base">edit</span>
@@ -128,7 +134,10 @@ export default {
       filterBy: 'all',
       sortBy: 'sequence',
       sortDesc: false,
-      isLoadingSearch: false
+      isLoadingSearch: false,
+      downloadingSeries: false,
+      downloadedCount: 0,
+      downloadTotal: 0
     }
   },
   watch: {
@@ -229,6 +238,12 @@ export default {
     isSeriesRemovedFromContinueListening() {
       return this.$store.getters['user/getIsSeriesRemovedFromContinueListening'](this.seriesId)
     },
+    downloadProgressText() {
+      if (this.downloadingSeries) {
+        return `Downloading ${this.downloadedCount}/${this.downloadTotal}...`
+      }
+      return 'Download All'
+    },
     contextMenuItems() {
       const items = [
         {
@@ -306,6 +321,32 @@ export default {
       } finally {
         this.isLoadingSearch = false
       }
+    },
+    async downloadAllSeries() {
+      if (this.downloadingSeries) return
+      this.downloadingSeries = true
+
+      const token = this.$store.getters['user/getToken']
+      const items = this.libraryItems
+      this.downloadTotal = items.length
+      this.downloadedCount = 0
+
+      for (const item of items) {
+        const itemId = item.id
+        if (this.$store.getters['offline/isDownloaded'](itemId) || this.$store.getters['offline/isDownloading'](itemId)) {
+          this.downloadedCount++
+          continue
+        }
+        try {
+          await this.$store.dispatch('offline/downloadItem', { libraryItem: item, token })
+        } catch (e) {
+          console.error('[Series] Failed to download item', itemId, e)
+        }
+        this.downloadedCount++
+      }
+
+      this.downloadingSeries = false
+      this.$toast.success(`Downloaded ${this.downloadedCount} of ${this.downloadTotal} items for offline use`)
     },
     editSeries() {
       this.$store.commit('globals/showEditSeriesModal', this.series)
