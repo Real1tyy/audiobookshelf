@@ -17,7 +17,10 @@
     <div v-else-if="isAlternativeBookshelfView" class="w-full mb-24e">
       <template v-for="(shelf, index) in supportedShelves">
         <widgets-item-slider :shelf-id="shelf.id" :key="index + '.'" :items="shelf.entities" :continue-listening-shelf="shelf.id === 'continue-listening' || shelf.id === 'continue-reading'" :type="shelf.type" class="bookshelf-row pl-8e my-6e" @selectEntity="(payload) => selectEntity(payload, index)">
-          <h2 class="font-semibold text-gray-100">{{ $strings[shelf.labelStringKey] }}</h2>
+          <nuxt-link v-if="getShelfLink(shelf)" :to="getShelfLink(shelf)" class="hover:underline">
+            <h2 class="font-semibold text-gray-100">{{ $strings[shelf.labelStringKey] }}</h2>
+          </nuxt-link>
+          <h2 v-else class="font-semibold text-gray-100">{{ $strings[shelf.labelStringKey] }}</h2>
         </widgets-item-slider>
       </template>
     </div>
@@ -94,6 +97,14 @@ export default {
     }
   },
   methods: {
+    getShelfLink(shelf) {
+      if (!shelf || !shelf.id) return null
+      const linkableIds = ['continue-listening', 'recently-added']
+      if (linkableIds.includes(shelf.id)) {
+        return `/library/${this.currentLibraryId}/bookshelf/${shelf.id}`
+      }
+      return null
+    },
     selectEntity({ entity, shiftKey }, shelfIndex) {
       const shelf = this.shelves[shelfIndex]
       const entityShelfIndex = shelf.entities.findIndex((ent) => ent.id === entity.id)

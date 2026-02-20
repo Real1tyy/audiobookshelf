@@ -90,7 +90,8 @@ export default {
       coverAspectRatio: 1,
       lastChapterId: null,
       repeatMode: 'off', // 'off', 'all', 'one'
-      _queueRestoreInProgress: false // flag to cancel queue restore when user initiates play
+      _queueRestoreInProgress: false, // flag to cancel queue restore when user initiates play
+      _userPlayInProgress: false // flag set immediately on user-initiated play to block queue restore
     }
   },
   computed: {
@@ -536,8 +537,8 @@ export default {
       })
     },
     async restoreQueueToPlayer(payload) {
-      // Don't restore queue if something is already playing (e.g. user already clicked play)
-      if (this.$store.state.streamLibraryItem) return
+      // Don't restore queue if something is already playing or user just clicked play
+      if (this.$store.state.streamLibraryItem || this._userPlayInProgress) return
 
       // Restore queue to player UI without auto-playing (paused, ready to play)
       const queueItems = payload.queueItems || []
@@ -606,10 +607,16 @@ export default {
     async playLibraryItem(payload) {
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId || null
+      const isUserPlay = !payload._isQueueRestore
 
-      // User-initiated play cancels any in-flight queue restore
-      if (!payload._isQueueRestore && this._queueRestoreInProgress) {
-        this._queueRestoreInProgress = false
+      // User-initiated play: set flag immediately (before any async work)
+      // so that queue restore checks will see it and bail out
+      if (isUserPlay) {
+        this._userPlayInProgress = true
+        // Also cancel any in-flight queue restore
+        if (this._queueRestoreInProgress) {
+          this._queueRestoreInProgress = false
+        }
       }
 
       if (this.playerHandler.libraryItemId == libraryItemId && this.playerHandler.episodeId == episodeId) {
@@ -618,6 +625,7 @@ export default {
         } else {
           this.playerHandler.play()
         }
+        if (isUserPlay) this._userPlayInProgress = false
         return
       }
 
@@ -649,12 +657,13 @@ export default {
             }
           }
         } else {
+          if (isUserPlay) this._userPlayInProgress = false
           return
         }
       }
 
       // If this is a queue restore but a user-initiated play happened while we were fetching, yield
-      if (payload._isQueueRestore && !this._queueRestoreInProgress) {
+      if (payload._isQueueRestore && (this._userPlayInProgress || !this._queueRestoreInProgress)) {
         console.log('[MediaPlayerContainer] Queue restore yielding to user-initiated play for', libraryItemId)
         return
       }
@@ -689,6 +698,8 @@ export default {
       // Use payload.play to control auto-play (defaults to true for backwards compatibility)
       const shouldPlay = payload.play !== false
       this.playerHandler.load(libraryItem, episodeId, shouldPlay, this.currentPlaybackRate, payload.startTime)
+
+      if (isUserPlay) this._userPlayInProgress = false
     },
     pauseItem() {
       this.playerHandler.pause()

@@ -37,7 +37,10 @@
     <div class="relative">
       <div class="relative text-center categoryPlacard transform z-30 top-0 left-4e md:left-8e w-44e rounded-md">
         <div class="w-full h-full shinyBlack flex items-center justify-center rounded-xs border" :style="{ padding: `0em 0.5em` }">
-          <h2 :style="{ fontSize: 0.9 + 'em' }">{{ $strings[shelf.labelStringKey] }}</h2>
+          <nuxt-link v-if="shelfLink" :to="shelfLink" class="hover:underline">
+            <h2 :style="{ fontSize: 0.9 + 'em' }">{{ $strings[shelf.labelStringKey] }}</h2>
+          </nuxt-link>
+          <h2 v-else :style="{ fontSize: 0.9 + 'em' }">{{ $strings[shelf.labelStringKey] }}</h2>
         </div>
       </div>
 
@@ -84,6 +87,14 @@ export default {
     },
     isSelectionMode() {
       return this.$store.getters['globals/getIsBatchSelectingMediaItems']
+    },
+    shelfLink() {
+      if (!this.shelf || !this.shelf.id) return null
+      const linkableIds = ['continue-listening', 'recently-added']
+      if (linkableIds.includes(this.shelf.id)) {
+        return `/library/${this.currentLibraryId}/bookshelf/${this.shelf.id}`
+      }
+      return null
     }
   },
   methods: {

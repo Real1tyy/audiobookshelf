@@ -19,6 +19,12 @@ export const state = () => ({
     seriesFilterBy: 'all',
     authorSortBy: 'name',
     authorSortDesc: false,
+    continueListeningSortBy: 'progress',
+    continueListeningSortDesc: true,
+    continueListeningFilterBy: 'all',
+    recentlyAddedSortBy: 'addedAt',
+    recentlyAddedSortDesc: true,
+    recentlyAddedFilterBy: 'all',
     jumpForwardAmount: 10,
     jumpBackwardAmount: 10
   }

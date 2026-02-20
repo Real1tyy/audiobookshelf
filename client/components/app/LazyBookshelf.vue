@@ -119,6 +119,8 @@ export default {
       if (this.page === 'collections') return this.$strings.MessageBookshelfNoCollections
       if (this.page === 'playlists') return this.$strings.MessageNoUserPlaylists
       if (this.page === 'authors') return this.$strings.MessageNoAuthors
+      if (this.page === 'continue-listening') return 'No items in progress'
+      if (this.page === 'recently-added') return 'No recently added items'
       if (this.hasFilter) {
         if (this.filterName === 'Issues') return this.$strings.MessageNoIssues
         else if (this.filterName === 'Feed-open') return this.$strings.MessageBookshelfNoRSSFeeds
@@ -133,6 +135,7 @@ export default {
     },
     entityName() {
       if (!this.page) return 'items'
+      if (this.page === 'continue-listening' || this.page === 'recently-added') return 'items'
       return this.page
     },
     seriesSortBy() {
@@ -149,6 +152,24 @@ export default {
     },
     authorSortDesc() {
       return !!this.$store.getters['user/getUserSetting']('authorSortDesc')
+    },
+    continueListeningSortBy() {
+      return this.$store.getters['user/getUserSetting']('continueListeningSortBy') || 'progress'
+    },
+    continueListeningSortDesc() {
+      return this.$store.getters['user/getUserSetting']('continueListeningSortDesc') !== false
+    },
+    continueListeningFilterBy() {
+      return this.$store.getters['user/getUserSetting']('continueListeningFilterBy') || 'all'
+    },
+    recentlyAddedSortBy() {
+      return this.$store.getters['user/getUserSetting']('recentlyAddedSortBy') || 'addedAt'
+    },
+    recentlyAddedSortDesc() {
+      return this.$store.getters['user/getUserSetting']('recentlyAddedSortDesc') !== false
+    },
+    recentlyAddedFilterBy() {
+      return this.$store.getters['user/getUserSetting']('recentlyAddedFilterBy') || 'all'
     },
     orderBy() {
       return this.$store.getters['user/getUserSetting']('orderBy')
@@ -519,7 +540,19 @@ export default {
       }
 
       let searchParams = new URLSearchParams()
-      if (this.page === 'series') {
+      if (this.page === 'continue-listening') {
+        searchParams.set('filter', 'progress.in-progress')
+        searchParams.set('sort', this.continueListeningSortBy)
+        searchParams.set('desc', this.continueListeningSortDesc ? 1 : 0)
+        return searchParams.toString()
+      } else if (this.page === 'recently-added') {
+        searchParams.set('sort', this.recentlyAddedSortBy)
+        searchParams.set('desc', this.recentlyAddedSortDesc ? 1 : 0)
+        if (this.recentlyAddedFilterBy && this.recentlyAddedFilterBy !== 'all') {
+          searchParams.set('filter', this.recentlyAddedFilterBy)
+        }
+        return searchParams.toString()
+      } else if (this.page === 'series') {
         searchParams.set('sort', this.seriesSortBy)
         searchParams.set('desc', this.seriesSortDesc ? 1 : 0)
         searchParams.set('filter', this.seriesFilterBy)

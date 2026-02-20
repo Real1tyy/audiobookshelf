@@ -64,7 +64,7 @@
         <ui-context-menu-dropdown v-if="!isBatchSelecting && seriesContextMenuItems.length" :items="seriesContextMenuItems" class="mx-px" @action="seriesContextMenuAction" />
       </template>
       <!-- library & collections page -->
-      <template v-else-if="page !== 'search' && page !== 'podcast-search' && page !== 'recent-episodes' && !isHome && !isAuthorsPage">
+      <template v-else-if="page !== 'search' && page !== 'podcast-search' && page !== 'recent-episodes' && !isHome && !isAuthorsPage && !isContinueListeningPage && !isRecentlyAddedPage">
         <p class="hidden md:block">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
 
         <div class="grow hidden sm:inline-block" />
@@ -119,6 +119,19 @@
 
         <!-- author sort select -->
         <controls-sort-select v-model="settings.authorSortBy" :descending.sync="settings.authorSortDesc" :items="authorSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateAuthorSort" />
+      </template>
+      <!-- continue listening page -->
+      <template v-else-if="isContinueListeningPage">
+        <p class="hidden md:block">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
+        <div class="grow hidden sm:inline-block" />
+        <controls-sort-select v-model="settings.continueListeningSortBy" :descending.sync="settings.continueListeningSortDesc" :items="continueListeningSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateContinueListeningSort" />
+      </template>
+      <!-- recently added page -->
+      <template v-else-if="isRecentlyAddedPage">
+        <p class="hidden md:block">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
+        <div class="grow hidden sm:inline-block" />
+        <controls-library-filter-select v-model="settings.recentlyAddedFilterBy" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateRecentlyAddedFilter" />
+        <controls-sort-select v-model="settings.recentlyAddedSortBy" :descending.sync="settings.recentlyAddedSortDesc" :items="recentlyAddedSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateRecentlyAddedSort" />
       </template>
       <!-- home page -->
       <template v-else-if="isHome">
@@ -243,6 +256,50 @@ export default {
         }
       ]
     },
+    continueListeningSortItems() {
+      return [
+        {
+          text: 'Last Listened',
+          value: 'progress'
+        },
+        {
+          text: this.$strings.LabelTitle || 'Title',
+          value: 'media.metadata.title'
+        },
+        {
+          text: this.$strings.LabelAuthor || 'Author',
+          value: 'media.metadata.authorName'
+        },
+        {
+          text: this.$strings.LabelDuration || 'Duration',
+          value: 'media.duration'
+        }
+      ]
+    },
+    recentlyAddedSortItems() {
+      return [
+        {
+          text: this.$strings.LabelAddedAt || 'Added At',
+          value: 'addedAt'
+        },
+        {
+          text: this.$strings.LabelTitle || 'Title',
+          value: 'media.metadata.title'
+        },
+        {
+          text: this.$strings.LabelAuthor || 'Author',
+          value: 'media.metadata.authorName'
+        },
+        {
+          text: this.$strings.LabelDuration || 'Duration',
+          value: 'media.duration'
+        },
+        {
+          text: this.$strings.LabelPublishedYear || 'Published Year',
+          value: 'media.metadata.publishedYear'
+        }
+      ]
+    },
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
     },
@@ -297,6 +354,12 @@ export default {
     isAuthorsPage() {
       return this.page === 'authors'
     },
+    isContinueListeningPage() {
+      return this.page === 'continue-listening'
+    },
+    isRecentlyAddedPage() {
+      return this.page === 'recently-added'
+    },
     isTagsPage() {
       return this.page === 'tags'
     },
@@ -311,6 +374,8 @@ export default {
       if (this.isPlaylistsPage) return this.$strings.LabelPlaylists
       if (this.isAuthorsPage) return this.$strings.LabelAuthors
       if (this.isTagsPage) return this.$strings.LabelTags
+      if (this.isContinueListeningPage) return 'Continue Listening'
+      if (this.isRecentlyAddedPage) return 'Recently Added'
       return ''
     },
     seriesId() {
@@ -715,6 +780,15 @@ export default {
       this.saveSettings()
     },
     updateAuthorSort() {
+      this.saveSettings()
+    },
+    updateContinueListeningSort() {
+      this.saveSettings()
+    },
+    updateRecentlyAddedSort() {
+      this.saveSettings()
+    },
+    updateRecentlyAddedFilter() {
       this.saveSettings()
     },
     onSearchInput() {
