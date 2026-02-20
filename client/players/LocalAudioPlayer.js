@@ -114,6 +114,17 @@ export default class LocalAudioPlayer extends EventEmitter {
   }
   evtError(error) {
     console.error('Player error', error)
+
+    // If an offline track fails (e.g. service worker not ready yet), fall back
+    // to loading the audio via a blob URL from the Cache API directly.
+    if (this.currentTrack?.offlineCacheKey && !this._offlineFallbackAttempted) {
+      this._offlineFallbackAttempted = true
+      console.log('[LocalPlayer] Service worker URL failed, falling back to blob URL')
+      this._loadOfflineBlob(this.currentTrack.offlineCacheKey)
+      return
+    }
+
+    this._offlineFallbackAttempted = false
     this.emit('error', error)
   }
   evtLoadedMetadata(data) {
@@ -241,29 +252,17 @@ export default class LocalAudioPlayer extends EventEmitter {
   loadCurrentTrack() {
     if (!this.currentTrack) return
     this.trackStartTime = Math.max(0, this.startTime - (this.currentTrack.startOffset || 0))
+    this._offlineFallbackAttempted = false
 
-    // Offline track: blob URL must be created from Cache Storage one at a time
+    // Offline track: use the cache key as a URL path — the offline audio
+    // service worker intercepts it and streams directly from Cache Storage.
+    // This avoids loading the entire file into RAM via blob URLs.
+    // If the SW isn't ready, evtError falls back to _loadOfflineBlob.
     if (this.currentTrack.offlineCacheKey) {
-      const previousBlobUrl = this._activeBlobUrl || null
-      this.ctx.$store
-        .dispatch('offline/loadOfflineBlobUrl', {
-          cacheKey: this.currentTrack.offlineCacheKey,
-          previousBlobUrl
-        })
-        .then((blobUrl) => {
-          if (!blobUrl) {
-            console.error('[LocalPlayer] Failed to load offline blob URL for', this.currentTrack.offlineCacheKey)
-            return
-          }
-          this._activeBlobUrl = blobUrl
-          this.currentTrack.relativeContentUrl = blobUrl
-          this.player.src = blobUrl
-          console.log(`[LocalPlayer] Loading offline track ${this.currentTrackIndex} from blob`)
-          this.player.load()
-        })
-        .catch((e) => {
-          console.error('[LocalPlayer] Error loading offline track', e)
-        })
+      const src = this.currentTrack.offlineCacheKey
+      this.player.src = src
+      console.log(`[LocalPlayer] Loading offline track ${this.currentTrackIndex} via service worker: ${src}`)
+      this.player.load()
       return
     }
 
@@ -271,6 +270,38 @@ export default class LocalAudioPlayer extends EventEmitter {
     this.player.src = this.currentTrack.relativeContentUrl
     console.log(`[LocalPlayer] Loading track src ${this.currentTrack.relativeContentUrl}`)
     this.player.load()
+  }
+
+  /**
+   * Blob URL fallback for when the service worker is not active.
+   * Loads the audio file from Cache Storage into memory as a blob.
+   */
+  _loadOfflineBlob(cacheKey) {
+    caches
+      .open('abs-audio-v1')
+      .then((cache) => cache.match(cacheKey))
+      .then((response) => {
+        if (!response) {
+          console.error('[LocalPlayer] Offline cache entry not found for', cacheKey)
+          this.emit('error', new Error('Offline cache entry not found'))
+          return
+        }
+        return response.blob()
+      })
+      .then((blob) => {
+        if (!blob) return
+        if (this._activeBlobUrl) {
+          URL.revokeObjectURL(this._activeBlobUrl)
+        }
+        this._activeBlobUrl = URL.createObjectURL(blob)
+        this.player.src = this._activeBlobUrl
+        console.log(`[LocalPlayer] Loaded offline track ${this.currentTrackIndex} via blob fallback`)
+        this.player.load()
+      })
+      .catch((e) => {
+        console.error('[LocalPlayer] Blob fallback failed', e)
+        this.emit('error', e)
+      })
   }
 
   destroyHlsInstance() {

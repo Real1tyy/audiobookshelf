@@ -182,4 +182,19 @@ export default ({ app, store }, inject) => {
   store.commit('setRouterBasePath', app.$config.routerBasePath)
 
   store.dispatch('offline/init')
+
+  // Register the offline audio service worker for cache-based streaming.
+  // The SW intercepts /offline/items/* requests and serves from Cache Storage,
+  // allowing the audio element to stream from disk without loading into RAM.
+  if ('serviceWorker' in navigator) {
+    const basePath = app.$config.routerBasePath === '/' ? '' : app.$config.routerBasePath
+    navigator.serviceWorker
+      .register(`${basePath}/offline-audio-sw.js`)
+      .then((reg) => {
+        console.log('[OfflineSW] Registered:', reg.scope)
+      })
+      .catch((err) => {
+        console.warn('[OfflineSW] Registration failed:', err)
+      })
+  }
 }

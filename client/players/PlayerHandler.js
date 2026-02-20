@@ -120,6 +120,12 @@ export default class PlayerHandler {
   }
 
   playerError() {
+    // Don't switch to HLS for offline sessions — there's no server stream to fall back to.
+    // The LocalAudioPlayer handles its own fallback (blob URL) for offline tracks.
+    if (this.currentSessionId?.startsWith('offline-')) {
+      console.log(`[PlayerHandler] Offline playback error — not switching to HLS`)
+      return
+    }
     // Switch to HLS stream on error
     if (!this.isCasting && this.player instanceof LocalAudioPlayer) {
       console.log(`[PlayerHandler] Audio player error switching to HLS stream`)
@@ -309,6 +315,13 @@ export default class PlayerHandler {
   }
 
   sendCloseSession() {
+    // Skip close call for offline sessions — server has no record of them
+    if (this.currentSessionId?.startsWith('offline-')) {
+      this.listeningTimeSinceSync = 0
+      this.lastSyncTime = 0
+      return Promise.resolve()
+    }
+
     let syncData = null
     if (this.player) {
       const listeningTimeToAdd = Math.max(0, Math.floor(this.listeningTimeSinceSync))

@@ -224,24 +224,6 @@ export const actions = {
     }))
   },
 
-  // Called by LocalAudioPlayer when it needs to play a specific track.
-  // Returns a blob URL and revokes the previously active one.
-  async loadOfflineBlobUrl(_, { cacheKey, previousBlobUrl }) {
-    if (previousBlobUrl) {
-      URL.revokeObjectURL(previousBlobUrl)
-    }
-    let cache
-    try {
-      cache = await caches.open(CACHE_NAME)
-    } catch (e) {
-      return null
-    }
-    const response = await cache.match(cacheKey)
-    if (!response) return null
-    const blob = await response.blob()
-    return URL.createObjectURL(blob)
-  },
-
   async deleteItem({ commit, state, dispatch }, itemId) {
     const item = state.downloadedItems[itemId]
     if (!item) return

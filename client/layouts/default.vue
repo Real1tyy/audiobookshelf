@@ -640,8 +640,10 @@ export default {
 
     this.initLocalStorage()
 
-    // Load player queue from server
-    this.$store.dispatch('loadPlayerQueue')
+    // Load player queue from server (skip if something is already playing, e.g. mobile remount)
+    if (!this.$store.state.streamLibraryItem) {
+      this.$store.dispatch('loadPlayerQueue')
+    }
 
     this.checkVersionUpdate()
 

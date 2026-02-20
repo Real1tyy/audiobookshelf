@@ -90,7 +90,7 @@ export default {
       coverAspectRatio: 1,
       lastChapterId: null,
       repeatMode: 'off', // 'off', 'all', 'one'
-      _playRequestId: 0 // generation counter to discard stale playLibraryItem calls
+      _queueRestoreInProgress: false // flag to cancel queue restore when user initiates play
     }
   },
   computed: {
@@ -536,6 +536,9 @@ export default {
       })
     },
     async restoreQueueToPlayer(payload) {
+      // Don't restore queue if something is already playing (e.g. user already clicked play)
+      if (this.$store.state.streamLibraryItem) return
+
       // Restore queue to player UI without auto-playing (paused, ready to play)
       const queueItems = payload.queueItems || []
       if (!queueItems.length) return
@@ -551,14 +554,19 @@ export default {
 
       console.log('[MediaPlayerContainer] Restoring queue to player:', currentItem.title, 'at index', currentIndex, 'time', currentTime)
 
+      this._queueRestoreInProgress = true
+
       // Load the current item in the queue (paused) at the saved position
       await this.playLibraryItem({
         libraryItemId: currentItem.libraryItemId,
         episodeId: currentItem.episodeId || null,
         queueItems: queueItems,
         play: false, // Don't auto-play, just load it paused
-        startTime: currentTime // Resume from saved position
+        startTime: currentTime, // Resume from saved position
+        _isQueueRestore: true // internal flag so playLibraryItem can yield to user plays
       })
+
+      this._queueRestoreInProgress = false
     },
     updateQueuePosition() {
       const currentIndex = this.currentPlayerQueueIndex
@@ -599,6 +607,11 @@ export default {
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId || null
 
+      // User-initiated play cancels any in-flight queue restore
+      if (!payload._isQueueRestore && this._queueRestoreInProgress) {
+        this._queueRestoreInProgress = false
+      }
+
       if (this.playerHandler.libraryItemId == libraryItemId && this.playerHandler.episodeId == episodeId) {
         if (payload.startTime !== null && !isNaN(payload.startTime)) {
           this.seek(payload.startTime)
@@ -608,18 +621,41 @@ export default {
         return
       }
 
-      // Increment generation counter so any in-flight playLibraryItem call is discarded
-      const requestId = ++this._playRequestId
-
-      const libraryItem = await this.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
+      let libraryItem = await this.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
         console.error('Failed to fetch full item', error)
         return null
       })
-      if (!libraryItem) return
 
-      // A newer play request was made while we were fetching — discard this stale one
-      if (requestId !== this._playRequestId) {
-        console.log('[MediaPlayerContainer] Discarding stale playLibraryItem for', libraryItemId)
+      // If server fetch failed, try to construct a minimal item from offline metadata
+      if (!libraryItem) {
+        const offlineItem = this.$store.getters['offline/getDownloadedItem'](libraryItemId)
+        if (offlineItem) {
+          console.log('[MediaPlayerContainer] Server fetch failed, using offline metadata for', libraryItemId)
+          libraryItem = {
+            id: offlineItem.id,
+            libraryId: offlineItem.libraryId,
+            media: {
+              metadata: {
+                title: offlineItem.title,
+                authorName: offlineItem.author
+              },
+              coverPath: offlineItem.coverPath,
+              audioFiles: offlineItem.tracks.map((t) => ({
+                ino: t.ino,
+                duration: t.duration,
+                mimeType: t.mimeType,
+                metadata: { filename: t.title }
+              }))
+            }
+          }
+        } else {
+          return
+        }
+      }
+
+      // If this is a queue restore but a user-initiated play happened while we were fetching, yield
+      if (payload._isQueueRestore && !this._queueRestoreInProgress) {
+        console.log('[MediaPlayerContainer] Queue restore yielding to user-initiated play for', libraryItemId)
         return
       }
 
