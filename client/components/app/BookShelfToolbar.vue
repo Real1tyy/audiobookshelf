@@ -38,6 +38,12 @@
       <nuxt-link v-if="isPodcastLibrary && userIsAdminOrUp" :to="`/library/${currentLibraryId}/podcast/download-queue`" class="grow h-full flex justify-center items-center" :class="isPodcastDownloadQueuePage ? 'bg-primary/80' : 'bg-primary/40'">
         <p class="text-sm">{{ $strings.ButtonDownloadQueue }}</p>
       </nuxt-link>
+      <nuxt-link to="/downloads" class="grow h-full flex justify-center items-center relative" :class="isDownloadsPage ? 'bg-primary/80' : 'bg-primary/40'">
+        <span class="material-symbols text-lg">cloud_download</span>
+        <div v-if="numOfflineDownloads" class="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-success/80 flex items-center justify-center">
+          <p class="text-xxs font-mono">{{ numOfflineDownloads }}</p>
+        </div>
+      </nuxt-link>
     </div>
     <div id="toolbar" role="toolbar" aria-label="Library Toolbar" class="absolute top-10 md:top-0 left-0 w-full h-10 md:h-full z-40 flex items-center justify-end md:justify-start px-2 md:px-8">
       <!-- Series books page -->
@@ -88,6 +94,12 @@
 
         <!-- issues page remove all button -->
         <ui-btn v-if="isIssuesFilter && userCanDelete && !isBatchSelecting" :loading="processingIssues" color="bg-error" small class="ml-4" @click="removeAllIssues">{{ $strings.ButtonRemoveAll }} {{ $formatNumber(numShowing) }} {{ entityName }}</ui-btn>
+
+        <!-- Batch download offline button -->
+        <ui-btn v-if="isBatchSelecting && selectedMediaItems.length" color="bg-success" small class="ml-2" :loading="batchDownloading" @click="batchDownloadOffline">
+          <span class="material-symbols text-lg mr-1">cloud_download</span>
+          Download {{ selectedMediaItems.length }} offline
+        </ui-btn>
 
         <ui-context-menu-dropdown v-if="contextMenuItems.length" :items="contextMenuItems" :menu-width="110" class="ml-2" @action="contextMenuAction" />
       </template>
@@ -140,6 +152,7 @@ export default {
       processingIssues: false,
       processingAuthors: false,
       playingAll: false,
+      batchDownloading: false,
       searchQuery: '',
       searchDebounceTimeout: null
     }
@@ -319,6 +332,9 @@ export default {
     isBatchSelecting() {
       return this.$store.getters['globals/getIsBatchSelectingMediaItems']
     },
+    selectedMediaItems() {
+      return this.$store.state.globals.selectedMediaItems
+    },
     isSeriesFinished() {
       return this.seriesProgress && !!this.seriesProgress.isFinished
     },
@@ -349,9 +365,26 @@ export default {
     },
     showPlaylists() {
       return this.$store.state.libraries.numUserPlaylists > 0
+    },
+    isDownloadsPage() {
+      return this.$route.name === 'downloads'
+    },
+    numOfflineDownloads() {
+      return this.$store.getters['offline/downloadedItemsList'].length
     }
   },
   methods: {
+    async batchDownloadOffline() {
+      if (this.batchDownloading) return
+      this.batchDownloading = true
+      const token = this.$store.getters['user/getToken']
+      for (const item of this.selectedMediaItems) {
+        await this.$store.dispatch('offline/downloadItem', { libraryItem: item, token }).catch((e) => {
+          console.error('[Toolbar] Failed to download item offline', item.id, e)
+        })
+      }
+      this.batchDownloading = false
+    },
     addSubtitlesMenuItem(items) {
       if (this.isBookLibrary && (!this.page || this.page === 'search')) {
         if (this.settings.showSubtitles) {

@@ -97,6 +97,10 @@
         <div cy-id="mediaItemShare" v-if="mediaItemShare && !isSelectionMode && !isHovering" class="absolute text-success left-0 z-10" :style="{ padding: 0.375 + 'em', top: rssFeed ? '2em' : '0px' }">
           <span class="material-symbols" aria-hidden="true" :style="{ fontSize: 1.5 + 'em' }">public</span>
         </div>
+        <!-- Offline downloaded badge -->
+        <div v-if="isDownloadedOffline && !isSelectionMode && !isHovering" class="absolute text-success z-10" :style="{ bottom: '0.375em', left: '0.375em' }">
+          <span class="material-symbols" :style="{ fontSize: '1.2em' }">cloud_done</span>
+        </div>
 
         <!-- Series sequence -->
         <div cy-id="seriesSequence" v-if="seriesSequence && !isHovering && !isSelectionMode" class="absolute rounded-lg bg-black/90 box-shadow-md z-10" :style="{ top: 0.375 + 'em', right: 0.375 + 'em', padding: `${0.1}em ${0.25}em` }">
@@ -596,6 +600,17 @@ export default {
               text: this.$strings.LabelShare
             })
           }
+          if (!this.isDownloadedOffline) {
+            items.push({
+              func: 'downloadOffline',
+              text: 'Download for Offline'
+            })
+          } else {
+            items.push({
+              func: 'deleteOffline',
+              text: 'Delete Offline Copy'
+            })
+          }
         }
         if (this.ebookFormat && this.store.state.libraries.ereaderDevices?.length) {
           items.push({
@@ -713,6 +728,9 @@ export default {
     itemLink() {
       if (this.collapsedSeries) return `/library/${this.libraryId}/series/${this.collapsedSeries.id}`
       return `/item/${this.libraryItemId}`
+    },
+    isDownloadedOffline() {
+      return this.store.getters['offline/isDownloaded'](this.libraryItemId)
     }
   },
   methods: {
@@ -970,6 +988,13 @@ export default {
     openShare() {
       this.store.commit('setSelectedLibraryItem', this.libraryItem)
       this.store.commit('globals/setShareModal', this.mediaItemShare)
+    },
+    downloadOffline() {
+      const token = this.store.getters['user/getToken']
+      this.store.dispatch('offline/downloadItem', { libraryItem: this.libraryItem, token })
+    },
+    deleteOffline() {
+      this.store.dispatch('offline/deleteItem', this.libraryItemId)
     },
     deleteLibraryItem() {
       const payload = {

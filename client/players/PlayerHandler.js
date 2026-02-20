@@ -183,6 +183,27 @@ export default class PlayerHandler {
   async prepare(forceTranscode = false) {
     this.setSessionId(null) // Reset session
 
+    // Check offline cache first (only for non-episode, non-cast, non-forced-transcode)
+    if (!forceTranscode && !this.episodeId && !this.isCasting) {
+      const offlineTracks = await this.ctx.$store.dispatch('offline/getOfflineTracks', this.libraryItem.id).catch(() => null)
+      if (offlineTracks && offlineTracks.length) {
+        console.log('[PlayerHandler] Playing from offline cache')
+        this.failedProgressSyncs = 0
+        this.lastSyncTime = 0
+        this.listeningTimeSinceSync = 0
+        const userProgress = this.ctx.$store.getters['user/getUserMediaProgress'](this.libraryItem.id)
+        this.startTime = this.startTimeOverride !== undefined ? this.startTimeOverride : (userProgress?.currentTime || 0)
+        this.setSessionId(`offline-${this.libraryItem.id}`)
+        this.displayTitle = this.libraryItem.media?.metadata?.title || ''
+        this.displayAuthor = this.libraryItem.media?.metadata?.authorName || ''
+        this.ctx.playerLoading = true
+        this.isHlsTranscode = false
+        this.player.set(this.libraryItem, offlineTracks, false, this.startTime, this.playWhenReady)
+        this.ctx.setMediaSession()
+        return
+      }
+    }
+
     const payload = {
       deviceInfo: {
         clientName: 'Abs Web',
@@ -307,6 +328,9 @@ export default class PlayerHandler {
   }
 
   sendProgressSync(currentTime) {
+    // Skip progress sync for offline sessions — server has no record of them
+    if (this.currentSessionId?.startsWith('offline-')) return
+
     const diffSinceLastSync = Math.abs(this.lastSyncTime - currentTime)
     if (diffSinceLastSync < 1) return
 

@@ -136,6 +136,10 @@ export default class LocalAudioPlayer extends EventEmitter {
 
   destroy() {
     this.destroyHlsInstance()
+    if (this._activeBlobUrl) {
+      URL.revokeObjectURL(this._activeBlobUrl)
+      this._activeBlobUrl = null
+    }
     if (this.player) {
       this.player.remove()
     }
@@ -236,8 +240,34 @@ export default class LocalAudioPlayer extends EventEmitter {
 
   loadCurrentTrack() {
     if (!this.currentTrack) return
-    // When direct play track is loaded current time needs to be set
     this.trackStartTime = Math.max(0, this.startTime - (this.currentTrack.startOffset || 0))
+
+    // Offline track: blob URL must be created from Cache Storage one at a time
+    if (this.currentTrack.offlineCacheKey) {
+      const previousBlobUrl = this._activeBlobUrl || null
+      this.ctx.$store
+        .dispatch('offline/loadOfflineBlobUrl', {
+          cacheKey: this.currentTrack.offlineCacheKey,
+          previousBlobUrl
+        })
+        .then((blobUrl) => {
+          if (!blobUrl) {
+            console.error('[LocalPlayer] Failed to load offline blob URL for', this.currentTrack.offlineCacheKey)
+            return
+          }
+          this._activeBlobUrl = blobUrl
+          this.currentTrack.relativeContentUrl = blobUrl
+          this.player.src = blobUrl
+          console.log(`[LocalPlayer] Loading offline track ${this.currentTrackIndex} from blob`)
+          this.player.load()
+        })
+        .catch((e) => {
+          console.error('[LocalPlayer] Error loading offline track', e)
+        })
+      return
+    }
+
+    // Normal network track
     this.player.src = this.currentTrack.relativeContentUrl
     console.log(`[LocalPlayer] Loading track src ${this.currentTrack.relativeContentUrl}`)
     this.player.load()

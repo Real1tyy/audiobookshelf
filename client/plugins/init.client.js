@@ -180,4 +180,6 @@ export default ({ app, store }, inject) => {
   inject('isDev', process.env.NODE_ENV !== 'production')
 
   store.commit('setRouterBasePath', app.$config.routerBasePath)
+
+  store.dispatch('offline/init')
 }
