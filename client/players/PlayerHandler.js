@@ -147,6 +147,7 @@ export default class PlayerHandler {
 
   playerStateChange(state) {
     console.log('[PlayerHandler] Player state change', state)
+    const wasPreviouslyPlaying = this.playerState === 'PLAYING'
     this.playerState = state
 
     if (this.playerState === 'PLAYING') {
@@ -154,6 +155,11 @@ export default class PlayerHandler {
       this.startPlayInterval()
     } else {
       this.stopPlayInterval()
+
+      // Sync accumulated listening time when pausing
+      if (wasPreviouslyPlaying && this.listeningTimeSinceSync > 0 && this.player) {
+        this.sendProgressSync(this.player.getCurrentTime())
+      }
     }
 
     if (this.player) {
@@ -326,7 +332,7 @@ export default class PlayerHandler {
     if (this.player) {
       const listeningTimeToAdd = Math.max(0, Math.floor(this.listeningTimeSinceSync))
       // When opening player and quickly closing dont save progress
-      if (listeningTimeToAdd > 20) {
+      if (listeningTimeToAdd > 5) {
         syncData = {
           timeListened: listeningTimeToAdd,
           currentTime: this.getCurrentTime()

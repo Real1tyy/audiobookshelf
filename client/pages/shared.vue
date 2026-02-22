@@ -216,11 +216,9 @@ export default {
       this.shares = []
       this.$toast.success('All items unshared')
     },
-    shareOpened(data) {
-      // Avoid duplicates
-      if (!this.shares.find((s) => s.id === data.id)) {
-        this.shares.push(data)
-      }
+    shareOpened() {
+      // Re-fetch to get enriched metadata
+      this.fetchShares()
     },
     shareClosed(data) {
       this.shares = this.shares.filter((s) => s.id !== data.id)

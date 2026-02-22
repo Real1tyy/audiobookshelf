@@ -335,22 +335,22 @@ class ShareController {
         if (share.mediaItemType === 'book') {
           const libraryItem = await Database.libraryItemModel.findOne({
             where: { mediaId: share.mediaItemId },
-            attributes: ['id'],
+            attributes: ['id', 'mediaType', 'mediaId'],
             include: {
               model: Database.bookModel,
-              attributes: ['title', 'coverPath'],
+              attributes: ['id', 'title', 'coverPath'],
               include: {
                 model: Database.authorModel,
-                attributes: ['name'],
+                attributes: ['id', 'name'],
                 through: { attributes: [] }
               }
             }
           })
           if (libraryItem && libraryItem.media) {
             obj.libraryItemId = libraryItem.id
-            obj.title = libraryItem.media.title
-            obj.author = libraryItem.media.authorName
-            obj.coverPath = libraryItem.media.coverPath
+            obj.title = libraryItem.media.title || null
+            obj.author = libraryItem.media.authorName || null
+            obj.coverPath = libraryItem.media.coverPath || null
           }
         }
 
