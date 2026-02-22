@@ -49,60 +49,16 @@ function _clearFileChunkProgress(itemId, ino) {
 }
 
 /**
- * Assemble separately cached chunks into a single final cache entry using streaming.
- * Reads each chunk sequentially from Cache Storage and pipes into a new Response,
- * so we never hold the full file in JS memory.
+ * Check if a chunked file is fully downloaded by verifying the metadata entry exists in cache.
+ * Returns the metadata object if complete, null otherwise.
  */
-async function _assembleChunks(cache, cacheKey, contentType, totalSize, totalChunks) {
-  const supportsRS = typeof ReadableStream === 'function'
-
-  if (supportsRS) {
-    let currentChunk = 0
-    const assemblyStream = new ReadableStream({
-      async pull(controller) {
-        if (currentChunk >= totalChunks) {
-          controller.close()
-          return
-        }
-        const chunkKey = `${cacheKey}/_chunk_${currentChunk}`
-        const resp = await cache.match(chunkKey)
-        if (!resp) {
-          controller.error(new Error(`Missing chunk ${currentChunk}`))
-          return
-        }
-        const reader = resp.body.getReader()
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          controller.enqueue(value)
-        }
-        currentChunk++
-      }
-    })
-
-    const headers = new Headers()
-    headers.set('Content-Type', contentType)
-    if (totalSize) headers.set('Content-Length', String(totalSize))
-    await cache.put(cacheKey, new Response(assemblyStream, { headers }))
-  } else {
-    // Fallback: collect all chunks as blobs
-    const parts = []
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkKey = `${cacheKey}/_chunk_${i}`
-      const resp = await cache.match(chunkKey)
-      if (!resp) throw new Error(`Missing chunk ${i}`)
-      parts.push(await resp.blob())
-    }
-    const blob = new Blob(parts, { type: contentType })
-    const headers = new Headers()
-    headers.set('Content-Type', contentType)
-    headers.set('Content-Length', String(blob.size))
-    await cache.put(cacheKey, new Response(blob, { headers }))
-  }
-
-  // Delete chunk entries
-  for (let i = 0; i < totalChunks; i++) {
-    cache.delete(`${cacheKey}/_chunk_${i}`).catch(() => {})
+async function _getChunkedMeta(cache, cacheKey) {
+  try {
+    const metaResp = await cache.match(`${cacheKey}/_chunkmeta`)
+    if (!metaResp) return null
+    return await metaResp.json()
+  } catch {
+    return null
   }
 }
 
@@ -434,10 +390,14 @@ export const actions = {
 
       try {
         // ── CHECK IF TRACK IS ALREADY FULLY CACHED (crash recovery) ──
+        // Check both: single cache entry (small files) and chunked metadata (large files)
         const existingResp = await cache.match(cacheKey)
-        if (existingResp) {
-          const cachedSize = parseInt(existingResp.headers.get('Content-Length') || '0', 10) || (af.metadata?.size || 0)
-          console.log(`[Offline] Track ${af.ino} already cached (${cachedSize} bytes), skipping`)
+        const existingChunkedMeta = !existingResp ? await _getChunkedMeta(cache, cacheKey) : null
+        if (existingResp || existingChunkedMeta) {
+          const cachedSize = existingResp
+            ? (parseInt(existingResp.headers.get('Content-Length') || '0', 10) || (af.metadata?.size || 0))
+            : (existingChunkedMeta?.totalSize || af.metadata?.size || 0)
+          console.log(`[Offline] Track ${af.ino} already cached (${cachedSize} bytes, chunked: ${!!existingChunkedMeta}), skipping`)
           downloadedBytesAllFiles += cachedSize
           if (cachedSize && cachedSize !== fileSizes[i]) {
             totalBytesAllFiles = totalBytesAllFiles - fileSizes[i] + cachedSize
@@ -578,11 +538,23 @@ export const actions = {
             }
           }
 
-          // ── ASSEMBLE CHUNKS into final cache entry ──
-          console.log(`[Offline] Assembling ${totalChunks} chunks for ${af.ino} (${contentLength} bytes)`)
-          await _assembleChunks(cache, cacheKey, contentType, contentLength, totalChunks)
+          // ── STORE CHUNK METADATA instead of assembling ──
+          // We intentionally do NOT assemble chunks into a single cache entry
+          // because writing 400MB+ to a single cache entry crashes mobile browsers.
+          // Instead, we store a metadata entry that the service worker reads to
+          // stream chunks on demand during playback.
+          const metaKey = `${cacheKey}/_chunkmeta`
+          const metaPayload = JSON.stringify({
+            totalSize: contentLength,
+            chunkSize: CHUNK_SIZE,
+            totalChunks,
+            contentType
+          })
+          await cache.put(metaKey, new Response(metaPayload, {
+            headers: { 'Content-Type': 'application/json' }
+          }))
           _clearFileChunkProgress(itemId, af.ino)
-          console.log(`[Offline] Assembly complete for ${af.ino}`)
+          console.log(`[Offline] Stored ${totalChunks} chunks for ${af.ino} (${contentLength} bytes) — no assembly, served via SW`)
         } else {
           // ══════════════════════════════════════════════════════════
           // ── SINGLE-FETCH PATH (small files or no Range support) ──
@@ -870,9 +842,12 @@ export const actions = {
       return null
     }
     if (item.tracks.length) {
-      const firstResponse = await cache.match(item.tracks[0].cacheKey)
-      if (!firstResponse) {
-        console.warn('[Offline] Cache entry missing for first track — stale download?', item.tracks[0].cacheKey)
+      const firstCacheKey = item.tracks[0].cacheKey
+      const firstResponse = await cache.match(firstCacheKey)
+      // Also check for chunked metadata if no direct entry
+      const firstChunkedMeta = !firstResponse ? await _getChunkedMeta(cache, firstCacheKey) : null
+      if (!firstResponse && !firstChunkedMeta) {
+        console.warn('[Offline] Cache entry missing for first track — stale download?', firstCacheKey)
         return null
       }
     }
@@ -902,10 +877,19 @@ export const actions = {
     if (cache) {
       for (const track of item.tracks) {
         await cache.delete(track.cacheKey).catch(() => {})
-        // Also clean up any leftover chunk entries
-        for (let c = 0; c < 100; c++) {
-          const deleted = await cache.delete(`${track.cacheKey}/_chunk_${c}`).catch(() => false)
-          if (!deleted) break
+        // Clean up chunked file entries (metadata + all chunks)
+        const meta = await _getChunkedMeta(cache, track.cacheKey)
+        if (meta) {
+          for (let c = 0; c < meta.totalChunks; c++) {
+            cache.delete(`${track.cacheKey}/_chunk_${c}`).catch(() => {})
+          }
+          cache.delete(`${track.cacheKey}/_chunkmeta`).catch(() => {})
+        } else {
+          // Fallback: try to clean up orphan chunks
+          for (let c = 0; c < 100; c++) {
+            const deleted = await cache.delete(`${track.cacheKey}/_chunk_${c}`).catch(() => false)
+            if (!deleted) break
+          }
         }
         _clearFileChunkProgress(itemId, track.ino)
       }

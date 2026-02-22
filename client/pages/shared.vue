@@ -41,7 +41,8 @@
         <div
           v-for="share in filteredShares"
           :key="share.id"
-          class="flex items-center gap-4 bg-primary/30 rounded-lg p-4"
+          class="flex items-center gap-4 bg-primary/30 rounded-lg p-4 cursor-pointer hover:bg-primary/50 transition-colors"
+          @click="openItem(share)"
         >
           <!-- Cover -->
           <div class="flex-shrink-0 w-16 h-16">
@@ -74,10 +75,11 @@
           <!-- Unshare button -->
           <button
             title="Unshare"
-            class="flex items-center justify-center text-gray-400 hover:text-error focus:outline-none flex-shrink-0"
-            @click="confirmUnshare(share)"
+            class="flex items-center justify-center w-10 h-10 rounded-full text-gray-400 hover:text-error hover:bg-error/10 focus:outline-none flex-shrink-0 transition-colors"
+            @click.stop.prevent="confirmUnshare(share)"
+            @mousedown.stop
           >
-            <span class="material-symbols text-xl">link_off</span>
+            <span class="material-symbols text-xl pointer-events-none">link_off</span>
           </button>
         </div>
       </div>
@@ -173,6 +175,11 @@ export default {
     formatDate(dateStr) {
       if (!dateStr) return ''
       return new Date(dateStr).toLocaleDateString()
+    },
+    openItem(share) {
+      if (share.libraryItemId) {
+        this.$router.push(`/item/${share.libraryItemId}`)
+      }
     },
     confirmUnshare(share) {
       const payload = {

@@ -276,20 +276,14 @@ export default class LocalAudioPlayer extends EventEmitter {
    * Blob URL fallback for when the service worker is not active.
    * Loads the audio file from Cache Storage into memory as a blob.
    */
-  _loadOfflineBlob(cacheKey) {
-    caches
-      .open('abs-audio-v1')
-      .then((cache) => cache.match(cacheKey))
-      .then((response) => {
-        if (!response) {
-          console.error('[LocalPlayer] Offline cache entry not found for', cacheKey)
-          this.emit('error', new Error('Offline cache entry not found'))
-          return
-        }
-        return response.blob()
-      })
-      .then((blob) => {
-        if (!blob) return
+  async _loadOfflineBlob(cacheKey) {
+    try {
+      const cache = await caches.open('abs-audio-v1')
+
+      // Check for direct (non-chunked) entry first
+      const directResponse = await cache.match(cacheKey)
+      if (directResponse) {
+        const blob = await directResponse.blob()
         if (this._activeBlobUrl) {
           URL.revokeObjectURL(this._activeBlobUrl)
         }
@@ -297,11 +291,36 @@ export default class LocalAudioPlayer extends EventEmitter {
         this.player.src = this._activeBlobUrl
         console.log(`[LocalPlayer] Loaded offline track ${this.currentTrackIndex} via blob fallback`)
         this.player.load()
-      })
-      .catch((e) => {
-        console.error('[LocalPlayer] Blob fallback failed', e)
-        this.emit('error', e)
-      })
+        return
+      }
+
+      // Check for chunked file — assemble chunks into a blob for playback
+      const metaResp = await cache.match(`${cacheKey}/_chunkmeta`)
+      if (metaResp) {
+        const meta = await metaResp.json()
+        const parts = []
+        for (let i = 0; i < meta.totalChunks; i++) {
+          const chunkResp = await cache.match(`${cacheKey}/_chunk_${i}`)
+          if (!chunkResp) throw new Error(`Missing chunk ${i}`)
+          parts.push(await chunkResp.blob())
+        }
+        const blob = new Blob(parts, { type: meta.contentType || 'audio/mpeg' })
+        if (this._activeBlobUrl) {
+          URL.revokeObjectURL(this._activeBlobUrl)
+        }
+        this._activeBlobUrl = URL.createObjectURL(blob)
+        this.player.src = this._activeBlobUrl
+        console.log(`[LocalPlayer] Loaded chunked offline track ${this.currentTrackIndex} via blob fallback (${meta.totalChunks} chunks)`)
+        this.player.load()
+        return
+      }
+
+      console.error('[LocalPlayer] Offline cache entry not found for', cacheKey)
+      this.emit('error', new Error('Offline cache entry not found'))
+    } catch (e) {
+      console.error('[LocalPlayer] Blob fallback failed', e)
+      this.emit('error', e)
+    }
   }
 
   destroyHlsInstance() {
