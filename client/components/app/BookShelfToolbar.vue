@@ -40,6 +40,9 @@
           <p class="text-xxs font-mono">{{ numOfflineDownloads }}</p>
         </div>
       </nuxt-link>
+      <nuxt-link v-if="userIsAdminOrUp" to="/shared" class="grow h-full flex justify-center items-center relative" :class="isSharedPage ? 'bg-primary/80' : 'bg-primary/40'">
+        <span class="material-symbols text-lg">share</span>
+      </nuxt-link>
     </div>
     <div id="toolbar" role="toolbar" aria-label="Library Toolbar" class="absolute top-10 md:top-0 left-0 w-full h-10 md:h-full z-40 flex items-center justify-end md:justify-start px-2 md:px-8">
       <!-- Series books page -->
@@ -442,6 +445,9 @@ export default {
     },
     isDownloadsPage() {
       return this.$route.name === 'downloads'
+    },
+    isSharedPage() {
+      return this.$route.name === 'shared'
     },
     numOfflineDownloads() {
       return this.$store.getters['offline/downloadedItemsList'].length

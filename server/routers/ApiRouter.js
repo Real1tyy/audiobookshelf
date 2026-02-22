@@ -331,6 +331,7 @@ class ApiRouter {
     //
     // Share routes
     //
+    this.router.get('/share/mediaitem', ShareController.getMediaItemShares.bind(this))
     this.router.post('/share/mediaitem', ShareController.createMediaItemShare.bind(this))
     this.router.delete('/share/mediaitem/:id', ShareController.deleteMediaItemShare.bind(this))
 

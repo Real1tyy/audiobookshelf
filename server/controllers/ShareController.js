@@ -306,6 +306,65 @@ class ShareController {
   }
 
   /**
+   * GET: /api/share/mediaitem
+   * List all active media item shares with enriched metadata
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async getMediaItemShares(req, res) {
+    if (!req.user.isAdminOrUp) {
+      return res.sendStatus(403)
+    }
+
+    try {
+      const shares = ShareManager.openMediaItemShares.map((s) => s.mediaItemShare)
+
+      const enriched = []
+      for (const share of shares) {
+        const obj = {
+          id: share.id,
+          slug: share.slug,
+          mediaItemId: share.mediaItemId,
+          mediaItemType: share.mediaItemType,
+          expiresAt: share.expiresAt,
+          isDownloadable: share.isDownloadable,
+          createdAt: share.createdAt
+        }
+
+        if (share.mediaItemType === 'book') {
+          const libraryItem = await Database.libraryItemModel.findOne({
+            where: { mediaId: share.mediaItemId },
+            attributes: ['id'],
+            include: {
+              model: Database.bookModel,
+              attributes: ['title', 'coverPath'],
+              include: {
+                model: Database.authorModel,
+                attributes: ['name'],
+                through: { attributes: [] }
+              }
+            }
+          })
+          if (libraryItem && libraryItem.media) {
+            obj.libraryItemId = libraryItem.id
+            obj.title = libraryItem.media.title
+            obj.author = libraryItem.media.authorName
+            obj.coverPath = libraryItem.media.coverPath
+          }
+        }
+
+        enriched.push(obj)
+      }
+
+      res.json({ shares: enriched })
+    } catch (error) {
+      Logger.error(`[ShareController] Failed to get media item shares`, error)
+      res.status(500).send('Internal server error')
+    }
+  }
+
+  /**
    * POST: /api/share/mediaitem
    * Create a new media item share
    *
