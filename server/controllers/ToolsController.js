@@ -151,6 +151,53 @@ class ToolsController {
   }
 
   /**
+   * POST: /api/tools/item/:id/trim-audio
+   * Start an audio trim task to remove sections from audio files
+   *
+   * @this import('../routers/ApiRouter')
+   *
+   * @param {RequestWithLibraryItem} req
+   * @param {Response} res
+   */
+  async trimAudio(req, res) {
+    if (req.libraryItem.isMissing || req.libraryItem.isInvalid) {
+      Logger.error(`[ToolsController] trimAudio: library item not found or invalid ${req.params.id}`)
+      return res.status(404).send('Audiobook not found')
+    }
+
+    if (!req.libraryItem.isBook) {
+      Logger.error(`[ToolsController] trimAudio: Invalid library item ${req.params.id}: not a book`)
+      return res.status(400).send('Invalid library item: not a book')
+    }
+
+    if (!req.libraryItem.hasAudioTracks) {
+      Logger.error(`[ToolsController] trimAudio: Invalid audiobook ${req.params.id}: no audio tracks`)
+      return res.status(400).send('Invalid audiobook: no audio tracks')
+    }
+
+    if (this.audioTrimManager.getIsLibraryItemQueuedOrProcessing(req.libraryItem.id)) {
+      Logger.error(`[ToolsController] trimAudio: Audiobook ${req.params.id} is already processing`)
+      return res.status(400).send('Audiobook is already processing')
+    }
+
+    const sections = req.body.sections
+    if (!Array.isArray(sections) || sections.length === 0) {
+      return res.status(400).send('Invalid request: sections must be a non-empty array')
+    }
+
+    for (const section of sections) {
+      if (typeof section.start !== 'number' || typeof section.end !== 'number' || section.start < 0 || section.start >= section.end) {
+        return res.status(400).send('Invalid section: each section must have start >= 0 and start < end')
+      }
+    }
+
+    Logger.info(`[ToolsController] trimAudio: Starting trim for "${req.libraryItem.media.title}" with ${sections.length} section(s)`)
+    this.audioTrimManager.trimAudioForItem(req.user.id, req.libraryItem, sections)
+
+    res.sendStatus(200)
+  }
+
+  /**
    *
    * @param {RequestWithUser} req
    * @param {Response} res

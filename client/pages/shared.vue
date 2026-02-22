@@ -182,14 +182,18 @@ export default {
       }
     },
     confirmUnshare(share) {
-      const payload = {
-        message: `Stop sharing "${share.title || share.slug}"? The public link will stop working.`,
-        callback: (confirmed) => {
-          if (confirmed) this.unshareItem(share.id)
-        },
-        type: 'yesNo'
-      }
-      this.$store.commit('globals/setConfirmPrompt', payload)
+      const title = share.title || share.slug
+      // Use nextTick to ensure click event fully completes before showing modal
+      // This prevents v-click-outside from immediately closing the confirm prompt
+      this.$nextTick(() => {
+        this.$store.commit('globals/setConfirmPrompt', {
+          message: `Stop sharing "<strong>${title}</strong>"? The public link will stop working.`,
+          callback: (confirmed) => {
+            if (confirmed) this.unshareItem(share.id)
+          },
+          type: 'yesNo'
+        })
+      })
     },
     async unshareItem(id) {
       try {
@@ -202,14 +206,16 @@ export default {
       }
     },
     confirmUnshareAll() {
-      const payload = {
-        message: `Unshare all ${this.shares.length} items? All public links will stop working.`,
-        callback: (confirmed) => {
-          if (confirmed) this.unshareAll()
-        },
-        type: 'yesNo'
-      }
-      this.$store.commit('globals/setConfirmPrompt', payload)
+      const count = this.shares.length
+      this.$nextTick(() => {
+        this.$store.commit('globals/setConfirmPrompt', {
+          message: `Unshare all <strong>${count}</strong> items? All public links will stop working.`,
+          callback: (confirmed) => {
+            if (confirmed) this.unshareAll()
+          },
+          type: 'yesNo'
+        })
+      })
     },
     async unshareAll() {
       const ids = this.shares.map((s) => s.id)

@@ -82,6 +82,32 @@
         <p v-else-if="taskFailed" class="text-error text-lg font-semibold">{{ $strings.MessageEmbedFailed }} {{ taskError }}</p>
         <p v-else class="text-success text-lg font-semibold">{{ $strings.MessageEmbedFinished }}</p>
       </div>
+      <!-- trim audio action buttons -->
+      <div v-else-if="isTrimTool" class="w-full mb-4">
+        <div class="mb-4">
+          <p class="text-lg font-semibold mb-2">Sections to Remove</p>
+          <p class="text-sm text-gray-300 mb-3">Total duration: {{ $secondsToTimestamp(totalDuration) }}</p>
+          <div v-for="(section, index) in trimSections" :key="index" class="flex items-center gap-2 mb-2">
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-300">Start:</label>
+              <input v-model="section.startText" type="text" placeholder="0:00:00" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="processing" />
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-300">End:</label>
+              <input v-model="section.endText" type="text" placeholder="0:00:00" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="processing" />
+            </div>
+            <button v-if="trimSections.length > 1" class="text-error hover:text-red-400 ml-1" :disabled="processing" @click="removeTrimSection(index)">
+              <span class="material-symbols text-lg">delete</span>
+            </button>
+          </div>
+          <button class="text-sm text-gray-200 hover:text-white mt-1" :disabled="processing" @click="addTrimSection">+ Add Section</button>
+        </div>
+        <div class="flex justify-end">
+          <ui-btn v-if="!isTaskFinished" color="bg-primary" :loading="processing" :progress="progress" @click.stop="trimClick">Start Trim</ui-btn>
+          <p v-else-if="taskFailed" class="text-error text-lg font-semibold">Trim Failed: {{ taskError }}</p>
+          <p v-else class="text-success text-lg font-semibold">Trim Finished</p>
+        </div>
+      </div>
       <!-- m4b embed action buttons -->
       <div v-else class="w-full flex items-center mb-4">
         <div class="grow" />
@@ -105,11 +131,21 @@
       </div>
 
       <div class="mb-4">
+        <div v-if="isTrimTool" class="flex items-start mb-2">
+          <span class="material-symbols text-base text-warning pt-1">star</span>
+          <p class="text-gray-200 ml-2">This is a destructive operation. Audio will be re-encoded to remove the specified sections.</p>
+        </div>
+        <div v-if="isTrimTool" class="flex items-start mb-2">
+          <span class="material-symbols text-base text-warning pt-1">star</span>
+          <p class="text-gray-200 ml-2">
+            Original files will be backed up to <span class="rounded-md bg-neutral-600 text-sm text-white py-0.5 px-1 font-mono">/metadata/cache/items/{{ libraryItemId }}/</span>.
+          </p>
+        </div>
         <div v-if="isEmbedTool" class="flex items-start mb-2">
           <span class="material-symbols text-base text-warning pt-1">star</span>
           <p class="text-gray-200 ml-2">{{ $strings.LabelEncodingInfoEmbedded }}</p>
         </div>
-        <div v-else class="flex items-start mb-2">
+        <div v-else-if="!isTrimTool" class="flex items-start mb-2">
           <span class="material-symbols text-base text-warning pt-1">star</span>
           <p class="text-gray-200 ml-2">
             {{ $strings.LabelEncodingFinishedM4B }} <span class="rounded-md bg-neutral-600 text-sm text-white py-0.5 px-1 font-mono">.../{{ libraryItemRelPath }}/</span>.
@@ -230,7 +266,8 @@ export default {
         bitrate: '128k',
         channels: '2',
         codec: 'aac'
-      }
+      },
+      trimSections: [{ startText: '0:00:00', endText: '0:00:00' }]
     }
   },
   watch: {
@@ -258,6 +295,12 @@ export default {
     isM4BTool() {
       return this.selectedTool === 'm4b'
     },
+    isTrimTool() {
+      return this.selectedTool === 'trim'
+    },
+    totalDuration() {
+      return this.audioFiles.reduce((sum, af) => sum + (af.duration || 0), 0)
+    },
     libraryItemId() {
       return this.libraryItem.id
     },
@@ -282,7 +325,8 @@ export default {
     availableTools() {
       return [
         { value: 'embed', text: this.$strings.LabelToolsEmbedMetadata },
-        { value: 'm4b', text: this.$strings.LabelToolsM4bEncoder }
+        { value: 'm4b', text: this.$strings.LabelToolsM4bEncoder },
+        { value: 'trim', text: 'Audio Trimmer' }
       ]
     },
     taskFailed() {
@@ -303,9 +347,13 @@ export default {
     encodeTask() {
       return this.tasks.find((t) => t.action === 'encode-m4b')
     },
+    trimTask() {
+      return this.tasks.find((t) => t.action === 'trim-audio')
+    },
     task() {
       if (this.isEmbedTool) return this.embedTask
       else if (this.isM4BTool) return this.encodeTask
+      else if (this.isTrimTool) return this.trimTask
       return null
     },
     taskRunning() {
@@ -396,18 +444,92 @@ export default {
           this.processing = false
         })
     },
+    addTrimSection() {
+      this.trimSections.push({ startText: '0:00:00', endText: '0:00:00' })
+    },
+    removeTrimSection(index) {
+      this.trimSections.splice(index, 1)
+    },
+    parseTimestamp(str) {
+      // Parses H:MM:SS or MM:SS or SS to seconds
+      const parts = str.split(':').map(Number)
+      if (parts.some(isNaN)) return NaN
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+      if (parts.length === 2) return parts[0] * 60 + parts[1]
+      if (parts.length === 1) return parts[0]
+      return NaN
+    },
+    trimClick() {
+      const sections = this.trimSections.map((s) => ({
+        start: this.parseTimestamp(s.startText),
+        end: this.parseTimestamp(s.endText)
+      }))
+
+      // Validate
+      for (let i = 0; i < sections.length; i++) {
+        const s = sections[i]
+        if (isNaN(s.start) || isNaN(s.end)) {
+          this.$toast.error(`Section ${i + 1}: Invalid time format. Use H:MM:SS, MM:SS, or seconds.`)
+          return
+        }
+        if (s.start < 0) {
+          this.$toast.error(`Section ${i + 1}: Start time must be >= 0`)
+          return
+        }
+        if (s.start >= s.end) {
+          this.$toast.error(`Section ${i + 1}: Start must be less than end`)
+          return
+        }
+        if (s.end > this.totalDuration) {
+          this.$toast.error(`Section ${i + 1}: End time exceeds total duration`)
+          return
+        }
+      }
+
+      // Check for overlaps
+      const sorted = [...sections].sort((a, b) => a.start - b.start)
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].start < sorted[i - 1].end) {
+          this.$toast.error('Sections must not overlap')
+          return
+        }
+      }
+
+      const payload = {
+        message: `Are you sure you want to remove ${sections.length} section(s) from the audio? This will re-encode the affected files. Originals will be backed up.`,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.executeTrim(sections)
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    executeTrim(sections) {
+      this.processing = true
+      this.$axios
+        .$post(`/api/tools/item/${this.libraryItemId}/trim-audio`, { sections })
+        .then(() => {
+          console.log('Audio trim started')
+        })
+        .catch((error) => {
+          const errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
+          this.$toast.error(errorMsg)
+          this.processing = false
+        })
+    },
     selectedToolUpdated() {
       let newurl = window.location.protocol + '//' + window.location.host + window.location.pathname + `?tool=${this.selectedTool}`
       window.history.replaceState({ path: newurl }, '', newurl)
     },
     init() {
       this.fetchMetadataEmbedObject()
-      if (this.$route.query.tool === 'm4b') {
-        if (this.availableTools.some((t) => t.value === 'm4b')) {
-          this.selectedTool = 'm4b'
-        } else {
-          this.selectedToolUpdated()
-        }
+      const toolParam = this.$route.query.tool
+      if (toolParam && this.availableTools.some((t) => t.value === toolParam)) {
+        this.selectedTool = toolParam
+      } else if (toolParam) {
+        this.selectedToolUpdated()
       }
 
       if (this.task) this.taskUpdated(this.task)
