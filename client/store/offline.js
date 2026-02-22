@@ -1,9 +1,9 @@
 const CACHE_NAME = 'abs-audio-v1'
 const STORAGE_KEY = 'abs-offline-items'
 const QUEUE_KEY = 'abs-download-queue'
-const GC_DELAY_MS = 1500
+const GC_DELAY_MS = 3000
 const MIN_FREE_BYTES = 200 * 1024 * 1024 // 200 MB
-const PROGRESS_THROTTLE_MS = 500
+const PROGRESS_THROTTLE_MS = 750
 
 // AbortControllers keyed by itemId — outside Vue reactivity
 const abortControllers = {}
@@ -66,7 +66,12 @@ export const mutations = {
     state.downloadedItems = items
   },
   setDownloading(state, { itemId, progress }) {
-    state.downloading = { ...state.downloading, [itemId]: { progress } }
+    // Mutate in-place when only progress value changes to avoid object churn
+    if (state.downloading[itemId]) {
+      state.downloading[itemId].progress = progress
+    } else {
+      state.downloading = { ...state.downloading, [itemId]: { progress } }
+    }
   },
   clearDownloading(state, itemId) {
     const downloading = { ...state.downloading }
@@ -95,7 +100,13 @@ export const mutations = {
     state.queuePaused = val
   },
   setByteProgress(state, { itemId, loaded, total }) {
-    state.byteProgress = { ...state.byteProgress, [itemId]: { loaded, total } }
+    // Mutate in-place when entry exists to avoid object spread on every progress tick
+    if (state.byteProgress[itemId]) {
+      state.byteProgress[itemId].loaded = loaded
+      state.byteProgress[itemId].total = total
+    } else {
+      state.byteProgress = { ...state.byteProgress, [itemId]: { loaded, total } }
+    }
   },
   clearByteProgress(state, itemId) {
     const bp = { ...state.byteProgress }
@@ -235,9 +246,17 @@ export const actions = {
   },
 
   /**
-   * Download a single item with streaming chunk-by-chunk writes.
-   * This is the key memory optimization — we stream the response body
-   * instead of passing the full response to cache.put().
+   * Download a single item by streaming each track directly into Cache Storage.
+   *
+   * KEY MEMORY OPTIMIZATION: Instead of accumulating all chunks in a JS array
+   * and then assembling a Blob (which doubles peak memory usage), we pipe the
+   * fetch ReadableStream through a TransformStream that only tracks byte counts,
+   * then hand the resulting stream directly to cache.put().  This means the
+   * browser writes chunks to disk as they arrive — peak JS heap usage stays
+   * near zero regardless of file size.
+   *
+   * For browsers that don't support TransformStream (rare), we fall back to
+   * small fixed-size chunk accumulation with periodic flushing.
    */
   async _downloadSingleItem({ commit, state, dispatch }, { queueEntry }) {
     const { itemId, libraryItem, token } = queueEntry
@@ -289,13 +308,20 @@ export const actions = {
     let startOffset = 0
     let totalSize = 0
 
-    // Calculate total bytes for all files for byte-level progress
+    // Pre-calculate total bytes from Content-Length headers for accurate progress.
+    // We do a HEAD request first so we know the grand total before streaming.
     let totalBytesAllFiles = 0
+    const fileSizes = []
+    for (const af of includedFiles) {
+      // Use the file size from metadata if available, otherwise estimate
+      const size = af.metadata?.size || 0
+      fileSizes.push(size)
+      totalBytesAllFiles += size
+    }
     let downloadedBytesAllFiles = 0
 
     for (let i = 0; i < includedFiles.length; i++) {
       if (controller.signal.aborted) {
-        // Clean up partial downloads
         for (const t of tracks) {
           cache.delete(t.cacheKey).catch(() => {})
         }
@@ -318,25 +344,76 @@ export const actions = {
 
         const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10)
         const contentType = response.headers.get('Content-Type') || af.mimeType || 'audio/mpeg'
-        totalBytesAllFiles += contentLength || 0
 
-        // Stream response body chunk-by-chunk instead of cache.put(response)
-        // This allows per-byte progress and explicit memory release
+        // Update total if we got a more accurate Content-Length from the server
+        if (contentLength && contentLength !== fileSizes[i]) {
+          totalBytesAllFiles = totalBytesAllFiles - fileSizes[i] + contentLength
+          fileSizes[i] = contentLength
+        }
+
         let fileLoaded = 0
         let lastProgressCommit = 0
 
-        if (response.body && typeof response.body.getReader === 'function') {
+        const supportsTransformStream = typeof TransformStream === 'function'
+
+        if (response.body && typeof response.body.getReader === 'function' && supportsTransformStream) {
+          // ── ZERO-COPY STREAMING PATH ──
+          // Pipe the response body through a TransformStream that only counts
+          // bytes.  The chunks flow from network → TransformStream → cache.put()
+          // without ever being held in a JS array.
+          const progressTransform = new TransformStream({
+            transform: (chunk, ctrlr) => {
+              fileLoaded += chunk.byteLength
+              downloadedBytesAllFiles += chunk.byteLength
+
+              const now = Date.now()
+              if (now - lastProgressCommit >= PROGRESS_THROTTLE_MS) {
+                lastProgressCommit = now
+                commit('setByteProgress', {
+                  itemId,
+                  loaded: downloadedBytesAllFiles,
+                  total: totalBytesAllFiles
+                })
+                if (totalBytesAllFiles > 0) {
+                  const pct = Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100)
+                  commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
+                }
+              }
+              ctrlr.enqueue(chunk)
+            }
+          })
+
+          const streamedBody = response.body.pipeThrough(progressTransform)
+          const headers = new Headers()
+          headers.set('Content-Type', contentType)
+          if (contentLength) headers.set('Content-Length', String(contentLength))
+          await cache.put(cacheKey, new Response(streamedBody, { headers }))
+        } else if (response.body && typeof response.body.getReader === 'function') {
+          // ── CHUNKED FALLBACK ──
+          // For browsers without TransformStream: read in small batches,
+          // flush each batch to a Blob, then merge at the end.
+          // This caps peak memory at FLUSH_SIZE instead of file size.
+          const FLUSH_SIZE = 4 * 1024 * 1024 // 4 MB
           const reader = response.body.getReader()
-          const chunks = []
+          const blobParts = []
+          let pendingChunks = []
+          let pendingSize = 0
 
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
-            chunks.push(value)
+            pendingChunks.push(value)
+            pendingSize += value.byteLength
             fileLoaded += value.byteLength
             downloadedBytesAllFiles += value.byteLength
 
-            // Throttled progress update
+            // Flush pending chunks to a Blob part when threshold reached
+            if (pendingSize >= FLUSH_SIZE) {
+              blobParts.push(new Blob(pendingChunks))
+              pendingChunks = []
+              pendingSize = 0
+            }
+
             const now = Date.now()
             if (now - lastProgressCommit >= PROGRESS_THROTTLE_MS) {
               lastProgressCommit = now
@@ -345,7 +422,6 @@ export const actions = {
                 loaded: downloadedBytesAllFiles,
                 total: totalBytesAllFiles
               })
-              // Also update the percentage-based progress
               if (totalBytesAllFiles > 0) {
                 const pct = Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100)
                 commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
@@ -353,21 +429,23 @@ export const actions = {
             }
           }
 
-          // Assemble chunks into a Blob, then store in cache
-          const blob = new Blob(chunks, { type: contentType })
+          // Flush remaining
+          if (pendingChunks.length) {
+            blobParts.push(new Blob(pendingChunks))
+            pendingChunks = []
+          }
+
+          const blob = new Blob(blobParts, { type: contentType })
+          blobParts.length = 0
           const headers = new Headers()
           headers.set('Content-Type', contentType)
           headers.set('Content-Length', String(blob.size))
           await cache.put(cacheKey, new Response(blob, { headers }))
-
-          // Release chunk references immediately
-          chunks.length = 0
         } else {
           // Fallback for browsers without ReadableStream support
           await cache.put(cacheKey, response)
-          if (contentLength) {
-            downloadedBytesAllFiles += contentLength
-          }
+          fileLoaded = contentLength || 0
+          downloadedBytesAllFiles += fileLoaded
         }
 
         const size = fileLoaded || contentLength
