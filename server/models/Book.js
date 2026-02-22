@@ -109,7 +109,7 @@ class Book extends Model {
     this.duration
     /** @type {number} */
     this.rating
-    /** @type {string} */
+    /** @type {string[]} */
     this.url
     /** @type {string[]} */
     this.relatedBooks
@@ -169,7 +169,7 @@ class Book extends Model {
         coverPath: DataTypes.STRING,
         duration: DataTypes.FLOAT,
         rating: DataTypes.FLOAT,
-        url: DataTypes.STRING,
+        url: DataTypes.JSON,
         relatedBooks: DataTypes.JSON,
         viewedCount: {
           type: DataTypes.INTEGER,
@@ -407,7 +407,7 @@ class Book extends Model {
       explicit: !!this.explicit,
       abridged: !!this.abridged,
       rating: this.rating,
-      url: this.url,
+      url: this.url || [],
       relatedBooks: this.relatedBooks || []
     }
   }
@@ -423,7 +423,7 @@ class Book extends Model {
     let hasUpdates = false
 
     if (payload.metadata) {
-      const metadataStringKeys = ['title', 'subtitle', 'publishedYear', 'publishedDate', 'publisher', 'description', 'isbn', 'asin', 'language', 'url']
+      const metadataStringKeys = ['title', 'subtitle', 'publishedYear', 'publishedDate', 'publisher', 'description', 'isbn', 'asin', 'language']
       metadataStringKeys.forEach((key) => {
         if (typeof payload.metadata[key] == 'number') {
           payload.metadata[key] = String(payload.metadata[key])
@@ -481,6 +481,25 @@ class Book extends Model {
           hasUpdates = true
         }
       })
+
+      // Handle url as JSON array - accept string (wrap in array) or array of strings
+      if (payload.metadata.url !== undefined) {
+        let newUrl
+        if (typeof payload.metadata.url === 'string') {
+          newUrl = payload.metadata.url ? [payload.metadata.url] : []
+        } else if (Array.isArray(payload.metadata.url)) {
+          newUrl = payload.metadata.url.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim())
+          // Deduplicate
+          newUrl = [...new Set(newUrl)]
+        } else {
+          newUrl = []
+        }
+        if (JSON.stringify(this.url || []) !== JSON.stringify(newUrl)) {
+          this.url = newUrl.length ? newUrl : null
+          this.changed('url', true)
+          hasUpdates = true
+        }
+      }
     }
 
     if (Array.isArray(payload.tags) && !payload.tags.some((tag) => typeof tag !== 'string') && JSON.stringify(this.tags) !== JSON.stringify(payload.tags)) {
@@ -719,7 +738,7 @@ class Book extends Model {
       explicit: this.explicit,
       abridged: this.abridged,
       rating: this.rating,
-      url: this.url,
+      url: this.url || [],
       relatedBooks: this.relatedBooks || [],
       viewedCount: this.viewedCount || 0,
       totalListeningTime: this.totalListeningTime || 0
@@ -746,7 +765,7 @@ class Book extends Model {
       explicit: this.explicit,
       abridged: this.abridged,
       rating: this.rating,
-      url: this.url,
+      url: this.url || [],
       relatedBooks: this.relatedBooks || [],
       viewedCount: this.viewedCount || 0,
       totalListeningTime: this.totalListeningTime || 0

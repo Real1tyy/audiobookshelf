@@ -42,7 +42,19 @@
           <ui-text-input-with-label ref="ratingInput" v-model="details.rating" type="number" label="Rating" :step="0.1" :min="0" :max="10" trim-whitespace @input="handleInputChange" />
         </div>
         <div class="w-full md:w-3/4 px-1 mt-2 md:mt-0">
-          <ui-text-input-with-label ref="urlInput" v-model="details.url" label="URL" trim-whitespace @input="handleInputChange" />
+          <div class="w-full">
+            <p class="px-0.5 text-sm font-semibold" :class="{ 'text-gray-300': !disabled }">URLs</p>
+            <div v-for="(urlItem, index) in details.url" :key="index" class="flex items-center mt-1">
+              <ui-text-input-with-label :ref="'urlInput-' + index" v-model="details.url[index]" label="" class="flex-grow" trim-whitespace @input="handleInputChange" />
+              <button type="button" class="ml-1 text-gray-400 hover:text-error pt-0.5" @click="removeUrl(index)">
+                <span class="material-symbols text-base">close</span>
+              </button>
+            </div>
+            <button type="button" class="mt-1 flex items-center text-sm text-gray-300 hover:text-white" @click="addUrl">
+              <span class="material-symbols text-base mr-0.5">add</span>
+              Add URL
+            </button>
+          </div>
         </div>
       </div>
 
@@ -112,7 +124,7 @@ export default {
         explicit: false,
         abridged: false,
         rating: null,
-        url: null,
+        url: [],
         relatedBooks: []
       },
       newTags: []
@@ -173,7 +185,7 @@ export default {
           if (key === 'tags') {
             // Concat and remove dupes
             this.newTags = [...new Set(this.newTags.concat(batchDetails.tags))]
-          } else if (key === 'genres' || key === 'narrators') {
+          } else if (key === 'genres' || key === 'narrators' || key === 'url') {
             // Concat and remove dupes
             this.details[key] = [...new Set(this.details[key].concat(batchDetails[key]))]
           } else if (key === 'authors' || key === 'series') {
@@ -187,7 +199,7 @@ export default {
         } else {
           if (key === 'tags') {
             this.newTags = [...batchDetails.tags]
-          } else if (key === 'genres' || key === 'narrators') {
+          } else if (key === 'genres' || key === 'narrators' || key === 'url') {
             this.details[key] = [...batchDetails[key]]
           } else if (key === 'authors' || key === 'series') {
             this.details[key] = batchDetails[key].map((i) => ({ ...i }))
@@ -196,6 +208,14 @@ export default {
           }
         }
       }
+      this.handleInputChange()
+    },
+    addUrl() {
+      this.details.url.push('')
+      this.handleInputChange()
+    },
+    removeUrl(index) {
+      this.details.url.splice(index, 1)
       this.handleInputChange()
     },
     forceBlur() {
@@ -208,7 +228,13 @@ export default {
       if (this.$refs.publisherInput) this.$refs.publisherInput.blur()
       if (this.$refs.languageInput) this.$refs.languageInput.blur()
       if (this.$refs.ratingInput) this.$refs.ratingInput.blur()
-      if (this.$refs.urlInput) this.$refs.urlInput.blur()
+      for (let i = 0; i < this.details.url.length; i++) {
+        const ref = this.$refs['urlInput-' + i]
+        if (ref) {
+          const el = Array.isArray(ref) ? ref[0] : ref
+          if (el && el.blur) el.blur()
+        }
+      }
 
       if (this.$refs.authorsSelect && this.$refs.authorsSelect.isFocused) {
         this.$refs.authorsSelect.forceBlur()
@@ -262,10 +288,14 @@ export default {
       for (const key in this.details) {
         var newValue = this.details[key]
         var oldValue = this.mediaMetadata[key]
+        // Normalize url to array for comparison
+        if (key === 'url') {
+          oldValue = Array.isArray(oldValue) ? oldValue : oldValue ? [oldValue] : []
+        }
         // Key cleared out or key first populated
         if ((!newValue && oldValue) || (newValue && !oldValue)) {
           metadata[key] = newValue
-        } else if (key === 'narrators' || key === 'genres' || key === 'relatedBooks') {
+        } else if (key === 'narrators' || key === 'genres' || key === 'relatedBooks' || key === 'url') {
           // Check array of strings
           if (!this.stringArrayEqual(newValue, oldValue)) {
             metadata[key] = [...newValue]
@@ -306,7 +336,8 @@ export default {
       this.details.explicit = !!this.mediaMetadata.explicit
       this.details.abridged = !!this.mediaMetadata.abridged
       this.details.rating = this.mediaMetadata.rating || null
-      this.details.url = this.mediaMetadata.url || null
+      const rawUrl = this.mediaMetadata.url
+      this.details.url = Array.isArray(rawUrl) ? [...rawUrl] : rawUrl ? [rawUrl] : []
       this.details.relatedBooks = [...(this.mediaMetadata.relatedBooks || [])]
       this.newTags = [...(this.media.tags || [])]
     },
