@@ -29,6 +29,20 @@
         </ui-btn>
       </div>
     </div>
+
+    <!-- Mobile batch action bar -->
+    <div v-if="isBatchSelecting && selectedMediaItems.length" class="fixed left-0 right-0 z-50 flex md:hidden items-center justify-between px-4 py-3 bg-bg border-t border-white/10" :class="streamLibraryItem ? 'bottom-20' : 'bottom-0'">
+      <p class="text-sm font-semibold">{{ selectedMediaItems.length }} selected</p>
+      <div class="flex items-center gap-2">
+        <button class="flex items-center gap-1 px-3 py-1.5 rounded-full bg-success text-white text-sm" @click="batchDownloadOffline">
+          <span class="material-symbols text-lg">cloud_download</span>
+          Download
+        </button>
+        <button class="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-gray-300" @click="clearBatchSelection">
+          <span class="material-symbols text-lg">close</span>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -75,6 +89,9 @@ export default {
     },
     selectedMediaItems() {
       return this.$store.state.globals.selectedMediaItems || []
+    },
+    streamLibraryItem() {
+      return this.$store.state.streamLibraryItem
     }
   },
   watch: {
@@ -134,6 +151,9 @@ export default {
       const token = this.$store.getters['user/getToken']
       this.$store.dispatch('offline/enqueue', { libraryItems: this.selectedMediaItems, token })
       this.$toast.success(`Queued ${this.selectedMediaItems.length} items for download`)
+    },
+    clearBatchSelection() {
+      this.$store.commit('globals/resetSelectedMediaItems')
     },
     emitChange() {
       this.$emit('change', {

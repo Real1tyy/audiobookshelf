@@ -20,10 +20,6 @@
         <p v-if="isPlaylistsPage || isPodcastLibrary" class="text-sm">{{ $strings.ButtonPlaylists }}</p>
         <span v-else class="material-symbols text-lg">&#xe03d;</span>
       </nuxt-link>
-      <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/collections`" class="grow h-full flex justify-center items-center" :class="isCollectionsPage ? 'bg-primary/80' : 'bg-primary/40'">
-        <p v-if="isCollectionsPage" class="text-sm">{{ $strings.ButtonCollections }}</p>
-        <span v-else class="material-symbols text-lg">&#xe431;</span>
-      </nuxt-link>
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/authors`" class="grow h-full flex justify-center items-center" :class="isAuthorsPage ? 'bg-primary/80' : 'bg-primary/40'">
         <p v-if="isAuthorsPage" class="text-sm">{{ $strings.ButtonAuthors }}</p>
         <span v-else class="material-symbols text-lg">groups</span>
@@ -138,6 +134,20 @@
         <div class="grow" />
         <ui-context-menu-dropdown v-if="contextMenuItems.length" :items="contextMenuItems" :menu-width="110" class="ml-2" @action="contextMenuAction" />
       </template>
+    </div>
+
+    <!-- Mobile batch action bar -->
+    <div v-if="isBatchSelecting && selectedMediaItems.length" class="fixed left-0 right-0 z-50 flex md:hidden items-center justify-between px-4 py-3 bg-bg border-t border-white/10" :class="streamLibraryItem ? 'bottom-20' : 'bottom-0'">
+      <p class="text-sm font-semibold">{{ selectedMediaItems.length }} selected</p>
+      <div class="flex items-center gap-2">
+        <button class="flex items-center gap-1 px-3 py-1.5 rounded-full bg-success text-white text-sm" @click="batchDownloadOffline">
+          <span class="material-symbols text-lg">cloud_download</span>
+          Download
+        </button>
+        <button class="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-gray-300" @click="clearBatchSelection">
+          <span class="material-symbols text-lg">close</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -435,6 +445,9 @@ export default {
     },
     numOfflineDownloads() {
       return this.$store.getters['offline/downloadedItemsList'].length
+    },
+    streamLibraryItem() {
+      return this.$store.state.streamLibraryItem
     }
   },
   methods: {
@@ -442,6 +455,9 @@ export default {
       const token = this.$store.getters['user/getToken']
       this.$store.dispatch('offline/enqueue', { libraryItems: this.selectedMediaItems, token })
       this.$toast.success(`Queued ${this.selectedMediaItems.length} items for download`)
+    },
+    clearBatchSelection() {
+      this.$store.commit('globals/resetSelectedMediaItems')
     },
     addSubtitlesMenuItem(items) {
       if (this.isBookLibrary && (!this.page || this.page === 'search')) {

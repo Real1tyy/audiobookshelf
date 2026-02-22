@@ -92,51 +92,56 @@
         <p class="text-sm text-center max-w-xs">Download audiobooks from the library or from a book's "..." menu for offline listening.</p>
       </div>
 
-      <!-- Downloaded items list -->
-      <div v-if="downloadedItems.length" class="space-y-3">
-        <div
-          v-for="item in downloadedItems"
-          :key="item.id"
-          class="flex items-center gap-4 bg-primary/30 rounded-lg p-4"
-        >
-          <!-- Cover -->
-          <div class="flex-shrink-0 w-16 h-16">
-            <img
-              v-if="item.coverPath"
-              :src="getCoverSrc(item)"
-              class="w-full h-full object-cover rounded"
-              alt=""
-            />
-            <div v-else class="w-full h-full bg-primary/60 rounded flex items-center justify-center">
-              <span class="material-symbols text-gray-400 text-2xl">book</span>
+      <!-- Downloaded items grouped by library -->
+      <div v-if="downloadedItems.length" class="space-y-6">
+        <div v-for="group in downloadedItemsByLibrary" :key="group.libraryId">
+          <h2 class="text-lg font-semibold mb-3 text-gray-300">{{ group.libraryName }}</h2>
+          <div class="space-y-3">
+            <div
+              v-for="item in group.items"
+              :key="item.id"
+              class="flex items-center gap-4 bg-primary/30 rounded-lg p-4"
+            >
+              <!-- Cover -->
+              <div class="flex-shrink-0 w-16 h-16">
+                <img
+                  v-if="item.coverPath"
+                  :src="getCoverSrc(item)"
+                  class="w-full h-full object-cover rounded"
+                  alt=""
+                />
+                <div v-else class="w-full h-full bg-primary/60 rounded flex items-center justify-center">
+                  <span class="material-symbols text-gray-400 text-2xl">book</span>
+                </div>
+              </div>
+
+              <!-- Info -->
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold truncate">{{ item.title }}</p>
+                <p v-if="item.author" class="text-sm text-gray-400 truncate">{{ item.author }}</p>
+                <p class="text-xs text-gray-500 mt-1">
+                  {{ formatSize(item.totalSize) }} &bull; Downloaded {{ formatDate(item.downloadedAt) }}
+                </p>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <button
+                  title="Play"
+                  class="flex items-center justify-center text-success hover:text-success/80 focus:outline-none"
+                  @click="playItem(item)"
+                >
+                  <span class="material-symbols text-2xl">play_circle</span>
+                </button>
+                <button
+                  title="Delete offline copy"
+                  class="flex items-center justify-center text-gray-400 hover:text-error focus:outline-none"
+                  @click="confirmDelete(item)"
+                >
+                  <span class="material-symbols text-xl">delete</span>
+                </button>
+              </div>
             </div>
-          </div>
-
-          <!-- Info -->
-          <div class="flex-1 min-w-0">
-            <p class="font-semibold truncate">{{ item.title }}</p>
-            <p v-if="item.author" class="text-sm text-gray-400 truncate">{{ item.author }}</p>
-            <p class="text-xs text-gray-500 mt-1">
-              {{ formatSize(item.totalSize) }} &bull; Downloaded {{ formatDate(item.downloadedAt) }}
-            </p>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <button
-              title="Play"
-              class="flex items-center justify-center text-success hover:text-success/80 focus:outline-none"
-              @click="playItem(item)"
-            >
-              <span class="material-symbols text-2xl">play_circle</span>
-            </button>
-            <button
-              title="Delete offline copy"
-              class="flex items-center justify-center text-gray-400 hover:text-error focus:outline-none"
-              @click="confirmDelete(item)"
-            >
-              <span class="material-symbols text-xl">delete</span>
-            </button>
           </div>
         </div>
       </div>
@@ -162,6 +167,30 @@ export default {
     },
     downloadedItems() {
       return this.$store.getters['offline/downloadedItemsList']
+    },
+    libraries() {
+      return this.$store.state.libraries.libraries || []
+    },
+    downloadedItemsByLibrary() {
+      const groups = {}
+      for (const item of this.downloadedItems) {
+        const libId = item.libraryId || '_other'
+        if (!groups[libId]) {
+          const lib = this.libraries.find((l) => l.id === libId)
+          groups[libId] = {
+            libraryId: libId,
+            libraryName: lib ? lib.name : 'Other',
+            items: []
+          }
+        }
+        groups[libId].items.push(item)
+      }
+      // Sort: named libraries first (alphabetical), "Other" last
+      return Object.values(groups).sort((a, b) => {
+        if (a.libraryId === '_other') return 1
+        if (b.libraryId === '_other') return -1
+        return a.libraryName.localeCompare(b.libraryName)
+      })
     },
     totalSize() {
       return this.downloadedItems.reduce((sum, item) => sum + (item.totalSize || 0), 0)
