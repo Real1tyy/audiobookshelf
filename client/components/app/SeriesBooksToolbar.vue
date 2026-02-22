@@ -23,7 +23,7 @@
         <controls-series-books-sort-select v-if="!isBatchSelecting" v-model="sortBy" :descending.sync="sortDesc" class="w-36 sm:w-44 md:w-48 h-7.5" @change="updateSort" />
 
         <!-- Batch download offline button -->
-        <ui-btn v-if="isBatchSelecting && selectedMediaItems.length" color="bg-success" small class="ml-2" :loading="batchDownloading" @click="batchDownloadOffline">
+        <ui-btn v-if="isBatchSelecting && selectedMediaItems.length" color="bg-success" small class="ml-2" @click="batchDownloadOffline">
           <span class="material-symbols text-lg mr-1">cloud_download</span>
           Download {{ selectedMediaItems.length }} offline
         </ui-btn>
@@ -66,8 +66,7 @@ export default {
       filterBy: this.initialFilter,
       sortBy: this.initialSort,
       sortDesc: this.initialSortDesc,
-      searchDebounceTimeout: null,
-      batchDownloading: false
+      searchDebounceTimeout: null
     }
   },
   computed: {
@@ -131,18 +130,10 @@ export default {
     updateSort() {
       this.emitChange()
     },
-    async batchDownloadOffline() {
-      if (this.batchDownloading) return
-      this.batchDownloading = true
+    batchDownloadOffline() {
       const token = this.$store.getters['user/getToken']
-      const result = await this.$store.dispatch('offline/downloadItems', { libraryItems: this.selectedMediaItems, token })
-      this.batchDownloading = false
-      if (result.downloaded > 0) {
-        this.$toast.success(`Downloaded ${result.downloaded} item${result.downloaded !== 1 ? 's' : ''} for offline use`)
-      }
-      if (result.skipped > 0) {
-        this.$toast.info(`${result.skipped} item${result.skipped !== 1 ? 's' : ''} already downloaded`)
-      }
+      this.$store.dispatch('offline/enqueue', { libraryItems: this.selectedMediaItems, token })
+      this.$toast.success(`Queued ${this.selectedMediaItems.length} items for download`)
     },
     emitChange() {
       this.$emit('change', {

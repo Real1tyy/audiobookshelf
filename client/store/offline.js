@@ -1,12 +1,20 @@
 const CACHE_NAME = 'abs-audio-v1'
 const STORAGE_KEY = 'abs-offline-items'
+const QUEUE_KEY = 'abs-download-queue'
+const GC_DELAY_MS = 1500
+const MIN_FREE_BYTES = 200 * 1024 * 1024 // 200 MB
+const PROGRESS_THROTTLE_MS = 500
 
 // AbortControllers keyed by itemId — outside Vue reactivity
 const abortControllers = {}
 
 export const state = () => ({
-  downloadedItems: {}, // { [itemId]: { id, title, author, coverPath, libraryId, tracks:[{ino, startOffset, duration, mimeType, size, cacheKey, title}], totalSize, downloadedAt } }
-  downloading: {} // { [itemId]: { progress: 0-100 } }
+  downloadedItems: {}, // { [itemId]: { id, title, author, coverPath, libraryId, tracks, totalSize, downloadedAt } }
+  downloading: {}, // { [itemId]: { progress: 0-100 } }
+  queue: [], // [{ itemId, libraryItem, token, status: 'pending'|'active'|'failed', addedAt, error }]
+  queueProcessing: false,
+  queuePaused: false,
+  byteProgress: {} // { [itemId]: { loaded, total } }
 })
 
 export const getters = {
@@ -16,14 +24,35 @@ export const getters = {
   isDownloading: (state) => (itemId) => {
     return !!state.downloading[itemId]
   },
+  isQueued: (state) => (itemId) => {
+    return state.queue.some((q) => q.itemId === itemId && q.status === 'pending')
+  },
+  isInQueue: (state) => (itemId) => {
+    return state.queue.some((q) => q.itemId === itemId)
+  },
   getDownloadProgress: (state) => (itemId) => {
     return state.downloading[itemId]?.progress || 0
+  },
+  getByteProgress: (state) => (itemId) => {
+    return state.byteProgress[itemId] || null
   },
   downloadedItemsList: (state) => {
     return Object.values(state.downloadedItems)
   },
   getDownloadedItem: (state) => (itemId) => {
     return state.downloadedItems[itemId] || null
+  },
+  pendingQueueItems: (state) => {
+    return state.queue.filter((q) => q.status === 'pending')
+  },
+  activeQueueItem: (state) => {
+    return state.queue.find((q) => q.status === 'active') || null
+  },
+  failedQueueItems: (state) => {
+    return state.queue.filter((q) => q.status === 'failed')
+  },
+  queueLength: (state) => {
+    return state.queue.length
   }
 }
 
@@ -43,11 +72,41 @@ export const mutations = {
     const downloading = { ...state.downloading }
     delete downloading[itemId]
     state.downloading = downloading
+  },
+  setQueue(state, queue) {
+    state.queue = [...queue]
+  },
+  addToQueue(state, entry) {
+    state.queue = [...state.queue, entry]
+  },
+  updateQueueItem(state, { itemId, updates }) {
+    state.queue = state.queue.map((q) => (q.itemId === itemId ? { ...q, ...updates } : q))
+  },
+  removeFromQueue(state, itemId) {
+    state.queue = state.queue.filter((q) => q.itemId !== itemId)
+  },
+  clearQueue(state) {
+    state.queue = []
+  },
+  setQueueProcessing(state, val) {
+    state.queueProcessing = val
+  },
+  setQueuePaused(state, val) {
+    state.queuePaused = val
+  },
+  setByteProgress(state, { itemId, loaded, total }) {
+    state.byteProgress = { ...state.byteProgress, [itemId]: { loaded, total } }
+  },
+  clearByteProgress(state, itemId) {
+    const bp = { ...state.byteProgress }
+    delete bp[itemId]
+    state.byteProgress = bp
   }
 }
 
 export const actions = {
-  init({ commit }) {
+  init({ commit, dispatch }) {
+    // Load downloaded items from localStorage
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
@@ -59,12 +118,129 @@ export const actions = {
     } catch (e) {
       console.error('[Offline] Failed to load offline metadata from localStorage', e)
     }
+
+    // Crash recovery: load queue from localStorage
+    try {
+      const storedQueue = localStorage.getItem(QUEUE_KEY)
+      if (storedQueue) {
+        const queue = JSON.parse(storedQueue)
+        // Reset any active items back to pending (tab was killed mid-download)
+        const recovered = queue.map((q) => (q.status === 'active' ? { ...q, status: 'pending' } : q))
+        // Remove completed items from the queue
+        const pending = recovered.filter((q) => q.status === 'pending' || q.status === 'failed')
+        if (pending.length) {
+          commit('setQueue', pending)
+          console.log(`[Offline] Recovered ${pending.length} queued items from previous session`)
+          // Auto-resume after a short delay
+          setTimeout(() => {
+            dispatch('processQueue')
+          }, 2000)
+        }
+      }
+    } catch (e) {
+      console.error('[Offline] Failed to load download queue from localStorage', e)
+    }
   },
 
-  async downloadItem({ commit, state, dispatch }, { libraryItem, token }) {
-    const itemId = libraryItem.id
-    if (state.downloading[itemId]) return
-    if (state.downloadedItems[itemId]) return
+  /**
+   * Enqueue one or more library items for download.
+   * Skips items that are already downloaded or already in the queue.
+   * Returns the count of newly enqueued items.
+   */
+  enqueue({ state, commit, dispatch }, { libraryItems, token }) {
+    const items = Array.isArray(libraryItems) ? libraryItems : [libraryItems]
+    let added = 0
+
+    for (const item of items) {
+      const itemId = item.id
+      // Skip if already downloaded, currently downloading, or already queued
+      if (state.downloadedItems[itemId]) continue
+      if (state.queue.some((q) => q.itemId === itemId)) continue
+
+      commit('addToQueue', {
+        itemId,
+        libraryItem: item,
+        token,
+        status: 'pending',
+        addedAt: Date.now(),
+        error: null
+      })
+      added++
+    }
+
+    if (added > 0) {
+      dispatch('_saveQueueToStorage')
+      // Auto-start processor if not already running
+      if (!state.queueProcessing) {
+        dispatch('processQueue')
+      }
+    }
+
+    return added
+  },
+
+  /**
+   * Core queue processor loop.
+   * Picks the next pending item, checks storage, downloads it, waits for GC, repeats.
+   */
+  async processQueue({ state, commit, dispatch }) {
+    if (state.queueProcessing) return
+    commit('setQueueProcessing', true)
+
+    while (true) {
+      // Check if paused
+      if (state.queuePaused) {
+        break
+      }
+
+      // Find next pending item
+      const next = state.queue.find((q) => q.status === 'pending')
+      if (!next) break
+
+      // Check storage quota before each download
+      const hasSpace = await dispatch('_checkStorageQuota')
+      if (!hasSpace) {
+        commit('setQueuePaused', true)
+        console.warn('[Offline] Low storage — pausing download queue')
+        break
+      }
+
+      // Mark as active
+      commit('updateQueueItem', { itemId: next.itemId, updates: { status: 'active' } })
+      dispatch('_saveQueueToStorage')
+
+      try {
+        await dispatch('_downloadSingleItem', { queueEntry: next })
+        // Success — remove from queue
+        commit('removeFromQueue', next.itemId)
+      } catch (e) {
+        if (e.name === 'AbortError' || e.message === 'cancelled') {
+          // Item was cancelled — already removed from queue by cancelQueueItem
+          continue
+        }
+        console.error('[Offline] Queue item failed', next.itemId, e)
+        commit('updateQueueItem', {
+          itemId: next.itemId,
+          updates: { status: 'failed', error: e.message || 'Download failed' }
+        })
+      }
+
+      dispatch('_saveQueueToStorage')
+
+      // GC delay between items — let the browser reclaim memory
+      await new Promise((resolve) => setTimeout(resolve, GC_DELAY_MS))
+    }
+
+    commit('setQueueProcessing', false)
+  },
+
+  /**
+   * Download a single item with streaming chunk-by-chunk writes.
+   * This is the key memory optimization — we stream the response body
+   * instead of passing the full response to cache.put().
+   */
+  async _downloadSingleItem({ commit, state, dispatch }, { queueEntry }) {
+    const { itemId, libraryItem, token } = queueEntry
 
     // Request persistent storage on first download
     if (navigator.storage?.persist) {
@@ -84,14 +260,14 @@ export const actions = {
         audioFiles = itemMeta.media?.audioFiles || []
       } catch (e) {
         console.error('[Offline] Failed to fetch item details', e)
-        return
+        throw e
       }
     }
 
     const includedFiles = audioFiles.filter((af) => !af.exclude)
     if (!includedFiles.length) {
       console.warn('[Offline] No audio files to download for', itemId)
-      return
+      throw new Error('No audio files')
     }
 
     const controller = new AbortController()
@@ -106,12 +282,16 @@ export const actions = {
       console.error('[Offline] Failed to open Cache Storage', e)
       commit('clearDownloading', itemId)
       delete abortControllers[itemId]
-      return
+      throw e
     }
 
     const tracks = []
     let startOffset = 0
     let totalSize = 0
+
+    // Calculate total bytes for all files for byte-level progress
+    let totalBytesAllFiles = 0
+    let downloadedBytesAllFiles = 0
 
     for (let i = 0; i < includedFiles.length; i++) {
       if (controller.signal.aborted) {
@@ -120,8 +300,9 @@ export const actions = {
           cache.delete(t.cacheKey).catch(() => {})
         }
         commit('clearDownloading', itemId)
+        commit('clearByteProgress', itemId)
         delete abortControllers[itemId]
-        return
+        throw new Error('cancelled')
       }
 
       const af = includedFiles[i]
@@ -135,11 +316,61 @@ export const actions = {
         })
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
-        const size = parseInt(response.headers.get('Content-Length') || '0', 10)
+        const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10)
+        const contentType = response.headers.get('Content-Type') || af.mimeType || 'audio/mpeg'
+        totalBytesAllFiles += contentLength || 0
 
-        // Put response body directly into cache (consumes the response body)
-        await cache.put(cacheKey, response)
+        // Stream response body chunk-by-chunk instead of cache.put(response)
+        // This allows per-byte progress and explicit memory release
+        let fileLoaded = 0
+        let lastProgressCommit = 0
 
+        if (response.body && typeof response.body.getReader === 'function') {
+          const reader = response.body.getReader()
+          const chunks = []
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            chunks.push(value)
+            fileLoaded += value.byteLength
+            downloadedBytesAllFiles += value.byteLength
+
+            // Throttled progress update
+            const now = Date.now()
+            if (now - lastProgressCommit >= PROGRESS_THROTTLE_MS) {
+              lastProgressCommit = now
+              commit('setByteProgress', {
+                itemId,
+                loaded: downloadedBytesAllFiles,
+                total: totalBytesAllFiles
+              })
+              // Also update the percentage-based progress
+              if (totalBytesAllFiles > 0) {
+                const pct = Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100)
+                commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
+              }
+            }
+          }
+
+          // Assemble chunks into a Blob, then store in cache
+          const blob = new Blob(chunks, { type: contentType })
+          const headers = new Headers()
+          headers.set('Content-Type', contentType)
+          headers.set('Content-Length', String(blob.size))
+          await cache.put(cacheKey, new Response(blob, { headers }))
+
+          // Release chunk references immediately
+          chunks.length = 0
+        } else {
+          // Fallback for browsers without ReadableStream support
+          await cache.put(cacheKey, response)
+          if (contentLength) {
+            downloadedBytesAllFiles += contentLength
+          }
+        }
+
+        const size = fileLoaded || contentLength
         tracks.push({
           ino: af.ino,
           startOffset,
@@ -158,20 +389,28 @@ export const actions = {
             cache.delete(t.cacheKey).catch(() => {})
           }
           commit('clearDownloading', itemId)
+          commit('clearByteProgress', itemId)
           delete abortControllers[itemId]
-          return
+          throw e
         }
         console.error('[Offline] Failed to download track', af.ino, e)
         for (const t of tracks) {
           cache.delete(t.cacheKey).catch(() => {})
         }
         commit('clearDownloading', itemId)
+        commit('clearByteProgress', itemId)
         delete abortControllers[itemId]
-        return
+        throw e
       }
 
-      const progress = Math.round(((i + 1) / includedFiles.length) * 100)
-      commit('setDownloading', { itemId, progress })
+      // Final progress for this file
+      commit('setByteProgress', {
+        itemId,
+        loaded: downloadedBytesAllFiles,
+        total: totalBytesAllFiles
+      })
+      const filePct = Math.round(((i + 1) / includedFiles.length) * 100)
+      commit('setDownloading', { itemId, progress: Math.min(filePct, 99) })
     }
 
     delete abortControllers[itemId]
@@ -188,8 +427,115 @@ export const actions = {
     }
 
     commit('setDownloadedItem', { itemId, data: itemData })
+    commit('setDownloading', { itemId, progress: 100 })
+    // Small delay so UI can show 100% before clearing
+    await new Promise((resolve) => setTimeout(resolve, 200))
     commit('clearDownloading', itemId)
+    commit('clearByteProgress', itemId)
     dispatch('_saveToStorage')
+  },
+
+  /**
+   * Check if there is enough storage space for another download.
+   * Returns true if ≥200MB free (or if the API is unavailable).
+   */
+  async _checkStorageQuota() {
+    try {
+      if (navigator.storage?.estimate) {
+        const { usage, quota } = await navigator.storage.estimate()
+        const free = (quota || 0) - (usage || 0)
+        if (free < MIN_FREE_BYTES) {
+          return false
+        }
+      }
+    } catch (e) {
+      // If estimate fails, proceed optimistically
+      console.warn('[Offline] Storage estimate failed', e)
+    }
+    return true
+  },
+
+  /**
+   * Cancel a single queued item. If it's actively downloading, abort it.
+   */
+  cancelQueueItem({ state, commit, dispatch }, itemId) {
+    const entry = state.queue.find((q) => q.itemId === itemId)
+    if (!entry) return
+
+    if (entry.status === 'active') {
+      // Abort the active download
+      const controller = abortControllers[itemId]
+      if (controller) {
+        controller.abort()
+      }
+    }
+
+    commit('removeFromQueue', itemId)
+    commit('clearDownloading', itemId)
+    commit('clearByteProgress', itemId)
+    dispatch('_saveQueueToStorage')
+  },
+
+  /**
+   * Cancel all queued items and stop processing.
+   */
+  cancelAllQueue({ state, commit, dispatch }) {
+    // Abort any active download
+    const active = state.queue.find((q) => q.status === 'active')
+    if (active) {
+      const controller = abortControllers[active.itemId]
+      if (controller) {
+        controller.abort()
+      }
+      commit('clearDownloading', active.itemId)
+      commit('clearByteProgress', active.itemId)
+    }
+
+    commit('clearQueue')
+    commit('setQueuePaused', false)
+    dispatch('_saveQueueToStorage')
+  },
+
+  /**
+   * Resume a paused queue and restart the processor.
+   */
+  resumeQueue({ commit, dispatch }) {
+    commit('setQueuePaused', false)
+    dispatch('processQueue')
+  },
+
+  /**
+   * Reset failed items to pending and restart the processor.
+   */
+  retryFailed({ state, commit, dispatch }) {
+    for (const entry of state.queue) {
+      if (entry.status === 'failed') {
+        commit('updateQueueItem', { itemId: entry.itemId, updates: { status: 'pending', error: null } })
+      }
+    }
+    dispatch('_saveQueueToStorage')
+    commit('setQueuePaused', false)
+    if (!state.queueProcessing) {
+      dispatch('processQueue')
+    }
+  },
+
+  // ---- Backward-compatible actions (delegate to enqueue) ----
+
+  /**
+   * Download a single item. Now delegates to the queue system.
+   */
+  async downloadItem({ dispatch }, { libraryItem, token }) {
+    dispatch('enqueue', { libraryItems: [libraryItem], token })
+  },
+
+  /**
+   * Download multiple items sequentially. Now delegates to the queue system.
+   * Returns { downloaded: count } for backward compatibility.
+   */
+  async downloadItems({ dispatch }, { libraryItems, token }) {
+    const added = dispatch('enqueue', { libraryItems, token })
+    return { downloaded: 0, skipped: 0, failed: 0, queued: added }
   },
 
   async getOfflineTracks({ state }, itemId) {
@@ -243,39 +589,9 @@ export const actions = {
     dispatch('_saveToStorage')
   },
 
-  /**
-   * Download multiple items sequentially, skipping already-downloaded or in-progress items.
-   * Returns { downloaded, skipped, failed }.
-   */
-  async downloadItems({ state, dispatch }, { libraryItems, token }) {
-    let downloaded = 0
-    let skipped = 0
-    let failed = 0
-
-    for (const item of libraryItems) {
-      const itemId = item.id
-      if (state.downloadedItems[itemId] || state.downloading[itemId]) {
-        skipped++
-        continue
-      }
-      try {
-        await dispatch('downloadItem', { libraryItem: item, token })
-        // Check if it actually got stored (downloadItem silently returns on some errors)
-        if (state.downloadedItems[itemId]) {
-          downloaded++
-        } else {
-          failed++
-        }
-      } catch (e) {
-        console.error('[Offline] Failed to download item', itemId, e)
-        failed++
-      }
-    }
-
-    return { downloaded, skipped, failed }
-  },
-
-  cancelDownload({ commit }, itemId) {
+  cancelDownload({ dispatch }, itemId) {
+    // Try queue-based cancel first, fall back to direct abort
+    dispatch('cancelQueueItem', itemId)
     const controller = abortControllers[itemId]
     if (controller) {
       controller.abort()
@@ -287,6 +603,23 @@ export const actions = {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.downloadedItems))
     } catch (e) {
       console.error('[Offline] Failed to save offline metadata to localStorage', e)
+    }
+  },
+
+  _saveQueueToStorage({ state }) {
+    try {
+      // Save queue entries without the full libraryItem to keep localStorage small
+      const serializable = state.queue.map((q) => ({
+        itemId: q.itemId,
+        libraryItem: { id: q.libraryItem.id, libraryId: q.libraryItem.libraryId },
+        token: q.token,
+        status: q.status,
+        addedAt: q.addedAt,
+        error: q.error
+      }))
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(serializable))
+    } catch (e) {
+      console.error('[Offline] Failed to save download queue to localStorage', e)
     }
   }
 }

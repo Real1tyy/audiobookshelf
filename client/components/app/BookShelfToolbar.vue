@@ -96,7 +96,7 @@
         <ui-btn v-if="isIssuesFilter && userCanDelete && !isBatchSelecting" :loading="processingIssues" color="bg-error" small class="ml-4" @click="removeAllIssues">{{ $strings.ButtonRemoveAll }} {{ $formatNumber(numShowing) }} {{ entityName }}</ui-btn>
 
         <!-- Batch download offline button -->
-        <ui-btn v-if="isBatchSelecting && selectedMediaItems.length" color="bg-success" small class="ml-2" :loading="batchDownloading" @click="batchDownloadOffline">
+        <ui-btn v-if="isBatchSelecting && selectedMediaItems.length" color="bg-success" small class="ml-2" @click="batchDownloadOffline">
           <span class="material-symbols text-lg mr-1">cloud_download</span>
           Download {{ selectedMediaItems.length }} offline
         </ui-btn>
@@ -165,7 +165,6 @@ export default {
       processingIssues: false,
       processingAuthors: false,
       playingAll: false,
-      batchDownloading: false,
       searchQuery: '',
       searchDebounceTimeout: null
     }
@@ -439,16 +438,10 @@ export default {
     }
   },
   methods: {
-    async batchDownloadOffline() {
-      if (this.batchDownloading) return
-      this.batchDownloading = true
+    batchDownloadOffline() {
       const token = this.$store.getters['user/getToken']
-      for (const item of this.selectedMediaItems) {
-        await this.$store.dispatch('offline/downloadItem', { libraryItem: item, token }).catch((e) => {
-          console.error('[Toolbar] Failed to download item offline', item.id, e)
-        })
-      }
-      this.batchDownloading = false
+      this.$store.dispatch('offline/enqueue', { libraryItems: this.selectedMediaItems, token })
+      this.$toast.success(`Queued ${this.selectedMediaItems.length} items for download`)
     },
     addSubtitlesMenuItem(items) {
       if (this.isBookLibrary && (!this.page || this.page === 'search')) {
