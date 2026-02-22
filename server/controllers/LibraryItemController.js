@@ -985,6 +985,8 @@ class LibraryItemController {
     if (audioMimeType) {
       res.setHeader('Content-Type', audioMimeType)
     }
+    // Explicitly advertise Range request support for resumable downloads
+    res.setHeader('Accept-Ranges', 'bytes')
     res.sendFile(libraryFile.metadata.path)
   }
 

@@ -1,12 +1,110 @@
 const CACHE_NAME = 'abs-audio-v1'
 const STORAGE_KEY = 'abs-offline-items'
 const QUEUE_KEY = 'abs-download-queue'
+const CHUNK_PROGRESS_KEY = 'abs-chunk-progress'
 const GC_DELAY_MS = 3000
 const MIN_FREE_BYTES = 200 * 1024 * 1024 // 200 MB
 const PROGRESS_THROTTLE_MS = 750
+const CHUNK_SIZE = 50 * 1024 * 1024 // 50 MB — each chunk is saved separately so a crash only loses one chunk
 
 // AbortControllers keyed by itemId — outside Vue reactivity
 const abortControllers = {}
+
+// ── Chunk progress tracking (localStorage) ──
+// Tracks which chunks of a large file have been successfully cached.
+// On crash/refresh, we read this to skip already-completed chunks.
+
+function _loadAllChunkProgress() {
+  try {
+    const raw = localStorage.getItem(CHUNK_PROGRESS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function _saveAllChunkProgress(data) {
+  try {
+    localStorage.setItem(CHUNK_PROGRESS_KEY, JSON.stringify(data))
+  } catch (e) {
+    console.error('[Offline] Failed to save chunk progress', e)
+  }
+}
+
+function _getFileChunkProgress(itemId, ino) {
+  const all = _loadAllChunkProgress()
+  return all[`${itemId}:${ino}`] || null
+}
+
+function _setFileChunkProgress(itemId, ino, progress) {
+  const all = _loadAllChunkProgress()
+  all[`${itemId}:${ino}`] = progress
+  _saveAllChunkProgress(all)
+}
+
+function _clearFileChunkProgress(itemId, ino) {
+  const all = _loadAllChunkProgress()
+  delete all[`${itemId}:${ino}`]
+  _saveAllChunkProgress(all)
+}
+
+/**
+ * Assemble separately cached chunks into a single final cache entry using streaming.
+ * Reads each chunk sequentially from Cache Storage and pipes into a new Response,
+ * so we never hold the full file in JS memory.
+ */
+async function _assembleChunks(cache, cacheKey, contentType, totalSize, totalChunks) {
+  const supportsRS = typeof ReadableStream === 'function'
+
+  if (supportsRS) {
+    let currentChunk = 0
+    const assemblyStream = new ReadableStream({
+      async pull(controller) {
+        if (currentChunk >= totalChunks) {
+          controller.close()
+          return
+        }
+        const chunkKey = `${cacheKey}/_chunk_${currentChunk}`
+        const resp = await cache.match(chunkKey)
+        if (!resp) {
+          controller.error(new Error(`Missing chunk ${currentChunk}`))
+          return
+        }
+        const reader = resp.body.getReader()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          controller.enqueue(value)
+        }
+        currentChunk++
+      }
+    })
+
+    const headers = new Headers()
+    headers.set('Content-Type', contentType)
+    if (totalSize) headers.set('Content-Length', String(totalSize))
+    await cache.put(cacheKey, new Response(assemblyStream, { headers }))
+  } else {
+    // Fallback: collect all chunks as blobs
+    const parts = []
+    for (let i = 0; i < totalChunks; i++) {
+      const chunkKey = `${cacheKey}/_chunk_${i}`
+      const resp = await cache.match(chunkKey)
+      if (!resp) throw new Error(`Missing chunk ${i}`)
+      parts.push(await resp.blob())
+    }
+    const blob = new Blob(parts, { type: contentType })
+    const headers = new Headers()
+    headers.set('Content-Type', contentType)
+    headers.set('Content-Length', String(blob.size))
+    await cache.put(cacheKey, new Response(blob, { headers }))
+  }
+
+  // Delete chunk entries
+  for (let i = 0; i < totalChunks; i++) {
+    cache.delete(`${cacheKey}/_chunk_${i}`).catch(() => {})
+  }
+}
 
 export const state = () => ({
   downloadedItems: {}, // { [itemId]: { id, title, author, coverPath, libraryId, tracks, totalSize, downloadedAt } }
@@ -248,15 +346,16 @@ export const actions = {
   /**
    * Download a single item by streaming each track directly into Cache Storage.
    *
-   * KEY MEMORY OPTIMIZATION: Instead of accumulating all chunks in a JS array
-   * and then assembling a Blob (which doubles peak memory usage), we pipe the
-   * fetch ReadableStream through a TransformStream that only tracks byte counts,
-   * then hand the resulting stream directly to cache.put().  This means the
-   * browser writes chunks to disk as they arrive — peak JS heap usage stays
-   * near zero regardless of file size.
+   * RESUMABLE CHUNKED DOWNLOAD: Large files (>50 MB) are downloaded in 50 MB
+   * chunks using HTTP Range requests. Each chunk is stored as a separate cache
+   * entry, so if the page crashes mid-download we only lose the in-flight chunk
+   * (~50 MB) instead of the entire file. On retry, completed chunks are skipped
+   * and the download resumes from where it left off.
    *
-   * For browsers that don't support TransformStream (rare), we fall back to
-   * small fixed-size chunk accumulation with periodic flushing.
+   * After all chunks are cached, they are streamed into a single final cache
+   * entry (zero-copy assembly) and the temporary chunk entries are deleted.
+   *
+   * Small files (≤50 MB) still use the fast single-fetch streaming path.
    */
   async _downloadSingleItem({ commit, state, dispatch }, { queueEntry }) {
     const { itemId, libraryItem, token } = queueEntry
@@ -308,12 +407,10 @@ export const actions = {
     let startOffset = 0
     let totalSize = 0
 
-    // Pre-calculate total bytes from Content-Length headers for accurate progress.
-    // We do a HEAD request first so we know the grand total before streaming.
+    // Pre-calculate total bytes for accurate progress
     let totalBytesAllFiles = 0
     const fileSizes = []
     for (const af of includedFiles) {
-      // Use the file size from metadata if available, otherwise estimate
       const size = af.metadata?.size || 0
       fileSizes.push(size)
       totalBytesAllFiles += size
@@ -336,116 +433,243 @@ export const actions = {
       const url = `/api/items/${itemId}/file/${af.ino}`
 
       try {
-        const response = await fetch(url, {
+        // ── CHECK IF TRACK IS ALREADY FULLY CACHED (crash recovery) ──
+        const existingResp = await cache.match(cacheKey)
+        if (existingResp) {
+          const cachedSize = parseInt(existingResp.headers.get('Content-Length') || '0', 10) || (af.metadata?.size || 0)
+          console.log(`[Offline] Track ${af.ino} already cached (${cachedSize} bytes), skipping`)
+          downloadedBytesAllFiles += cachedSize
+          if (cachedSize && cachedSize !== fileSizes[i]) {
+            totalBytesAllFiles = totalBytesAllFiles - fileSizes[i] + cachedSize
+            fileSizes[i] = cachedSize
+          }
+          tracks.push({
+            ino: af.ino,
+            startOffset,
+            duration: af.duration || 0,
+            mimeType: af.mimeType || 'audio/mpeg',
+            size: cachedSize,
+            cacheKey,
+            title: af.metadata?.filename || `Track ${i + 1}`
+          })
+          startOffset += af.duration || 0
+          totalSize += cachedSize
+          commit('setByteProgress', { itemId, loaded: downloadedBytesAllFiles, total: totalBytesAllFiles })
+          const pct = totalBytesAllFiles > 0 ? Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100) : Math.round(((i + 1) / includedFiles.length) * 100)
+          commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
+          continue
+        }
+
+        // ── HEAD REQUEST to determine file size and Range support ──
+        const headResp = await fetch(url, {
+          method: 'HEAD',
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal
         })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        if (!headResp.ok) throw new Error(`HEAD HTTP ${headResp.status}`)
 
-        const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10)
-        const contentType = response.headers.get('Content-Type') || af.mimeType || 'audio/mpeg'
+        const contentLength = parseInt(headResp.headers.get('Content-Length') || '0', 10)
+        const contentType = headResp.headers.get('Content-Type') || af.mimeType || 'audio/mpeg'
+        const acceptRanges = (headResp.headers.get('Accept-Ranges') || '').toLowerCase()
+        const supportsRange = acceptRanges === 'bytes' || acceptRanges.includes('bytes')
 
-        // Update total if we got a more accurate Content-Length from the server
+        // Update total with accurate size from server
         if (contentLength && contentLength !== fileSizes[i]) {
           totalBytesAllFiles = totalBytesAllFiles - fileSizes[i] + contentLength
           fileSizes[i] = contentLength
         }
 
+        const useChunked = supportsRange && contentLength > CHUNK_SIZE
         let fileLoaded = 0
         let lastProgressCommit = 0
 
-        const supportsTransformStream = typeof TransformStream === 'function'
+        if (useChunked) {
+          // ══════════════════════════════════════════════════════════════
+          // ── CHUNKED RESUMABLE DOWNLOAD (large files, Range support) ──
+          // ══════════════════════════════════════════════════════════════
+          const totalChunks = Math.ceil(contentLength / CHUNK_SIZE)
+          const existingProgress = _getFileChunkProgress(itemId, af.ino)
+          const completedChunks = new Set(existingProgress?.completedChunks || [])
 
-        if (response.body && typeof response.body.getReader === 'function' && supportsTransformStream) {
-          // ── ZERO-COPY STREAMING PATH ──
-          // Pipe the response body through a TransformStream that only counts
-          // bytes.  The chunks flow from network → TransformStream → cache.put()
-          // without ever being held in a JS array.
-          const progressTransform = new TransformStream({
-            transform: (chunk, ctrlr) => {
-              fileLoaded += chunk.byteLength
-              downloadedBytesAllFiles += chunk.byteLength
+          // Count bytes from already-completed chunks
+          for (const idx of completedChunks) {
+            const chunkStart = idx * CHUNK_SIZE
+            const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, contentLength)
+            const chunkBytes = chunkEnd - chunkStart
+            fileLoaded += chunkBytes
+            downloadedBytesAllFiles += chunkBytes
+          }
+
+          if (completedChunks.size > 0) {
+            console.log(`[Offline] Resuming ${af.ino}: ${completedChunks.size}/${totalChunks} chunks already cached`)
+          }
+
+          commit('setByteProgress', { itemId, loaded: downloadedBytesAllFiles, total: totalBytesAllFiles })
+
+          for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+            if (controller.signal.aborted) throw new Error('cancelled')
+
+            if (completedChunks.has(chunkIdx)) continue // already have this chunk
+
+            const rangeStart = chunkIdx * CHUNK_SIZE
+            const rangeEnd = Math.min(rangeStart + CHUNK_SIZE - 1, contentLength - 1)
+            const expectedBytes = rangeEnd - rangeStart + 1
+
+            const chunkResp = await fetch(url, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Range: `bytes=${rangeStart}-${rangeEnd}`
+              },
+              signal: controller.signal
+            })
+
+            if (!chunkResp.ok && chunkResp.status !== 206) {
+              throw new Error(`Chunk HTTP ${chunkResp.status}`)
+            }
+
+            const chunkCacheKey = `${cacheKey}/_chunk_${chunkIdx}`
+            const chunkHeaders = new Headers()
+            chunkHeaders.set('Content-Type', contentType)
+            chunkHeaders.set('Content-Length', String(expectedBytes))
+
+            // Stream chunk to cache with progress tracking
+            if (chunkResp.body && typeof TransformStream === 'function') {
+              let chunkLoaded = 0
+              const progressTransform = new TransformStream({
+                transform: (piece, ctrlr) => {
+                  chunkLoaded += piece.byteLength
+                  fileLoaded += piece.byteLength
+                  downloadedBytesAllFiles += piece.byteLength
+
+                  const now = Date.now()
+                  if (now - lastProgressCommit >= PROGRESS_THROTTLE_MS) {
+                    lastProgressCommit = now
+                    commit('setByteProgress', { itemId, loaded: downloadedBytesAllFiles, total: totalBytesAllFiles })
+                    if (totalBytesAllFiles > 0) {
+                      const pct = Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100)
+                      commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
+                    }
+                  }
+                  ctrlr.enqueue(piece)
+                }
+              })
+              await cache.put(chunkCacheKey, new Response(chunkResp.body.pipeThrough(progressTransform), { headers: chunkHeaders }))
+            } else {
+              // Fallback: read as blob
+              const blob = await chunkResp.blob()
+              fileLoaded += blob.size
+              downloadedBytesAllFiles += blob.size
+              await cache.put(chunkCacheKey, new Response(blob, { headers: chunkHeaders }))
+            }
+
+            // Mark chunk as completed and persist to localStorage immediately
+            completedChunks.add(chunkIdx)
+            _setFileChunkProgress(itemId, af.ino, {
+              totalSize: contentLength,
+              chunkSize: CHUNK_SIZE,
+              totalChunks,
+              completedChunks: [...completedChunks]
+            })
+
+            commit('setByteProgress', { itemId, loaded: downloadedBytesAllFiles, total: totalBytesAllFiles })
+            if (totalBytesAllFiles > 0) {
+              const pct = Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100)
+              commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
+            }
+          }
+
+          // ── ASSEMBLE CHUNKS into final cache entry ──
+          console.log(`[Offline] Assembling ${totalChunks} chunks for ${af.ino} (${contentLength} bytes)`)
+          await _assembleChunks(cache, cacheKey, contentType, contentLength, totalChunks)
+          _clearFileChunkProgress(itemId, af.ino)
+          console.log(`[Offline] Assembly complete for ${af.ino}`)
+        } else {
+          // ══════════════════════════════════════════════════════════
+          // ── SINGLE-FETCH PATH (small files or no Range support) ──
+          // ══════════════════════════════════════════════════════════
+          const response = await fetch(url, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal
+          })
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+          const supportsTransformStream = typeof TransformStream === 'function'
+
+          if (response.body && typeof response.body.getReader === 'function' && supportsTransformStream) {
+            // Zero-copy streaming path
+            const progressTransform = new TransformStream({
+              transform: (chunk, ctrlr) => {
+                fileLoaded += chunk.byteLength
+                downloadedBytesAllFiles += chunk.byteLength
+
+                const now = Date.now()
+                if (now - lastProgressCommit >= PROGRESS_THROTTLE_MS) {
+                  lastProgressCommit = now
+                  commit('setByteProgress', { itemId, loaded: downloadedBytesAllFiles, total: totalBytesAllFiles })
+                  if (totalBytesAllFiles > 0) {
+                    const pct = Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100)
+                    commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
+                  }
+                }
+                ctrlr.enqueue(chunk)
+              }
+            })
+
+            const streamedBody = response.body.pipeThrough(progressTransform)
+            const headers = new Headers()
+            headers.set('Content-Type', contentType)
+            if (contentLength) headers.set('Content-Length', String(contentLength))
+            await cache.put(cacheKey, new Response(streamedBody, { headers }))
+          } else if (response.body && typeof response.body.getReader === 'function') {
+            // Chunked fallback for browsers without TransformStream
+            const FLUSH_SIZE = 4 * 1024 * 1024 // 4 MB
+            const reader = response.body.getReader()
+            const blobParts = []
+            let pendingChunks = []
+            let pendingSize = 0
+
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              pendingChunks.push(value)
+              pendingSize += value.byteLength
+              fileLoaded += value.byteLength
+              downloadedBytesAllFiles += value.byteLength
+
+              if (pendingSize >= FLUSH_SIZE) {
+                blobParts.push(new Blob(pendingChunks))
+                pendingChunks = []
+                pendingSize = 0
+              }
 
               const now = Date.now()
               if (now - lastProgressCommit >= PROGRESS_THROTTLE_MS) {
                 lastProgressCommit = now
-                commit('setByteProgress', {
-                  itemId,
-                  loaded: downloadedBytesAllFiles,
-                  total: totalBytesAllFiles
-                })
+                commit('setByteProgress', { itemId, loaded: downloadedBytesAllFiles, total: totalBytesAllFiles })
                 if (totalBytesAllFiles > 0) {
                   const pct = Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100)
                   commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
                 }
               }
-              ctrlr.enqueue(chunk)
             }
-          })
 
-          const streamedBody = response.body.pipeThrough(progressTransform)
-          const headers = new Headers()
-          headers.set('Content-Type', contentType)
-          if (contentLength) headers.set('Content-Length', String(contentLength))
-          await cache.put(cacheKey, new Response(streamedBody, { headers }))
-        } else if (response.body && typeof response.body.getReader === 'function') {
-          // ── CHUNKED FALLBACK ──
-          // For browsers without TransformStream: read in small batches,
-          // flush each batch to a Blob, then merge at the end.
-          // This caps peak memory at FLUSH_SIZE instead of file size.
-          const FLUSH_SIZE = 4 * 1024 * 1024 // 4 MB
-          const reader = response.body.getReader()
-          const blobParts = []
-          let pendingChunks = []
-          let pendingSize = 0
-
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            pendingChunks.push(value)
-            pendingSize += value.byteLength
-            fileLoaded += value.byteLength
-            downloadedBytesAllFiles += value.byteLength
-
-            // Flush pending chunks to a Blob part when threshold reached
-            if (pendingSize >= FLUSH_SIZE) {
+            if (pendingChunks.length) {
               blobParts.push(new Blob(pendingChunks))
               pendingChunks = []
-              pendingSize = 0
             }
 
-            const now = Date.now()
-            if (now - lastProgressCommit >= PROGRESS_THROTTLE_MS) {
-              lastProgressCommit = now
-              commit('setByteProgress', {
-                itemId,
-                loaded: downloadedBytesAllFiles,
-                total: totalBytesAllFiles
-              })
-              if (totalBytesAllFiles > 0) {
-                const pct = Math.round((downloadedBytesAllFiles / totalBytesAllFiles) * 100)
-                commit('setDownloading', { itemId, progress: Math.min(pct, 99) })
-              }
-            }
+            const blob = new Blob(blobParts, { type: contentType })
+            blobParts.length = 0
+            const headers = new Headers()
+            headers.set('Content-Type', contentType)
+            headers.set('Content-Length', String(blob.size))
+            await cache.put(cacheKey, new Response(blob, { headers }))
+          } else {
+            // Bare fallback
+            await cache.put(cacheKey, response)
+            fileLoaded = contentLength || 0
+            downloadedBytesAllFiles += fileLoaded
           }
-
-          // Flush remaining
-          if (pendingChunks.length) {
-            blobParts.push(new Blob(pendingChunks))
-            pendingChunks = []
-          }
-
-          const blob = new Blob(blobParts, { type: contentType })
-          blobParts.length = 0
-          const headers = new Headers()
-          headers.set('Content-Type', contentType)
-          headers.set('Content-Length', String(blob.size))
-          await cache.put(cacheKey, new Response(blob, { headers }))
-        } else {
-          // Fallback for browsers without ReadableStream support
-          await cache.put(cacheKey, response)
-          fileLoaded = contentLength || 0
-          downloadedBytesAllFiles += fileLoaded
         }
 
         const size = fileLoaded || contentLength
@@ -462,7 +686,7 @@ export const actions = {
         startOffset += af.duration || 0
         totalSize += size
       } catch (e) {
-        if (e.name === 'AbortError') {
+        if (e.name === 'AbortError' || e.message === 'cancelled') {
           for (const t of tracks) {
             cache.delete(t.cacheKey).catch(() => {})
           }
@@ -472,6 +696,7 @@ export const actions = {
           throw e
         }
         console.error('[Offline] Failed to download track', af.ino, e)
+        // Don't clean up chunk progress on error — it enables resume on retry
         for (const t of tracks) {
           cache.delete(t.cacheKey).catch(() => {})
         }
@@ -482,11 +707,7 @@ export const actions = {
       }
 
       // Final progress for this file
-      commit('setByteProgress', {
-        itemId,
-        loaded: downloadedBytesAllFiles,
-        total: totalBytesAllFiles
-      })
+      commit('setByteProgress', { itemId, loaded: downloadedBytesAllFiles, total: totalBytesAllFiles })
       const filePct = Math.round(((i + 1) / includedFiles.length) * 100)
       commit('setDownloading', { itemId, progress: Math.min(filePct, 99) })
     }
@@ -536,7 +757,7 @@ export const actions = {
   /**
    * Cancel a single queued item. If it's actively downloading, abort it.
    */
-  cancelQueueItem({ state, commit, dispatch }, itemId) {
+  async cancelQueueItem({ state, commit, dispatch }, itemId) {
     const entry = state.queue.find((q) => q.itemId === itemId)
     if (!entry) return
 
@@ -545,6 +766,27 @@ export const actions = {
       const controller = abortControllers[itemId]
       if (controller) {
         controller.abort()
+      }
+    }
+
+    // Clean up any partial chunk data in Cache Storage and localStorage
+    const chunkData = _loadAllChunkProgress()
+    const keysToClean = Object.keys(chunkData).filter((k) => k.startsWith(`${itemId}:`))
+    if (keysToClean.length) {
+      try {
+        const cache = await caches.open(CACHE_NAME)
+        for (const key of keysToClean) {
+          const progress = chunkData[key]
+          const ino = key.split(':')[1]
+          const cacheKey = `/offline/items/${itemId}/file/${ino}`
+          for (let c = 0; c < (progress.totalChunks || 0); c++) {
+            cache.delete(`${cacheKey}/_chunk_${c}`).catch(() => {})
+          }
+          delete chunkData[key]
+        }
+        _saveAllChunkProgress(chunkData)
+      } catch (e) {
+        console.warn('[Offline] Failed to clean up chunks on cancel', e)
       }
     }
 
@@ -660,6 +902,12 @@ export const actions = {
     if (cache) {
       for (const track of item.tracks) {
         await cache.delete(track.cacheKey).catch(() => {})
+        // Also clean up any leftover chunk entries
+        for (let c = 0; c < 100; c++) {
+          const deleted = await cache.delete(`${track.cacheKey}/_chunk_${c}`).catch(() => false)
+          if (!deleted) break
+        }
+        _clearFileChunkProgress(itemId, track.ino)
       }
     }
 
