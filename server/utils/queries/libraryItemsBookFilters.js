@@ -1314,13 +1314,17 @@ module.exports = {
     // Search authors
     const authorMatches = await authorFilters.search(library.id, textSearchQuery, limit, offset)
 
+    // Search transcripts
+    const transcriptMatches = await this.searchTranscripts(user, library, query, limit, offset)
+
     return {
       book: itemMatches,
       narrators: narratorMatches,
       tags: tagMatches,
       genres: genreMatches,
       series: seriesMatches,
-      authors: authorMatches
+      authors: authorMatches,
+      transcripts: transcriptMatches
     }
   },
 
@@ -1391,5 +1395,49 @@ module.exports = {
         duration: book.duration
       }
     })
+  },
+
+  /**
+   * Search transcripts using FTS5
+   *
+   * @param {import('../../models/User')} user
+   * @param {import('../../models/Library')} library
+   * @param {string} query
+   * @param {number} limit
+   * @param {number} offset
+   * @returns {Promise<{libraryItemId:string, title:string, snippet:string, rank:number}[]>}
+   */
+  async searchTranscripts(user, library, query, limit = 20, offset = 0) {
+    // Sanitize query for FTS5 — remove special FTS5 syntax characters
+    const sanitizedQuery = query.replace(/[*"():^{}~\-]/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!sanitizedQuery) return []
+
+    // Wrap each word in double quotes for exact matching, then join with spaces (implicit AND)
+    const ftsQuery = sanitizedQuery.split(' ').map((word) => `"${word}"`).join(' ')
+
+    try {
+      const [results] = await Database.sequelize.query(
+        `SELECT f.libraryItemId, f.title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, rank
+         FROM transcriptsFts f
+         JOIN libraryItems li ON li.id = f.libraryItemId
+         WHERE transcriptsFts MATCH :ftsQuery
+           AND li.libraryId = :libraryId
+         ORDER BY rank
+         LIMIT :limit OFFSET :offset`,
+        {
+          replacements: {
+            ftsQuery,
+            libraryId: library.id,
+            limit,
+            offset
+          },
+          raw: true
+        }
+      )
+      return results
+    } catch (error) {
+      Logger.error('[libraryItemsBookFilters] Transcript search failed', error)
+      return []
+    }
   }
 }

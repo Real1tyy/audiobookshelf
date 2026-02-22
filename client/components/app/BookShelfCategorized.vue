@@ -7,7 +7,7 @@
         <ui-btn color="bg-success" class="w-52" :loading="isScanningLibrary || tempIsScanning" @click="scan">{{ $strings.ButtonScanLibrary }}</ui-btn>
       </div>
     </div>
-    <div v-else-if="loaded && !shelves.length && search" class="w-full h-40 flex items-center justify-center">
+    <div v-else-if="loaded && !shelves.length && !transcriptResults.length && search" class="w-full h-40 flex items-center justify-center">
       <p class="text-center text-xl py-4">{{ $strings.MessageBookshelfNoResultsForQuery }}</p>
     </div>
     <!-- Alternate plain view -->
@@ -26,6 +26,14 @@
       <template v-for="(shelf, index) in supportedShelves">
         <app-book-shelf-row :key="index" :index="index" :shelf="shelf" :size-multiplier="sizeMultiplier" :book-cover-width="bookCoverWidth" :book-cover-aspect-ratio="coverAspectRatio" :continue-listening-shelf="shelf.id === 'continue-listening' || shelf.id === 'continue-reading'" @selectEntity="(payload) => selectEntity(payload, index)" />
       </template>
+    </div>
+
+    <!-- Transcript search results -->
+    <div v-if="transcriptResults.length" class="w-full px-8 pb-8">
+      <h2 class="font-semibold text-gray-100 text-lg mb-3">Transcript Matches</h2>
+      <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(400px, 1fr))">
+        <widgets-transcript-search-result v-for="(result, index) in transcriptResults" :key="'transcript-' + index" :result="result" />
+      </div>
     </div>
   </div>
 </template>
@@ -46,6 +54,7 @@ export default {
       scannerParseSubtitle: false,
       wrapperClientWidth: 0,
       shelves: [],
+      transcriptResults: [],
       lastItemIndexSelected: -1,
       tempIsScanning: false
     }
@@ -294,6 +303,7 @@ export default {
         })
       }
       this.shelves = shelves
+      this.transcriptResults = this.results.transcripts || []
     },
     scan() {
       this.tempIsScanning = true

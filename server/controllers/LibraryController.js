@@ -1048,6 +1048,27 @@ class LibraryController {
   }
 
   /**
+   * GET: /api/libraries/:id/search-transcripts
+   * Search transcripts with pagination
+   *
+   * ?q=search&limit=20&offset=0
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async searchTranscripts(req, res) {
+    if (!req.query.q || typeof req.query.q !== 'string') {
+      return res.status(400).send('Invalid request. Query param "q" must be a string')
+    }
+
+    const limit = parseInt(req.query.limit) || 20
+    const offset = parseInt(req.query.offset) || 0
+    const query = req.query.q.trim()
+
+    const transcripts = await libraryItemsBookFilters.searchTranscripts(req.user, req.library, query, limit, offset)
+    res.json({ transcripts })
+  }
+
+  /**
    * GET: /api/libraries/:id/stats
    * Get stats for library
    *

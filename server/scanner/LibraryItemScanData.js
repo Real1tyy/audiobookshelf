@@ -154,6 +154,11 @@ class LibraryItemScanData {
   }
 
   /** @type {LibraryItem.LibraryFileObject} */
+  get transcriptTxtLibraryFile() {
+    return this.libraryFiles.find(lf => lf.metadata.filename === 'transcript.txt')
+  }
+
+  /** @type {LibraryItem.LibraryFileObject} */
   get metadataAbsLibraryFile() {
     return this.libraryFiles.find(lf => lf.metadata.filename === 'metadata.abs')
   }

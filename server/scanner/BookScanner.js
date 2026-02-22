@@ -19,6 +19,7 @@ const LibraryFile = require('../objects/files/LibraryFile')
 
 const RssFeedManager = require('../managers/RssFeedManager')
 const CoverManager = require('../managers/CoverManager')
+const transcriptIndexer = require('../utils/transcriptIndexer')
 
 const LibraryScan = require('./LibraryScan')
 const OpfFileScanner = require('./OpfFileScanner')
@@ -427,6 +428,11 @@ class BookScanner {
     libraryScan.seriesRemovedFromBooks.push(...bookSeriesRemoved)
     libraryScan.authorsRemovedFromBooks.push(...bookAuthorsRemoved)
 
+    // Re-index transcript.txt into FTS table
+    if (libraryItemData.transcriptTxtLibraryFile) {
+      await transcriptIndexer.indexTranscriptFromFile(existingLibraryItem.id, media.title, libraryItemData.transcriptTxtLibraryFile.metadata.path)
+    }
+
     return {
       libraryItem: existingLibraryItem,
       wasUpdated: hasMediaChanges || libraryItemUpdated || seriesUpdated || authorsUpdated
@@ -631,6 +637,11 @@ class BookScanner {
     if (global.ServerSettings.storeMetadataWithItem && !libraryItem.isFile) {
       libraryItem.changed('libraryFiles', true)
       await libraryItem.save()
+    }
+
+    // Index transcript.txt into FTS table
+    if (libraryItemData.transcriptTxtLibraryFile) {
+      await transcriptIndexer.indexTranscriptFromFile(libraryItem.id, bookMetadata.title, libraryItemData.transcriptTxtLibraryFile.metadata.path)
     }
 
     return libraryItem

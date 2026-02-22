@@ -9,6 +9,7 @@ const dbMigration = require('./utils/migrations/dbMigration')
 const Auth = require('./Auth')
 
 const MigrationManager = require('./managers/MigrationManager')
+const transcriptIndexer = require('./utils/transcriptIndexer')
 
 class Database {
   constructor() {
@@ -203,6 +204,9 @@ class Database {
     await this.addTriggers()
 
     await this.loadData()
+
+    // Index transcripts into FTS table if empty (e.g., after first migration)
+    await transcriptIndexer.reindexIfEmpty()
 
     Logger.info(`[Database] running ANALYZE`)
     await this.sequelize.query('ANALYZE')

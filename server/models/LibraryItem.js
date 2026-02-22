@@ -7,6 +7,7 @@ const { filePathToPOSIX, getFileTimestampsWithIno } = require('../utils/fileUtil
 const LibraryFile = require('../objects/files/LibraryFile')
 const Book = require('./Book')
 const Podcast = require('./Podcast')
+const transcriptIndexer = require('../utils/transcriptIndexer')
 
 /**
  * @typedef LibraryFileObject
@@ -821,6 +822,10 @@ class LibraryItem extends Model {
       if (media) {
         media.destroy()
       }
+      // Clean up transcript FTS entry
+      transcriptIndexer.removeTranscript(instance.id).catch((err) => {
+        Logger.error(`[LibraryItem] Failed to remove transcript FTS entry for ${instance.id}`, err)
+      })
     })
   }
 

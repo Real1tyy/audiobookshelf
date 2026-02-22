@@ -27,7 +27,8 @@ export default {
       authors: results?.authors || [],
       series: results?.series || [],
       tags: results?.tags || [],
-      narrators: results?.narrators || []
+      narrators: results?.narrators || [],
+      transcripts: results?.transcripts || []
     }
     return {
       libraryId,
@@ -67,7 +68,8 @@ export default {
         authors: results?.authors || [],
         series: results?.series || [],
         tags: results?.tags || [],
-        narrators: results?.narrators || []
+        narrators: results?.narrators || [],
+        transcripts: results?.transcripts || []
       }
       this.$nextTick(() => {
         if (this.$refs.bookshelf) {
