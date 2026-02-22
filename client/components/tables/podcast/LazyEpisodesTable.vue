@@ -318,10 +318,6 @@ export default {
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
     },
-    addToPlaylist(episode) {
-      this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode }])
-      this.$store.commit('globals/setShowPlaylistsModal', true)
-    },
     addEpisodeToQueue(episode) {
       const queueItem = {
         libraryItemId: this.libraryItem.id,
@@ -496,9 +492,6 @@ export default {
             })
             this.$on('edit', (payload) => {
               _this.editEpisode(payload)
-            })
-            this.$on('addToPlaylist', (payload) => {
-              _this.addToPlaylist(payload)
             })
           }
         })

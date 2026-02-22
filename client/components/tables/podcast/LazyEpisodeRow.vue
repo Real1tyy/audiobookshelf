@@ -39,10 +39,6 @@
             <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
           </ui-tooltip>
 
-          <ui-tooltip :text="$strings.LabelYourPlaylists" direction="top">
-            <ui-icon-btn icon="playlist_add" :aria-label="$strings.LabelYourPlaylists" borderless @click="clickAddToPlaylist" />
-          </ui-tooltip>
-
           <ui-icon-btn v-if="userCanUpdate" icon="edit" borderless @click="clickEdit" />
           <ui-icon-btn v-if="userCanDelete" icon="close" :aria-label="$strings.HeaderRemoveEpisode" borderless @click="removeClick" />
         </div>
@@ -216,9 +212,6 @@ export default {
           const toast = this.$toast || this.$nuxt.$toast
           toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
         })
-    },
-    clickAddToPlaylist() {
-      this.$emit('addToPlaylist', this.episode)
     },
     clickEdit() {
       this.$emit('edit', this.episode)

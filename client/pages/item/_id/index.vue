@@ -456,25 +456,8 @@ export default {
       if (!this.isBook) return false
       return !this.$store.getters['getIsStreamingFromDifferentLibrary'] && this.streamLibraryItem
     },
-    showCollectionsButton() {
-      return this.isBook && this.userCanUpdate
-    },
     contextMenuItems() {
       const items = []
-
-      if (this.showCollectionsButton) {
-        items.push({
-          text: this.$strings.LabelCollections,
-          action: 'collections'
-        })
-      }
-
-      if (!this.isPodcast && this.tracks.length) {
-        items.push({
-          text: this.$strings.LabelYourPlaylists,
-          action: 'playlists'
-        })
-      }
 
       if (this.bookmarks.length) {
         items.push({
@@ -890,13 +873,7 @@ export default {
       this.$store.commit('globals/setConfirmPrompt', payload)
     },
     contextMenuAction({ action, data }) {
-      if (action === 'collections') {
-        this.$store.commit('setSelectedLibraryItem', this.libraryItem)
-        this.$store.commit('globals/setShowCollectionsModal', true)
-      } else if (action === 'playlists') {
-        this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem }])
-        this.$store.commit('globals/setShowPlaylistsModal', true)
-      } else if (action === 'bookmarks') {
+      if (action === 'bookmarks') {
         this.showBookmarksModal = true
       } else if (action === 'rss-feeds') {
         this.clickRSSFeed()

@@ -564,10 +564,6 @@ export default {
           {
             func: 'toggleFinished',
             text: this.itemIsFinished ? this.$strings.MessageMarkAsNotFinished : this.$strings.MessageMarkAsFinished
-          },
-          {
-            func: 'openPlaylists',
-            text: this.$strings.LabelAddToPlaylist
           }
         ]
         if (this.continueListeningShelf) {
@@ -600,17 +596,7 @@ export default {
             text: this.itemIsFinished ? this.$strings.MessageMarkAsNotFinished : this.$strings.MessageMarkAsFinished
           }
         ]
-        if (this.userCanUpdate) {
-          items.push({
-            func: 'openCollections',
-            text: this.$strings.LabelAddToCollection
-          })
-        }
         if (this.numTracks) {
-          items.push({
-            func: 'openPlaylists',
-            text: this.$strings.LabelAddToPlaylist
-          })
           if (this.userIsAdminOrUp) {
             items.push({
               func: 'openShare',
@@ -1010,14 +996,6 @@ export default {
       this.store.commit('removeItemFromQueue', { libraryItemId: this.libraryItemId, episodeId })
       // Sync queue to server
       this.store.dispatch('savePlayerQueue')
-    },
-    openCollections() {
-      this.store.commit('setSelectedLibraryItem', this.libraryItem)
-      this.store.commit('globals/setShowCollectionsModal', true)
-    },
-    openPlaylists() {
-      this.store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: this.recentEpisode }])
-      this.store.commit('globals/setShowPlaylistsModal', true)
     },
     openShare() {
       this.store.commit('setSelectedLibraryItem', this.libraryItem)

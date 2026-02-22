@@ -67,15 +67,6 @@
         <ui-tooltip v-if="isBookLibrary" :text="selectedIsFinished ? $strings.MessageMarkAsNotFinished : $strings.MessageMarkAsFinished" direction="bottom">
           <ui-read-icon-btn :disabled="processingBatch" :is-read="selectedIsFinished" @click="toggleBatchRead" class="mx-1.5" />
         </ui-tooltip>
-        <ui-tooltip v-if="userCanUpdate && isBookLibrary" :text="$strings.LabelAddToCollection" direction="bottom">
-          <ui-icon-btn :disabled="processingBatch" icon="collections_bookmark" @click="batchAddToCollectionClick" class="mx-1.5" />
-        </ui-tooltip>
-        <ui-tooltip v-if="isBookLibrary" :text="$strings.LabelAddToPlaylist" direction="bottom">
-          <ui-icon-btn :disabled="processingBatch" icon="playlist_add" @click="batchAddToPlaylistClick" class="mx-1.5" />
-        </ui-tooltip>
-        <ui-tooltip v-if="userCanUpdate && isBookLibrary" :text="$strings.LabelAddToSeries" direction="bottom">
-          <ui-icon-btn :disabled="processingBatch" icon="bookmark_add" @click="batchAddToSeriesClick" class="mx-1.5" />
-        </ui-tooltip>
         <ui-tooltip v-if="userCanUpdate" :text="$strings.LabelAddTags" direction="bottom">
           <ui-icon-btn :disabled="processingBatch" icon="label" @click="batchAddTagsClick" class="mx-1.5" />
         </ui-tooltip>
@@ -438,40 +429,6 @@ export default {
     },
     batchEditClick() {
       this.$router.push('/batch')
-    },
-    batchAddToCollectionClick() {
-      this.$store.commit('globals/setShowBatchCollectionsModal', true)
-    },
-    async batchAddToPlaylistClick() {
-      // Convert selected media items to playlist items format
-      this.$store.commit('setProcessingBatch', true)
-      const libraryItemIds = this.selectedMediaItems.map((i) => i.id)
-      const libraryItems = await this.$axios
-        .$post(`/api/items/batch/get`, { libraryItemIds })
-        .then((res) => res.libraryItems)
-        .catch((error) => {
-          const errorMsg = error.response?.data || 'Failed to get items'
-          console.error(errorMsg, error)
-          this.$toast.error(errorMsg)
-          return []
-        })
-
-      if (!libraryItems.length) {
-        this.$store.commit('setProcessingBatch', false)
-        return
-      }
-
-      // Convert to playlist items format
-      const playlistItems = libraryItems.map((li) => ({
-        libraryItem: li,
-        episode: null
-      }))
-      this.$store.commit('globals/setSelectedPlaylistItems', playlistItems)
-      this.$store.commit('globals/setShowPlaylistsModal', true)
-      this.$store.commit('setProcessingBatch', false)
-    },
-    batchAddToSeriesClick() {
-      this.$store.commit('globals/setShowBatchSeriesModal', true)
     },
     batchAddTagsClick() {
       this.$store.commit('globals/setShowBatchTagsModal', true)

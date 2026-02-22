@@ -62,9 +62,6 @@
                   <ui-read-icon-btn :disabled="episodesProcessingMap[episode.id]" :is-read="!!episode.progress?.isFinished" borderless class="mx-1 mt-0.5" @click="toggleEpisodeFinished(episode)" />
                 </ui-tooltip>
 
-                <ui-tooltip :text="$strings.LabelYourPlaylists" direction="top">
-                  <ui-icon-btn icon="playlist_add" borderless @click="clickAddToPlaylist(episode)" />
-                </ui-tooltip>
               </div>
             </div>
 
@@ -182,15 +179,6 @@ export default {
         .finally(() => {
           this.$set(this.episodesProcessingMap, episode.id, false)
         })
-    },
-    clickAddToPlaylist(episode) {
-      // Makeshift libraryItem
-      const libraryItem = {
-        id: episode.libraryItemId,
-        media: episode.podcast
-      }
-      this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: libraryItem, episode }])
-      this.$store.commit('globals/setShowPlaylistsModal', true)
     },
     async clickEpisode(episode) {
       if (this.openingItem) return
