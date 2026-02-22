@@ -1,8 +1,5 @@
 <template>
   <div id="bookshelf" ref="wrapper" class="w-full max-w-full h-full overflow-y-scroll relative" :style="{ fontSize: sizeMultiplier + 'rem' }">
-    <!-- Cover size widget -->
-    <widgets-cover-size-widget class="fixed right-4 z-50" :style="{ bottom: streamLibraryItem ? '181px' : '16px' }" />
-
     <div v-if="loaded && !shelves.length && !search" class="w-full flex flex-col items-center justify-center py-12">
       <p class="text-center text-2xl mb-4 py-4">{{ $getString('MessageXLibraryIsEmpty', [libraryName]) }}</p>
       <div v-if="userIsAdminOrUp" class="flex">
@@ -73,7 +70,7 @@ export default {
       return this.$store.getters['getHomeBookshelfView'] === this.$constants.BookshelfView.DETAIL
     },
     bookCoverWidth() {
-      var coverSize = this.$store.getters['user/getUserSetting']('bookshelfCoverSize')
+      var coverSize = this.$store.getters['user/getPageCoverSize']('homeCoverSize')
       if (this.isCoverSquareAspectRatio) return coverSize * 1.6
       return coverSize
     },
@@ -84,7 +81,7 @@ export default {
       return this.coverAspectRatio == 1
     },
     sizeMultiplier() {
-      return this.$store.getters['user/getSizeMultiplier']
+      return this.$store.getters['user/getPageSizeMultiplier']('homeCoverSize')
     },
     selectedMediaItems() {
       return this.$store.state.globals.selectedMediaItems || []

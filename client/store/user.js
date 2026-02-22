@@ -10,6 +10,15 @@ export const state = () => ({
     playbackRate: 1,
     playbackRateIncrementDecrement: 0.1,
     bookshelfCoverSize: 120,
+    libraryCoverSize: 120,
+    seriesCoverSize: 120,
+    authorsCoverSize: 120,
+    homeCoverSize: 120,
+    continueListeningCoverSize: 120,
+    recentlyAddedCoverSize: 120,
+    seriesDetailCoverSize: 120,
+    playlistsCoverSize: 120,
+    authorPageBookWidth: 200,
     collapseSeries: false,
     collapseBookSeries: false,
     showSubtitles: false,
@@ -86,6 +95,13 @@ export const getters = {
   },
   getSizeMultiplier: (state) => {
     return state.settings.bookshelfCoverSize / 120
+  },
+  getPageCoverSize: (state) => (key) => {
+    return state.settings[key] || state.settings.bookshelfCoverSize || 120
+  },
+  getPageSizeMultiplier: (state) => (key) => {
+    const size = state.settings[key] || state.settings.bookshelfCoverSize || 120
+    return size / 120
   }
 }
 

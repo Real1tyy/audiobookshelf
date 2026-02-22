@@ -244,17 +244,9 @@
 
       <!-- Books Gallery -->
       <div class="py-4">
-        <app-books-toolbar :total-books="filteredLibraryItems.length" :initial-search="searchQuery" :initial-filter="filterBy" :initial-sort="sortBy" :initial-sort-desc="sortDesc" @change="onToolbarChange" />
-
-        <!-- Book Size Slider - Separate Row -->
-        <div class="flex items-center justify-between px-4 md:px-8 py-3 bg-primary/20 border-b border-white/10">
-          <span class="text-sm text-white/80 font-medium">{{ $strings.LabelBookSize || 'Book Size' }}</span>
-          <div class="flex items-center gap-3">
-            <span class="material-symbols text-lg text-white/60">photo_size_select_small</span>
-            <input type="range" :min="minBookWidth" :max="maxBookWidth" :value="bookWidth" @input="updateBookWidth(Number($event.target.value))" class="w-32 sm:w-48 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider" :title="`Book width: ${bookWidth}px`" />
-            <span class="material-symbols text-2xl text-white/60">photo_size_select_large</span>
-            <span class="text-sm text-white/60 ml-2 min-w-12 text-right">{{ bookWidth }}px</span>
-          </div>
+        <div class="flex items-center justify-between px-4 md:px-8">
+          <app-books-toolbar :total-books="filteredLibraryItems.length" :initial-search="searchQuery" :initial-filter="filterBy" :initial-sort="sortBy" :initial-sort-desc="sortDesc" @change="onToolbarChange" />
+          <widgets-cover-size-widget setting-key="authorPageBookWidth" class="ml-2" />
         </div>
 
         <div class="flex flex-wrap mt-4">
@@ -343,7 +335,6 @@ export default {
       showAuthorStats: false,
       showGlobalStats: false,
       expandedSeries: {},
-      bookWidth: 196, // Default book width in pixels
       windowWidth: 0
     }
   },
@@ -385,6 +376,9 @@ export default {
     sizeMultiplier() {
       return this.$store.getters['user/getSizeMultiplier']
     },
+    bookWidth() {
+      return this.$store.getters['user/getPageCoverSize']('authorPageBookWidth')
+    },
     bookCoverHeight() {
       // Calculate height based on configurable width and aspect ratio
       return this.bookWidth * this.bookCoverAspectRatio
@@ -398,18 +392,6 @@ export default {
     cardHeight() {
       // Cover height + space for title/author text below (approximately 4em = 64px)
       return this.coverHeight + 64
-    },
-    minBookWidth() {
-      // Minimum width based on viewport
-      if (this.windowWidth < 640) return 80 // mobile
-      if (this.windowWidth < 1024) return 100 // tablet
-      return 120 // desktop
-    },
-    maxBookWidth() {
-      // Maximum width based on viewport
-      if (this.windowWidth < 640) return 150 // mobile
-      if (this.windowWidth < 1024) return 200 // tablet
-      return 300 // desktop
     },
     selectedMediaItems() {
       return this.$store.state.globals.selectedMediaItems || []
@@ -662,17 +644,6 @@ export default {
     },
     handleResize() {
       this.windowWidth = window.innerWidth
-      // Clamp bookWidth to new min/max if needed
-      if (this.bookWidth < this.minBookWidth) {
-        this.bookWidth = this.minBookWidth
-      } else if (this.bookWidth > this.maxBookWidth) {
-        this.bookWidth = this.maxBookWidth
-      }
-    },
-    updateBookWidth(width) {
-      this.bookWidth = width
-      // Save preference
-      this.$store.dispatch('user/updateUserSettings', { authorPageBookWidth: width })
     }
   },
   mounted() {
@@ -684,12 +655,6 @@ export default {
     this.filterBy = this.$route.query.filter || 'all'
     this.sortBy = this.$route.query.sort || 'addedAt'
     this.sortDesc = this.$route.query.desc === '0' ? false : true
-
-    // Load saved book width preference
-    const savedWidth = this.$store.getters['user/getUserSetting']('authorPageBookWidth')
-    if (savedWidth) {
-      this.bookWidth = savedWidth
-    }
 
     // Set initial window width
     this.windowWidth = window.innerWidth

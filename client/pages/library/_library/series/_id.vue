@@ -65,7 +65,10 @@
       </div>
 
       <!-- Books Toolbar -->
-      <app-series-books-toolbar :series-name="series.name" :total-books="filteredLibraryItems.length" :initial-search="searchQuery" :initial-filter="filterBy" :initial-sort="sortBy" :initial-sort-desc="sortDesc" @change="onToolbarChange" />
+      <div class="flex items-center justify-between">
+        <app-series-books-toolbar :series-name="series.name" :total-books="filteredLibraryItems.length" :initial-search="searchQuery" :initial-filter="filterBy" :initial-sort="sortBy" :initial-sort-desc="sortDesc" class="grow" @change="onToolbarChange" />
+        <widgets-cover-size-widget setting-key="seriesDetailCoverSize" class="ml-2 mr-4" />
+      </div>
 
       <!-- Books Gallery -->
       <div class="py-4">
@@ -180,7 +183,7 @@ export default {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     sizeMultiplier() {
-      return this.$store.getters['user/getSizeMultiplier']
+      return this.$store.getters['user/getPageSizeMultiplier']('seriesDetailCoverSize')
     },
     bookCoverHeight() {
       return 160

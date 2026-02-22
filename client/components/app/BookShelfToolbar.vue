@@ -60,6 +60,8 @@
           <ui-icon-btn icon="rss_feed" class="mx-0.5" :size="7" icon-font-size="1.2rem" bg-color="bg-success" outlined @click="showOpenSeriesRSSFeed" />
         </ui-tooltip>
 
+        <widgets-cover-size-widget setting-key="seriesDetailCoverSize" class="ml-2" />
+
         <ui-context-menu-dropdown v-if="!isBatchSelecting && seriesContextMenuItems.length" :items="seriesContextMenuItems" class="mx-px" @action="seriesContextMenuAction" />
       </template>
       <!-- library & collections page -->
@@ -100,6 +102,8 @@
           Download {{ selectedMediaItems.length }} offline
         </ui-btn>
 
+        <widgets-cover-size-widget :setting-key="currentPageCoverSizeKey" class="ml-2" />
+
         <ui-context-menu-dropdown v-if="contextMenuItems.length" :items="contextMenuItems" :menu-width="110" class="ml-2" @action="contextMenuAction" />
       </template>
       <!-- search page -->
@@ -107,6 +111,7 @@
         <div class="grow" />
         <p>{{ $strings.MessageSearchResultsFor }} "{{ searchQueryText }}"</p>
         <div class="grow" />
+        <widgets-cover-size-widget setting-key="libraryCoverSize" class="ml-2" />
         <ui-context-menu-dropdown v-if="contextMenuItems.length" :items="contextMenuItems" :menu-width="110" class="ml-2" @action="contextMenuAction" />
       </template>
       <!-- authors page -->
@@ -118,12 +123,16 @@
 
         <!-- author sort select -->
         <controls-sort-select v-model="settings.authorSortBy" :descending.sync="settings.authorSortDesc" :items="authorSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateAuthorSort" />
+
+        <widgets-cover-size-widget setting-key="authorsCoverSize" class="ml-2" />
       </template>
       <!-- continue listening page -->
       <template v-else-if="isContinueListeningPage">
         <p class="hidden md:block">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
         <div class="grow hidden sm:inline-block" />
         <controls-sort-select v-model="settings.continueListeningSortBy" :descending.sync="settings.continueListeningSortDesc" :items="continueListeningSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateContinueListeningSort" />
+
+        <widgets-cover-size-widget setting-key="continueListeningCoverSize" class="ml-2" />
       </template>
       <!-- recently added page -->
       <template v-else-if="isRecentlyAddedPage">
@@ -131,10 +140,13 @@
         <div class="grow hidden sm:inline-block" />
         <controls-library-filter-select v-model="settings.recentlyAddedFilterBy" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateRecentlyAddedFilter" />
         <controls-sort-select v-model="settings.recentlyAddedSortBy" :descending.sync="settings.recentlyAddedSortDesc" :items="recentlyAddedSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateRecentlyAddedSort" />
+
+        <widgets-cover-size-widget setting-key="recentlyAddedCoverSize" class="ml-2" />
       </template>
       <!-- home page -->
       <template v-else-if="isHome">
         <div class="grow" />
+        <widgets-cover-size-widget setting-key="homeCoverSize" class="ml-2" />
         <ui-context-menu-dropdown v-if="contextMenuItems.length" :items="contextMenuItems" :menu-width="110" class="ml-2" @action="contextMenuAction" />
       </template>
     </div>
@@ -454,6 +466,13 @@ export default {
     },
     streamLibraryItem() {
       return this.$store.state.streamLibraryItem
+    },
+    currentPageCoverSizeKey() {
+      if (this.isLibraryPage) return 'libraryCoverSize'
+      if (this.isSeriesPage) return 'seriesCoverSize'
+      if (this.isPlaylistsPage) return 'playlistsCoverSize'
+      if (this.isCollectionsPage) return 'libraryCoverSize'
+      return 'libraryCoverSize'
     }
   },
   methods: {

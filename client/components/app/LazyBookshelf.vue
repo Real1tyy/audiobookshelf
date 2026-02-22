@@ -33,7 +33,6 @@
       </div>
     </div>
 
-    <widgets-cover-size-widget class="fixed right-4 z-50" :style="{ bottom: streamLibraryItem ? '181px' : '16px' }" />
   </div>
 </template>
 
@@ -251,8 +250,18 @@ export default {
     selectedMediaItems() {
       return this.$store.state.globals.selectedMediaItems || []
     },
+    coverSizeKey() {
+      if (this.page === '') return 'libraryCoverSize'
+      if (this.page === 'series') return 'seriesCoverSize'
+      if (this.page === 'authors') return 'authorsCoverSize'
+      if (this.page === 'playlists') return 'playlistsCoverSize'
+      if (this.page === 'continue-listening') return 'continueListeningCoverSize'
+      if (this.page === 'recently-added') return 'recentlyAddedCoverSize'
+      if (this.seriesId) return 'seriesDetailCoverSize'
+      return 'libraryCoverSize'
+    },
     sizeMultiplier() {
-      return this.$store.getters['user/getSizeMultiplier']
+      return this.$store.getters['user/getPageSizeMultiplier'](this.coverSizeKey)
     },
     streamLibraryItem() {
       return this.$store.state.streamLibraryItem
@@ -611,7 +620,7 @@ export default {
       const wasUpdated = this.checkUpdateSearchParams()
       if (wasUpdated) {
         this.resetEntities()
-      } else if (settings.bookshelfCoverSize !== this.currentBookWidth) {
+      } else if (settings.bookshelfCoverSize !== this.currentBookWidth || settings[this.coverSizeKey] !== undefined) {
         this.rebuild()
       }
     },

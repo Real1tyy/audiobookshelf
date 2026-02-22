@@ -10,6 +10,12 @@
 
 <script>
 export default {
+  props: {
+    settingKey: {
+      type: String,
+      default: 'bookshelfCoverSize'
+    }
+  },
   data() {
     return {
       selectedSizeIndex: 3,
@@ -26,7 +32,7 @@ export default {
   },
   computed: {
     selectedSize() {
-      return this.$store.getters['user/getUserSetting']('bookshelfCoverSize')
+      return this.$store.getters['user/getUserSetting'](this.settingKey) || 120
     },
     bookCoverWidth() {
       return this.availableSizes[this.selectedSizeIndex]
@@ -35,15 +41,15 @@ export default {
   methods: {
     increaseSize() {
       this.selectedSizeIndex = Math.min(this.availableSizes.length - 1, this.selectedSizeIndex + 1)
-      this.$store.dispatch('user/updateUserSettings', { bookshelfCoverSize: this.bookCoverWidth })
+      this.$store.dispatch('user/updateUserSettings', { [this.settingKey]: this.bookCoverWidth, bookshelfCoverSize: this.bookCoverWidth })
     },
     decreaseSize() {
       this.selectedSizeIndex = Math.max(0, this.selectedSizeIndex - 1)
-      this.$store.dispatch('user/updateUserSettings', { bookshelfCoverSize: this.bookCoverWidth })
+      this.$store.dispatch('user/updateUserSettings', { [this.settingKey]: this.bookCoverWidth, bookshelfCoverSize: this.bookCoverWidth })
     },
     setSelectedIndex() {
       var sizeIndex = this.availableSizes.findIndex((s) => s === this.selectedSize)
-      if (!isNaN(sizeIndex)) this.selectedSizeIndex = sizeIndex
+      if (!isNaN(sizeIndex) && sizeIndex >= 0) this.selectedSizeIndex = sizeIndex
     }
   },
   mounted() {}
