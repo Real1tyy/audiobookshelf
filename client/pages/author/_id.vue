@@ -374,7 +374,7 @@ export default {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     sizeMultiplier() {
-      return this.$store.getters['user/getSizeMultiplier']
+      return this.$store.getters['user/getPageSizeMultiplier']('authorPageBookWidth')
     },
     bookWidth() {
       return this.$store.getters['user/getPageCoverSize']('authorPageBookWidth')
@@ -655,6 +655,9 @@ export default {
     this.filterBy = this.$route.query.filter || 'all'
     this.sortBy = this.$route.query.sort || 'addedAt'
     this.sortDesc = this.$route.query.desc === '0' ? false : true
+
+    // Set active cover size key for this page
+    this.$store.commit('user/setActiveCoverSizeKey', 'authorPageBookWidth')
 
     // Set initial window width
     this.windowWidth = window.innerWidth

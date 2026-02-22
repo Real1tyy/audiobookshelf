@@ -13,6 +13,23 @@
         <p :style="{ fontSize: 0.8 + 'em' }">{{ booksInSeries }}</p>
       </div>
 
+      <!-- Listening stats badge (top center) -->
+      <div
+        cy-id="listeningStats"
+        v-if="hasListeningStats && !isHovering && !isSelectionMode && !booksInSeries"
+        class="absolute z-20 flex items-center rounded-b-md shadow-md"
+        :style="{ top: 0, left: '50%', transform: 'translateX(-50%)', padding: '0.15em 0.4em', gap: '0.5em', backgroundColor: 'rgba(0, 0, 0, 0.85)' }"
+      >
+        <div v-if="viewedCount > 0" class="flex items-center" :style="{ gap: '0.15em' }">
+          <span class="material-symbols fill text-green-400" :style="{ fontSize: 0.7 + 'em' }">headphones</span>
+          <span class="text-green-400 font-bold" :style="{ fontSize: 0.65 + 'em' }">{{ viewedCount }}</span>
+        </div>
+        <div v-if="totalListeningMinutes > 0" class="flex items-center" :style="{ gap: '0.15em' }">
+          <span class="material-symbols fill text-blue-400" :style="{ fontSize: 0.7 + 'em' }">schedule</span>
+          <span class="text-blue-400 font-bold" :style="{ fontSize: 0.65 + 'em' }">{{ formattedListeningTime }}</span>
+        </div>
+      </div>
+
       <div class="w-full h-full absolute top-0 left-0 rounded-sm overflow-hidden z-10">
         <div cy-id="titleImageNotReady" v-show="libraryItem && !imageReady" aria-hidden="true" class="absolute top-0 left-0 w-full h-full flex items-center justify-center" :style="{ padding: 0.5 + 'em' }">
           <p :style="{ fontSize: 0.8 + 'em' }" class="text-gray-300 text-center">{{ title }}</p>
@@ -731,6 +748,23 @@ export default {
     },
     isDownloadedOffline() {
       return this.store.getters['offline/isDownloaded'](this.libraryItemId)
+    },
+    viewedCount() {
+      return this.mediaMetadata.viewedCount || 0
+    },
+    totalListeningMinutes() {
+      return Math.round(this.mediaMetadata.totalListeningTime || 0)
+    },
+    hasListeningStats() {
+      return this.viewedCount > 0 || this.totalListeningMinutes > 0
+    },
+    formattedListeningTime() {
+      const minutes = this.totalListeningMinutes
+      if (minutes < 60) return `${minutes}m`
+      const hours = Math.floor(minutes / 60)
+      const mins = minutes % 60
+      if (mins === 0) return `${hours}h`
+      return `${hours}h${mins}m`
     }
   },
   methods: {

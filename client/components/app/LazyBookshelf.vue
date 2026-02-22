@@ -86,6 +86,12 @@ export default {
     }
   },
   watch: {
+    coverSizeKey: {
+      immediate: true,
+      handler(key) {
+        this.$store.commit('user/setActiveCoverSizeKey', key)
+      }
+    },
     '$route.query.filter'() {
       if (this.$route.query.filter && this.$route.query.filter !== this.filterBy) {
         this.$store.dispatch('user/updateUserSettings', { filterBy: this.$route.query.filter })
@@ -616,11 +622,16 @@ export default {
       }
     },
     async settingsUpdated(settings) {
+      const coverSizeChanged = settings[this.coverSizeKey] !== undefined || settings.bookshelfCoverSize !== undefined
+      if (coverSizeChanged) {
+        // Ensure the active key is set so card components read the right size
+        this.$store.commit('user/setActiveCoverSizeKey', this.coverSizeKey)
+      }
       await this.cardsHelpers.setCardSize()
       const wasUpdated = this.checkUpdateSearchParams()
       if (wasUpdated) {
         this.resetEntities()
-      } else if (settings.bookshelfCoverSize !== this.currentBookWidth || settings[this.coverSizeKey] !== undefined) {
+      } else if (coverSizeChanged) {
         this.rebuild()
       }
     },

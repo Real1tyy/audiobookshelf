@@ -512,6 +512,9 @@ export default {
     }
   },
   mounted() {
+    // Set active cover size key for this page
+    this.$store.commit('user/setActiveCoverSizeKey', 'seriesDetailCoverSize')
+
     // Initialize from URL or asyncData
     this.searchQuery = this.$route.query.search || ''
     this.filterBy = this.$route.query.filter || 'all'

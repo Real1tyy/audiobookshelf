@@ -1,6 +1,7 @@
 export const state = () => ({
   user: null,
   accessToken: null,
+  activeCoverSizeKey: 'bookshelfCoverSize',
   settings: {
     orderBy: 'media.metadata.title',
     orderDesc: false,
@@ -94,7 +95,9 @@ export const getters = {
     return state.user.seriesHideFromContinueListening.includes(seriesId)
   },
   getSizeMultiplier: (state) => {
-    return state.settings.bookshelfCoverSize / 120
+    const key = state.activeCoverSizeKey || 'bookshelfCoverSize'
+    const size = state.settings[key] || state.settings.bookshelfCoverSize || 120
+    return size / 120
   },
   getPageCoverSize: (state) => (key) => {
     return state.settings[key] || state.settings.bookshelfCoverSize || 120
@@ -194,6 +197,9 @@ export const actions = {
 }
 
 export const mutations = {
+  setActiveCoverSizeKey(state, key) {
+    state.activeCoverSizeKey = key || 'bookshelfCoverSize'
+  },
   setUser(state, user) {
     state.user = user
   },

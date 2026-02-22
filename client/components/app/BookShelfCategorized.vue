@@ -538,6 +538,7 @@ export default {
     }
   },
   mounted() {
+    this.$store.commit('user/setActiveCoverSizeKey', 'homeCoverSize')
     this.initListeners()
     this.init()
   },
