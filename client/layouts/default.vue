@@ -623,10 +623,17 @@ export default {
       console.log('Changed lang', code)
       this.currentLang = code
       document.documentElement.lang = code
+    },
+    onVisibilityChange() {
+      if (!document.hidden && this.socket && !this.socket.connected) {
+        console.log('[SOCKET] Page became visible with disconnected socket, forcing reconnect')
+        this.socket.connect()
+      }
     }
   },
   beforeMount() {
     this.initializeSocket()
+    document.addEventListener('visibilitychange', this.onVisibilityChange)
   },
   mounted() {
     this.updateBodyClass()
@@ -664,6 +671,7 @@ export default {
     this.$eventBus.$off('token_refreshed', this.tokenRefreshed)
     window.removeEventListener('resize', this.resize)
     window.removeEventListener('keydown', this.keyDown)
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
   }
 }
 </script>

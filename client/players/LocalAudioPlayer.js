@@ -327,7 +327,25 @@ export default class LocalAudioPlayer extends EventEmitter {
 
   play() {
     this.playWhenReady = true
-    if (this.player) this.player.play()
+    if (!this.player) return
+
+    const playPromise = this.player.play()
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('[LocalPlayer] play() failed, attempting recovery:', err.message)
+        // Save current position before reloading
+        const currentTime = this.getCurrentTime()
+        this.startTime = currentTime
+
+        if (this.isHlsTranscode) {
+          // For HLS: rebuild the HLS instance
+          this.resetStream(currentTime)
+        } else {
+          // For direct play: reload the current track and play when ready
+          this.loadCurrentTrack()
+        }
+      })
+    }
   }
 
   pause() {

@@ -442,4 +442,31 @@ export default class PlayerHandler {
   getRepeatMode() {
     return this.repeatMode
   }
+
+  /**
+   * Check if the audio element is still in a healthy state after the page
+   * was suspended (e.g. mobile browser backgrounded). If the audio source
+   * went stale (readyState === 0), proactively reload the track at the
+   * current position so the next play() call succeeds.
+   */
+  checkAudioHealth() {
+    if (!this.player || !this.libraryItem) return
+    if (!(this.player instanceof LocalAudioPlayer)) return
+
+    const audioEl = this.player.player
+    if (!audioEl) return
+
+    // readyState 0 = HAVE_NOTHING — the source has been lost
+    if (audioEl.readyState === 0) {
+      console.warn('[PlayerHandler] Audio element is stale (readyState=0), reloading track')
+      const currentTime = this.player.getCurrentTime() || this.startTime
+      this.player.startTime = currentTime
+
+      if (this.isHlsTranscode) {
+        this.player.resetStream(currentTime)
+      } else {
+        this.player.loadCurrentTrack()
+      }
+    }
+  }
 }

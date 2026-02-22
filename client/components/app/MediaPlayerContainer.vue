@@ -91,7 +91,8 @@ export default {
       lastChapterId: null,
       repeatMode: 'off', // 'off', 'all', 'one'
       _queueRestoreInProgress: false, // flag to cancel queue restore when user initiates play
-      _userPlayInProgress: false // flag set immediately on user-initiated play to block queue restore
+      _userPlayInProgress: false, // flag set immediately on user-initiated play to block queue restore
+      _wakeLock: null // Screen Wake Lock to prevent page suspension while audio is loaded
     }
   },
   computed: {
@@ -228,6 +229,9 @@ export default {
       this.isPlaying = isPlaying
       this.$store.commit('setIsPlaying', isPlaying)
       this.updateMediaSessionPlaybackState()
+      if (isPlaying) {
+        this.requestWakeLock()
+      }
     },
     setSleepTimer(time) {
       this.sleepTimerSet = true
@@ -369,6 +373,7 @@ export default {
     closePlayer() {
       this.playerHandler.closePlayer()
       this.$store.commit('setMediaPlaying', null)
+      this.releaseWakeLock()
       // Note: Queue persists when player is closed, so we don't clear it
     },
     mediaSessionPlay() {
@@ -714,6 +719,34 @@ export default {
         this.playerHandler.resetPlayer() // Closes player without reporting to server
         this.$store.commit('setMediaPlaying', null)
       }
+    },
+    async requestWakeLock() {
+      if (!('wakeLock' in navigator)) return
+      try {
+        this._wakeLock = await navigator.wakeLock.request('screen')
+        this._wakeLock.addEventListener('release', () => {
+          console.log('[WakeLock] Released')
+        })
+        console.log('[WakeLock] Acquired')
+      } catch (err) {
+        console.warn('[WakeLock] Failed to acquire:', err.message)
+      }
+    },
+    releaseWakeLock() {
+      if (this._wakeLock) {
+        this._wakeLock.release()
+        this._wakeLock = null
+      }
+    },
+    onVisibilityChange() {
+      if (!document.hidden) {
+        // Re-acquire wake lock when page becomes visible (browsers release it on hide)
+        if (this.streamLibraryItem) {
+          this.requestWakeLock()
+        }
+        // Proactive audio health check
+        this.playerHandler.checkAudioHealth()
+      }
     }
   },
   mounted() {
@@ -724,6 +757,7 @@ export default {
     this.$eventBus.$on('play-item', this.playLibraryItem)
     this.$eventBus.$on('pause-item', this.pauseItem)
     this.$eventBus.$on('restore-queue', this.restoreQueueToPlayer)
+    document.addEventListener('visibilitychange', this.onVisibilityChange)
   },
   beforeDestroy() {
     this.$eventBus.$off('cast-session-active', this.castSessionActive)
@@ -733,6 +767,8 @@ export default {
     this.$eventBus.$off('play-item', this.playLibraryItem)
     this.$eventBus.$off('pause-item', this.pauseItem)
     this.$eventBus.$off('restore-queue', this.restoreQueueToPlayer)
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
+    this.releaseWakeLock()
   }
 }
 </script>
