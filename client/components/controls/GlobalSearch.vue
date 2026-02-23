@@ -1,15 +1,21 @@
 <template>
   <div class="">
-    <div class="w-full relative sm:w-80">
-      <form role="search" @submit.prevent="submitSearch">
-        <ui-text-input ref="input" v-model="search" :placeholder="$strings.PlaceholderSearch" @input="inputUpdate" @focus="focussed" @blur="blurred" class="w-full h-8 text-sm" />
-      </form>
-      <button :aria-hidden="!search" class="absolute top-0 right-0 bottom-0 h-full flex items-center px-2 text-gray-400 cursor-pointer" @click="clickClear">
-        <span v-if="!search" class="material-symbols" style="font-size: 1.2rem">&#xe8b6;</span>
-        <span v-else class="material-symbols" style="font-size: 1.2rem">close</span>
-      </button>
+    <div class="flex items-center">
+      <select v-model="searchMode" class="h-8 text-sm bg-fg border border-gray-500 rounded-sm text-gray-200 px-1 mr-1 outline-none cursor-pointer hover:bg-bg/40" style="min-width: 100px">
+        <option value="title">Title</option>
+        <option value="transcript">Transcript</option>
+      </select>
+      <div class="w-full relative sm:w-80">
+        <form role="search" @submit.prevent="submitSearch">
+          <ui-text-input ref="input" v-model="search" :placeholder="searchMode === 'transcript' ? 'Search transcripts...' : $strings.PlaceholderSearch" @input="inputUpdate" @focus="focussed" @blur="blurred" class="w-full h-8 text-sm" />
+        </form>
+        <button :aria-hidden="!search" class="absolute top-0 right-0 bottom-0 h-full flex items-center px-2 text-gray-400 cursor-pointer" @click="clickClear">
+          <span v-if="!search" class="material-symbols" style="font-size: 1.2rem">&#xe8b6;</span>
+          <span v-else class="material-symbols" style="font-size: 1.2rem">close</span>
+        </button>
+      </div>
     </div>
-    <div v-show="showMenu && (lastSearch || isTyping)" class="absolute z-40 -mt-px w-full max-w-64 sm:max-w-80 sm:w-80 bg-bg border border-black-200 shadow-lg rounded-md py-1 px-2 text-base ring-1 ring-black/5 overflow-auto focus:outline-hidden sm:text-sm globalSearchMenu" @mousedown.stop.prevent>
+    <div v-show="showMenu && (lastSearch || isTyping)" class="absolute z-40 -mt-px w-full max-w-64 sm:max-w-80 sm:w-80 bg-bg border border-black-200 shadow-lg rounded-md py-1 px-2 text-base ring-1 ring-black/5 overflow-auto focus:outline-hidden sm:text-sm globalSearchMenu" :style="{ left: menuLeftOffset }" @mousedown.stop.prevent>
       <ul class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
         <li v-if="isTyping" class="py-2 px-2">
           <p>{{ $strings.MessageThinking }}</p>
@@ -20,6 +26,17 @@
         <li v-else-if="!totalResults" class="py-2 px-2">
           <p>{{ $strings.MessageNoResults }}</p>
         </li>
+        <template v-else-if="searchMode === 'transcript'">
+          <p class="uppercase text-xs text-gray-400 my-1 px-1 font-semibold">Transcript Matches</p>
+          <template v-for="item in transcriptResults">
+            <li :key="'tr-' + item.libraryItemId" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-2 px-1 rounded" role="option" @click="clickOption">
+              <nuxt-link :to="`/item/${item.libraryItemId}`" class="block">
+                <p class="text-xs font-semibold text-gray-100 truncate">{{ item.title }}</p>
+                <p class="text-xs text-gray-400 mt-1 leading-relaxed transcript-snippet" v-html="item.snippet"></p>
+              </nuxt-link>
+            </li>
+          </template>
+        </template>
         <template v-else>
           <p v-if="bookResults.length" class="uppercase text-xs text-gray-400 my-1 px-1 font-semibold">{{ $strings.LabelBooks }}</p>
           <template v-for="item in bookResults">
@@ -108,6 +125,7 @@ export default {
       isTyping: false,
       isFetching: false,
       search: null,
+      searchMode: 'title',
       podcastResults: [],
       episodeResults: [],
       bookResults: [],
@@ -116,6 +134,7 @@ export default {
       tagResults: [],
       genreResults: [],
       narratorResults: [],
+      transcriptResults: [],
       searchTimeout: null,
       lastSearch: null
     }
@@ -124,8 +143,21 @@ export default {
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
     },
+    menuLeftOffset() {
+      return this.searchMode ? '110px' : '0'
+    },
     totalResults() {
+      if (this.searchMode === 'transcript') {
+        return this.transcriptResults.length
+      }
       return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.tagResults.length + this.genreResults.length + this.podcastResults.length + this.narratorResults.length + this.episodeResults.length
+    }
+  },
+  watch: {
+    searchMode() {
+      if (this.lastSearch) {
+        this.runSearch(this.lastSearch)
+      }
     }
   },
   methods: {
@@ -135,8 +167,9 @@ export default {
     submitSearch() {
       if (!this.search) return
       var search = this.search
+      var mode = this.searchMode
       this.clearResults()
-      this.$router.push(`/library/${this.currentLibraryId}/search?q=${encodeURIComponent(search)}`)
+      this.$router.push(`/library/${this.currentLibraryId}/search?q=${encodeURIComponent(search)}&mode=${mode}`)
     },
     clearResults() {
       this.search = null
@@ -149,6 +182,7 @@ export default {
       this.tagResults = []
       this.genreResults = []
       this.narratorResults = []
+      this.transcriptResults = []
       this.showMenu = false
       this.isFetching = false
       this.isTyping = false
@@ -177,22 +211,37 @@ export default {
       }
       this.isFetching = true
 
-      const searchResults = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/search?q=${encodeURIComponent(value)}&limit=3`).catch((error) => {
-        console.error('Search error', error)
-        return []
-      })
-
-      // Search was canceled
-      if (!this.isFetching) return
-
-      this.podcastResults = searchResults.podcast || []
-      this.episodeResults = searchResults.episodes || []
-      this.bookResults = searchResults.book || []
-      this.authorResults = searchResults.authors || []
-      this.seriesResults = searchResults.series || []
-      this.tagResults = searchResults.tags || []
-      this.genreResults = searchResults.genres || []
-      this.narratorResults = searchResults.narrators || []
+      if (this.searchMode === 'transcript') {
+        const results = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/search-transcripts?q=${encodeURIComponent(value)}&limit=5`).catch((error) => {
+          console.error('Transcript search error', error)
+          return []
+        })
+        if (!this.isFetching) return
+        this.transcriptResults = results || []
+        this.bookResults = []
+        this.podcastResults = []
+        this.episodeResults = []
+        this.authorResults = []
+        this.seriesResults = []
+        this.tagResults = []
+        this.genreResults = []
+        this.narratorResults = []
+      } else {
+        const searchResults = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/search?q=${encodeURIComponent(value)}&limit=3`).catch((error) => {
+          console.error('Search error', error)
+          return []
+        })
+        if (!this.isFetching) return
+        this.podcastResults = searchResults.podcast || []
+        this.episodeResults = searchResults.episodes || []
+        this.bookResults = searchResults.book || []
+        this.authorResults = searchResults.authors || []
+        this.seriesResults = searchResults.series || []
+        this.tagResults = searchResults.tags || []
+        this.genreResults = searchResults.genres || []
+        this.narratorResults = searchResults.narrators || []
+        this.transcriptResults = []
+      }
 
       this.isFetching = false
       if (!this.showMenu) {
@@ -226,5 +275,11 @@ export default {
 <style scoped>
 .globalSearchMenu {
   max-height: calc(100vh - 75px);
+}
+.transcript-snippet :deep(mark) {
+  background-color: rgba(255, 255, 0, 0.3);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
 }
 </style>

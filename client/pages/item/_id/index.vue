@@ -108,6 +108,41 @@
               <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="mx-0.5" @click="toggleFinished" />
             </ui-tooltip>
 
+            <!-- Audio Trim Button -->
+            <div v-if="isBook && tracks.length && userCanUpdate" class="relative mx-0.5">
+              <ui-tooltip text="Trim Audio" direction="top">
+                <button type="button" class="icon-btn bg-primary border border-gray-600 w-9 h-9 rounded-md flex items-center justify-center" :class="showTrimPopover ? 'border-yellow-500' : ''" @click="showTrimPopover = !showTrimPopover">
+                  <span class="material-symbols text-xl">&#xe14e;</span>
+                </button>
+              </ui-tooltip>
+
+              <!-- Trim Popover -->
+              <div v-if="showTrimPopover" class="absolute top-11 left-0 z-40 bg-bg border border-gray-600 rounded-lg shadow-xl p-3" style="min-width: 300px">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-gray-100">Trim Audio</p>
+                  <button class="text-gray-400 hover:text-white" @click="showTrimPopover = false">
+                    <span class="material-symbols text-lg">close</span>
+                  </button>
+                </div>
+                <p class="text-xs text-gray-400 mb-2">Sections to remove (e.g. 0:15-0:36). One per line.</p>
+                <textarea
+                  v-model="trimInput"
+                  rows="3"
+                  class="w-full bg-primary text-gray-100 text-sm rounded px-2 py-1.5 border border-gray-600 focus:border-yellow-500 focus:outline-none font-mono"
+                  placeholder="0:00-0:10&#10;1:25:00-1:30:00"
+                  :disabled="isTrimming"
+                />
+                <div class="flex items-center justify-between mt-2">
+                  <p v-if="trimError" class="text-xs text-error">{{ trimError }}</p>
+                  <p v-else class="text-xs text-gray-500">Destructive. Backups saved to cache.</p>
+                  <ui-btn :disabled="isTrimming || !trimInput.trim()" color="bg-warning" small class="ml-auto" @click="submitTrim">
+                    <span v-if="isTrimming" class="material-symbols text-sm animate-spin mr-1">refresh</span>
+                    {{ isTrimming ? 'Trimming...' : 'Trim' }}
+                  </ui-btn>
+                </div>
+              </div>
+            </div>
+
             <!-- Only admin or root user can download new episodes -->
             <ui-tooltip v-if="isPodcast && userIsAdminOrUp" :text="$strings.LabelFindEpisodes" direction="top">
               <ui-icon-btn icon="search" class="mx-0.5" :aria-label="$strings.LabelFindEpisodes" :loading="fetchingRSSFeed" outlined @click="findEpisodesClick" />
@@ -210,6 +245,10 @@ export default {
       showBookmarksModal: false,
       isDescriptionClamped: false,
       showFullDescription: false,
+      showTrimPopover: false,
+      trimInput: '',
+      trimError: '',
+      isTrimming: false,
       showTranscript: false,
       transcriptLoading: false,
       transcriptLoadError: false,
@@ -871,6 +910,68 @@ export default {
         type: 'yesNo'
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    parseTrimTimestamp(str) {
+      str = str.trim()
+      const parts = str.split(':').map(Number)
+      if (parts.some(isNaN)) return null
+      if (parts.length === 1) return parts[0]
+      if (parts.length === 2) return parts[0] * 60 + parts[1]
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+      return null
+    },
+    submitTrim() {
+      this.trimError = ''
+      const lines = this.trimInput.trim().split('\n').filter((l) => l.trim())
+      const sections = []
+
+      for (const line of lines) {
+        const match = line.trim().match(/^(.+?)\s*[-–]\s*(.+)$/)
+        if (!match) {
+          this.trimError = `Invalid format: "${line.trim()}". Use start-end (e.g. 0:15-0:36)`
+          return
+        }
+        const start = this.parseTrimTimestamp(match[1])
+        const end = this.parseTrimTimestamp(match[2])
+        if (start === null || end === null) {
+          this.trimError = `Invalid time in: "${line.trim()}"`
+          return
+        }
+        if (start >= end) {
+          this.trimError = `Start must be before end: "${line.trim()}"`
+          return
+        }
+        sections.push({ start, end })
+      }
+
+      if (!sections.length) {
+        this.trimError = 'Enter at least one section'
+        return
+      }
+
+      const payload = {
+        message: `Remove ${sections.length} section(s) from this audio? This is destructive (backups will be saved).`,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.executeTrim(sections)
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    async executeTrim(sections) {
+      this.isTrimming = true
+      try {
+        await this.$axios.$post(`/api/tools/item/${this.libraryItemId}/trim-audio`, { sections })
+        this.$toast.success('Audio trim started')
+        this.showTrimPopover = false
+        this.trimInput = ''
+      } catch (err) {
+        console.error('Trim failed', err)
+        this.trimError = err.response?.data || 'Trim failed'
+      }
+      this.isTrimming = false
     },
     contextMenuAction({ action, data }) {
       if (action === 'bookmarks') {
