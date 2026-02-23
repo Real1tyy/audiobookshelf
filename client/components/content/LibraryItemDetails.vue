@@ -66,18 +66,14 @@
         <span>{{ rating }} / 10</span>
       </div>
     </div>
-    <div v-if="urls.length" class="flex py-0.5">
+    <div v-for="(urlItem, index) in urls" :key="'url-' + index" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
-        <span class="text-white/60 uppercase text-sm">{{ urls.length === 1 ? 'URL' : 'URLs' }}</span>
+        <span v-if="index === 0" class="text-white/60 uppercase text-sm">{{ urls.length === 1 ? 'URL' : 'URLs' }}</span>
       </div>
-      <div>
-        <div v-for="(urlItem, index) in urls" :key="index">
-          <a :href="urlItem" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 hover:underline flex items-center">
-            {{ urlItem }}
-            <span class="material-symbols text-sm ml-1">open_in_new</span>
-          </a>
-        </div>
-      </div>
+      <a :href="urlItem" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 hover:underline flex items-center truncate">
+        <span class="truncate">{{ urlDisplayLabel(urlItem) }}</span>
+        <span class="material-symbols text-sm ml-1 flex-shrink-0">open_in_new</span>
+      </a>
     </div>
     <div v-if="relatedBooksData.length" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
@@ -197,7 +193,13 @@ export default {
     urls() {
       const raw = this.mediaMetadata.url
       if (Array.isArray(raw)) return raw
-      if (raw) return [raw]
+      if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) return parsed
+        } catch {}
+        if (raw) return [raw]
+      }
       return []
     },
     relatedBooks() {
@@ -254,7 +256,15 @@ export default {
       }
     }
   },
-  methods: {},
+  methods: {
+    urlDisplayLabel(url) {
+      try {
+        const u = new URL(url)
+        if (u.hostname) return u.hostname + (u.pathname !== '/' ? u.pathname : '')
+      } catch {}
+      return url
+    }
+  },
   mounted() {}
 }
 </script>
