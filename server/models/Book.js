@@ -383,6 +383,45 @@ class Book extends Model {
     return total
   }
 
+  /**
+   * Flatten url value, handling double-encoded JSON strings
+   * @param {*} val
+   * @returns {string[]}
+   */
+  static flattenUrls(val) {
+    const result = []
+    const process = (v) => {
+      if (!v) return
+      if (Array.isArray(v)) {
+        v.forEach(process)
+        return
+      }
+      if (typeof v === 'string') {
+        const trimmed = v.trim()
+        if (trimmed.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            if (Array.isArray(parsed)) {
+              parsed.forEach(process)
+              return
+            }
+          } catch {}
+        }
+        if (trimmed) result.push(trimmed)
+      }
+    }
+    process(val)
+    return result
+  }
+
+  /**
+   * Normalize url field, flattening any double-encoded JSON strings
+   * @returns {string[]}
+   */
+  getNormalizedUrls() {
+    return Book.flattenUrls(this.url)
+  }
+
   getAbsMetadataJson() {
     return {
       tags: this.tags || [],
@@ -407,7 +446,7 @@ class Book extends Model {
       explicit: !!this.explicit,
       abridged: !!this.abridged,
       rating: this.rating,
-      url: this.url || [],
+      url: this.getNormalizedUrls(),
       relatedBooks: this.relatedBooks || []
     }
   }
@@ -482,19 +521,10 @@ class Book extends Model {
         }
       })
 
-      // Handle url as JSON array - accept string (wrap in array) or array of strings
+      // Handle url as JSON array - flatten any double-encoded JSON strings
       if (payload.metadata.url !== undefined) {
-        let newUrl
-        if (typeof payload.metadata.url === 'string') {
-          newUrl = payload.metadata.url ? [payload.metadata.url] : []
-        } else if (Array.isArray(payload.metadata.url)) {
-          newUrl = payload.metadata.url.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim())
-          // Deduplicate
-          newUrl = [...new Set(newUrl)]
-        } else {
-          newUrl = []
-        }
-        if (JSON.stringify(this.url || []) !== JSON.stringify(newUrl)) {
+        const newUrl = [...new Set(Book.flattenUrls(payload.metadata.url))]
+        if (JSON.stringify(this.getNormalizedUrls()) !== JSON.stringify(newUrl)) {
           this.url = newUrl.length ? newUrl : null
           this.changed('url', true)
           hasUpdates = true
@@ -738,7 +768,7 @@ class Book extends Model {
       explicit: this.explicit,
       abridged: this.abridged,
       rating: this.rating,
-      url: this.url || [],
+      url: this.getNormalizedUrls(),
       relatedBooks: this.relatedBooks || [],
       viewedCount: this.viewedCount || 0,
       totalListeningTime: this.totalListeningTime || 0
@@ -765,7 +795,7 @@ class Book extends Model {
       explicit: this.explicit,
       abridged: this.abridged,
       rating: this.rating,
-      url: this.url || [],
+      url: this.getNormalizedUrls(),
       relatedBooks: this.relatedBooks || [],
       viewedCount: this.viewedCount || 0,
       totalListeningTime: this.totalListeningTime || 0

@@ -160,6 +160,11 @@ class ToolsController {
    * @param {Response} res
    */
   async trimAudio(req, res) {
+    if (!req.user.isRoot) {
+      Logger.error(`[ToolsController] trimAudio: Non-root user "${req.user.username}" attempted to trim audio`)
+      return res.sendStatus(403)
+    }
+
     if (req.libraryItem.isMissing || req.libraryItem.isInvalid) {
       Logger.error(`[ToolsController] trimAudio: library item not found or invalid ${req.params.id}`)
       return res.status(404).send('Audiobook not found')

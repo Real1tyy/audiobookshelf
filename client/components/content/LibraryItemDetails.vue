@@ -191,16 +191,29 @@ export default {
       return this.mediaMetadata.rating
     },
     urls() {
-      const raw = this.mediaMetadata.url
-      if (Array.isArray(raw)) return raw
-      if (typeof raw === 'string') {
-        try {
-          const parsed = JSON.parse(raw)
-          if (Array.isArray(parsed)) return parsed
-        } catch {}
-        if (raw) return [raw]
+      const result = []
+      const flatten = (val) => {
+        if (!val) return
+        if (Array.isArray(val)) {
+          val.forEach(flatten)
+          return
+        }
+        if (typeof val === 'string') {
+          const trimmed = val.trim()
+          if (trimmed.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(trimmed)
+              if (Array.isArray(parsed)) {
+                parsed.forEach(flatten)
+                return
+              }
+            } catch {}
+          }
+          if (trimmed) result.push(trimmed)
+        }
       }
-      return []
+      flatten(this.mediaMetadata.url)
+      return result
     },
     relatedBooks() {
       return this.mediaMetadata.relatedBooks || []

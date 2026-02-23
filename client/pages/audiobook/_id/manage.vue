@@ -133,13 +133,7 @@
       <div class="mb-4">
         <div v-if="isTrimTool" class="flex items-start mb-2">
           <span class="material-symbols text-base text-warning pt-1">star</span>
-          <p class="text-gray-200 ml-2">This is a destructive operation. Audio will be re-encoded to remove the specified sections.</p>
-        </div>
-        <div v-if="isTrimTool" class="flex items-start mb-2">
-          <span class="material-symbols text-base text-warning pt-1">star</span>
-          <p class="text-gray-200 ml-2">
-            Original files will be backed up to <span class="rounded-md bg-neutral-600 text-sm text-white py-0.5 px-1 font-mono">/metadata/cache/items/{{ libraryItemId }}/</span>.
-          </p>
+          <p class="text-gray-200 ml-2">This is a destructive operation. Audio will be re-encoded to remove the specified sections. This cannot be undone.</p>
         </div>
         <div v-if="isEmbedTool" class="flex items-start mb-2">
           <span class="material-symbols text-base text-warning pt-1">star</span>
@@ -496,7 +490,7 @@ export default {
       }
 
       const payload = {
-        message: `Are you sure you want to remove ${sections.length} section(s) from the audio? This will re-encode the affected files. Originals will be backed up.`,
+        message: `Are you sure you want to remove ${sections.length} section(s) from the audio? This will re-encode the affected files. This cannot be undone.`,
         callback: (confirmed) => {
           if (confirmed) {
             this.executeTrim(sections)

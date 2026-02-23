@@ -10,8 +10,6 @@ const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 
 class AudioTrimManager {
   constructor() {
-    this.itemsCacheDir = Path.join(global.MetadataPath, 'cache/items')
-
     this.MAX_CONCURRENT_TASKS = 1
     this.tasksRunning = []
     this.tasksQueued = []
@@ -28,7 +26,6 @@ class AudioTrimManager {
    */
   async trimAudioForItem(userId, libraryItem, sectionsToRemove) {
     const audioFiles = libraryItem.media.includedAudioFiles
-    const itemCachePath = Path.join(this.itemsCacheDir, libraryItem.id)
     const libraryItemDir = libraryItem.isFile ? Path.dirname(libraryItem.path) : libraryItem.path
 
     const task = new Task()
@@ -41,10 +38,8 @@ class AudioTrimManager {
         ino: af.ino,
         filename: af.metadata.filename,
         path: af.metadata.path,
-        cachePath: Path.join(itemCachePath, af.metadata.filename),
         duration: af.duration
       })),
-      itemCachePath,
       sectionsToRemove,
       duration: libraryItem.media.duration
     }
@@ -73,7 +68,7 @@ class AudioTrimManager {
    * Each audio file has a cumulative start offset on the global timeline.
    *
    * @param {Array<{start: number, end: number}>} globalSections
-   * @param {Array<{index: number, duration: number, path: string, ino: string, filename: string, cachePath: string}>} audioFiles
+   * @param {Array<{index: number, duration: number, path: string, ino: string, filename: string}>} audioFiles
    * @returns {Map<number, Array<{start: number, end: number}>>} Map of file index to local sections
    */
   mapSectionsToFiles(globalSections, audioFiles) {
@@ -136,18 +131,6 @@ class AudioTrimManager {
       }
     }
 
-    // Ensure item cache dir exists for backups
-    if (!(await fs.pathExists(task.data.itemCachePath))) {
-      try {
-        await fs.mkdir(task.data.itemCachePath, { recursive: true })
-      } catch (err) {
-        Logger.error(`[AudioTrimManager] Failed to create cache directory ${task.data.itemCachePath}`, err)
-        task.setFailed({ text: 'Failed to create cache directory', key: 'MessageTaskFailedToCreateCacheDirectory' })
-        this.handleTaskFinished(task)
-        return
-      }
-    }
-
     // Map global sections to per-file local sections
     const fileLocalSections = this.mapSectionsToFiles(task.data.sectionsToRemove, task.data.audioFiles)
 
@@ -173,18 +156,6 @@ class AudioTrimManager {
         libraryItemId: task.data.libraryItemId,
         ino: af.ino
       })
-
-      // Backup original file
-      try {
-        const backupFilePath = Path.join(task.data.itemCachePath, af.filename)
-        await fs.copy(af.path, backupFilePath)
-        Logger.debug(`[AudioTrimManager] Backed up audio file at "${backupFilePath}"`)
-      } catch (err) {
-        Logger.error(`[AudioTrimManager] Failed to backup audio file "${af.path}"`, err)
-        task.setFailed({ text: `Failed to backup audio file "${Path.basename(af.path)}"`, key: 'MessageTaskFailedToBackupAudioFile', subs: [Path.basename(af.path)] })
-        this.handleTaskFinished(task)
-        return
-      }
 
       // Trim the audio file
       try {
@@ -218,8 +189,7 @@ class AudioTrimManager {
 
     // Rescan the library item to pick up new durations
     try {
-      const libraryItemScanner = new LibraryItemScanner()
-      await libraryItemScanner.scanLibraryItem(task.data.libraryItemId)
+      await LibraryItemScanner.scanLibraryItem(task.data.libraryItemId)
       Logger.info(`[AudioTrimManager] Rescanned library item ${task.data.libraryItemId}`)
     } catch (err) {
       Logger.error(`[AudioTrimManager] Failed to rescan library item ${task.data.libraryItemId}`, err)

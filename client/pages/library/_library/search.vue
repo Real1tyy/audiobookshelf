@@ -20,9 +20,9 @@ export default {
     let results
 
     if (searchMode === 'transcript') {
-      const transcripts = await app.$axios.$get(`/api/libraries/${libraryId}/search-transcripts?q=${encodeURIComponent(query.q)}&limit=50`).catch((error) => {
+      const transcriptResponse = await app.$axios.$get(`/api/libraries/${libraryId}/search-transcripts?q=${encodeURIComponent(query.q)}&limit=50`).catch((error) => {
         console.error('Failed to search transcripts', error)
-        return []
+        return {}
       })
       results = {
         podcasts: [],
@@ -32,7 +32,7 @@ export default {
         series: [],
         tags: [],
         narrators: [],
-        transcripts: transcripts || []
+        transcripts: transcriptResponse.transcripts || []
       }
     } else {
       const raw = await app.$axios.$get(`/api/libraries/${libraryId}/search?q=${encodeURIComponent(query.q)}`).catch((error) => {
@@ -81,9 +81,9 @@ export default {
   methods: {
     async search() {
       if (this.searchMode === 'transcript') {
-        const transcripts = await this.$axios.$get(`/api/libraries/${this.libraryId}/search-transcripts?q=${encodeURIComponent(this.query)}&limit=50`).catch((error) => {
+        const transcriptResponse = await this.$axios.$get(`/api/libraries/${this.libraryId}/search-transcripts?q=${encodeURIComponent(this.query)}&limit=50`).catch((error) => {
           console.error('Failed to search transcripts', error)
-          return []
+          return {}
         })
         this.results = {
           podcasts: [],
@@ -93,7 +93,7 @@ export default {
           series: [],
           tags: [],
           narrators: [],
-          transcripts: transcripts || []
+          transcripts: transcriptResponse.transcripts || []
         }
       } else {
         const results = await this.$axios.$get(`/api/libraries/${this.libraryId}/search?q=${encodeURIComponent(this.query)}`).catch((error) => {

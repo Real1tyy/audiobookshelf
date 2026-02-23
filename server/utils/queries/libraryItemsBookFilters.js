@@ -1416,13 +1416,14 @@ module.exports = {
     const ftsQuery = sanitizedQuery.split(' ').map((word) => `"${word}"`).join(' ')
 
     try {
+      Logger.debug(`[libraryItemsBookFilters] Searching transcripts with FTS query: "${ftsQuery}" in library ${library.id}`)
       const [results] = await Database.sequelize.query(
-        `SELECT f.libraryItemId, f.title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, rank
+        `SELECT f.libraryItemId, f.title, snippet(f, 2, '<mark>', '</mark>', '...', 40) AS snippet, f.rank
          FROM transcriptsFts f
          JOIN libraryItems li ON li.id = f.libraryItemId
-         WHERE transcriptsFts MATCH :ftsQuery
+         WHERE f MATCH :ftsQuery
            AND li.libraryId = :libraryId
-         ORDER BY rank
+         ORDER BY f.rank
          LIMIT :limit OFFSET :offset`,
         {
           replacements: {
@@ -1434,6 +1435,7 @@ module.exports = {
           raw: true
         }
       )
+      Logger.debug(`[libraryItemsBookFilters] Transcript search returned ${results.length} results`)
       return results
     } catch (error) {
       Logger.error('[libraryItemsBookFilters] Transcript search failed', error)

@@ -214,10 +214,10 @@ export default {
       if (this.searchMode === 'transcript') {
         const results = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/search-transcripts?q=${encodeURIComponent(value)}&limit=5`).catch((error) => {
           console.error('Transcript search error', error)
-          return []
+          return {}
         })
         if (!this.isFetching) return
-        this.transcriptResults = results || []
+        this.transcriptResults = results.transcripts || []
         this.bookResults = []
         this.podcastResults = []
         this.episodeResults = []

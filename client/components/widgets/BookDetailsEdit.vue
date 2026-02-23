@@ -210,6 +210,32 @@ export default {
       }
       this.handleInputChange()
     },
+    parseUrls(raw) {
+      // Recursively flatten any combination of arrays and JSON-encoded strings
+      const result = []
+      const flatten = (val) => {
+        if (!val) return
+        if (Array.isArray(val)) {
+          val.forEach(flatten)
+          return
+        }
+        if (typeof val === 'string') {
+          const trimmed = val.trim()
+          if (trimmed.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(trimmed)
+              if (Array.isArray(parsed)) {
+                parsed.forEach(flatten)
+                return
+              }
+            } catch {}
+          }
+          if (trimmed) result.push(trimmed)
+        }
+      }
+      flatten(raw)
+      return result
+    },
     addUrl() {
       this.details.url.push('')
       this.handleInputChange()
@@ -336,8 +362,7 @@ export default {
       this.details.explicit = !!this.mediaMetadata.explicit
       this.details.abridged = !!this.mediaMetadata.abridged
       this.details.rating = this.mediaMetadata.rating || null
-      const rawUrl = this.mediaMetadata.url
-      this.details.url = Array.isArray(rawUrl) ? [...rawUrl] : rawUrl ? [rawUrl] : []
+      this.details.url = this.parseUrls(this.mediaMetadata.url)
       this.details.relatedBooks = [...(this.mediaMetadata.relatedBooks || [])]
       this.newTags = [...(this.media.tags || [])]
     },

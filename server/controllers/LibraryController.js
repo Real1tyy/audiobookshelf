@@ -1069,6 +1069,19 @@ class LibraryController {
   }
 
   /**
+   * POST: /api/libraries/:id/reindex-transcripts
+   * Force re-index all transcripts in the FTS table
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async reindexTranscripts(req, res) {
+    const transcriptIndexer = require('../utils/transcriptIndexer')
+    const count = await transcriptIndexer.reindexAll()
+    res.json({ success: true, indexed: count })
+  }
+
+  /**
    * GET: /api/libraries/:id/stats
    * Get stats for library
    *

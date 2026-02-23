@@ -109,39 +109,9 @@
             </ui-tooltip>
 
             <!-- Audio Trim Button -->
-            <div v-if="isBook && tracks.length && userCanUpdate" class="relative mx-0.5">
-              <ui-tooltip text="Trim Audio" direction="top">
-                <button type="button" class="icon-btn bg-primary border border-gray-600 w-9 h-9 rounded-md flex items-center justify-center" :class="showTrimPopover ? 'border-yellow-500' : ''" @click="showTrimPopover = !showTrimPopover">
-                  <span class="material-symbols text-xl">&#xe14e;</span>
-                </button>
-              </ui-tooltip>
-
-              <!-- Trim Popover -->
-              <div v-if="showTrimPopover" class="absolute top-11 left-0 z-40 bg-bg border border-gray-600 rounded-lg shadow-xl p-3" style="min-width: 300px">
-                <div class="flex items-center justify-between mb-2">
-                  <p class="text-sm font-semibold text-gray-100">Trim Audio</p>
-                  <button class="text-gray-400 hover:text-white" @click="showTrimPopover = false">
-                    <span class="material-symbols text-lg">close</span>
-                  </button>
-                </div>
-                <p class="text-xs text-gray-400 mb-2">Sections to remove (e.g. 0:15-0:36). One per line.</p>
-                <textarea
-                  v-model="trimInput"
-                  rows="3"
-                  class="w-full bg-primary text-gray-100 text-sm rounded px-2 py-1.5 border border-gray-600 focus:border-yellow-500 focus:outline-none font-mono"
-                  placeholder="0:00-0:10&#10;1:25:00-1:30:00"
-                  :disabled="isTrimming"
-                />
-                <div class="flex items-center justify-between mt-2">
-                  <p v-if="trimError" class="text-xs text-error">{{ trimError }}</p>
-                  <p v-else class="text-xs text-gray-500">Destructive. Backups saved to cache.</p>
-                  <ui-btn :disabled="isTrimming || !trimInput.trim()" color="bg-warning" small class="ml-auto" @click="submitTrim">
-                    <span v-if="isTrimming" class="material-symbols text-sm animate-spin mr-1">refresh</span>
-                    {{ isTrimming ? 'Trimming...' : 'Trim' }}
-                  </ui-btn>
-                </div>
-              </div>
-            </div>
+            <ui-tooltip v-if="isBook && tracks.length && userIsRoot" text="Trim Audio" direction="top">
+              <ui-icon-btn icon="content_cut" outlined class="mx-0.5" @click="showTrimPopover = true" />
+            </ui-tooltip>
 
             <!-- Only admin or root user can download new episodes -->
             <ui-tooltip v-if="isPodcast && userIsAdminOrUp" :text="$strings.LabelFindEpisodes" direction="top">
@@ -205,6 +175,36 @@
 
     <modals-podcast-episode-feed v-model="showPodcastEpisodeFeed" :library-item="libraryItem" :episodes="podcastFeedEpisodes" :download-queue="episodeDownloadsQueued" :episodes-downloading="episodesDownloading" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :playback-rate="1" :library-item-id="libraryItemId" hide-create @select="selectBookmark" />
+
+    <!-- Audio Trim Modal -->
+    <div v-if="showTrimPopover" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showTrimPopover = false">
+      <div class="bg-bg border border-gray-600 rounded-lg shadow-xl p-5 w-full max-w-md mx-4">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-base font-semibold text-gray-100">Trim Audio</p>
+          <button class="text-gray-400 hover:text-white" @click="showTrimPopover = false">
+            <span class="material-symbols text-xl">close</span>
+          </button>
+        </div>
+        <p class="text-sm text-gray-400 mb-3">Sections to <strong>remove</strong> from the audio. One per line.</p>
+        <textarea
+          v-model="trimInput"
+          rows="4"
+          class="w-full bg-primary text-gray-100 text-sm rounded px-3 py-2 border border-gray-600 focus:border-yellow-500 focus:outline-none font-mono"
+          placeholder="0:15-0:36&#10;1:25:00-1:30:00"
+          :disabled="isTrimming"
+        />
+        <p class="text-xs text-gray-500 mt-1 mb-3">Format: start-end (e.g. 0:15-0:36 or 1:25:00-1:30:00). This is destructive and cannot be undone.</p>
+        <div class="flex items-center justify-between">
+          <p v-if="trimError" class="text-xs text-error flex-1 mr-2">{{ trimError }}</p>
+          <div class="flex items-center gap-2 ml-auto">
+            <ui-btn small class="text-gray-300" @click="showTrimPopover = false">Cancel</ui-btn>
+            <ui-btn :disabled="isTrimming || !trimInput.trim()" color="bg-warning" small @click="submitTrim">
+              {{ isTrimming ? 'Trimming...' : 'Trim' }}
+            </ui-btn>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -267,6 +267,9 @@ export default {
     },
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
+    },
+    userIsRoot() {
+      return this.$store.getters['user/getIsRoot']
     },
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
@@ -950,7 +953,7 @@ export default {
       }
 
       const payload = {
-        message: `Remove ${sections.length} section(s) from this audio? This is destructive (backups will be saved).`,
+        message: `Remove ${sections.length} section(s) from this audio? This is destructive and cannot be undone.`,
         callback: (confirmed) => {
           if (confirmed) {
             this.executeTrim(sections)

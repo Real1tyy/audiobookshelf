@@ -21,6 +21,7 @@ async function indexTranscript(libraryItemId, title, transcriptText) {
   await Database.sequelize.query('INSERT INTO transcriptsFts (libraryItemId, title, transcriptText) VALUES (:libraryItemId, :title, :transcriptText)', {
     replacements: { libraryItemId, title, transcriptText }
   })
+  Logger.debug(`${loggerPrefix} Indexed transcript for "${title}" (${libraryItemId}), text length: ${transcriptText.length}`)
 }
 
 /**
@@ -47,9 +48,11 @@ async function indexTranscriptFromFile(libraryItemId, title, filePath) {
     if (text && text.trim()) {
       await indexTranscript(libraryItemId, title, text.trim())
       return true
+    } else {
+      Logger.warn(`${loggerPrefix} Transcript file is empty: "${filePath}"`)
     }
   } catch (error) {
-    Logger.error(`${loggerPrefix} Failed to read transcript file "${filePath}"`, error)
+    Logger.error(`${loggerPrefix} Failed to index transcript from file "${filePath}":`, error.message)
   }
   return false
 }
@@ -97,7 +100,9 @@ async function reindexAll() {
 async function reindexIfEmpty() {
   try {
     const [results] = await Database.sequelize.query('SELECT count(*) AS cnt FROM transcriptsFts')
-    if (results[0].cnt === 0) {
+    const count = Number(results[0].cnt)
+    Logger.info(`${loggerPrefix} FTS table has ${count} entries`)
+    if (count === 0) {
       Logger.info(`${loggerPrefix} FTS table is empty, running full re-index`)
       await reindexAll()
     }
