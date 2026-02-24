@@ -40,6 +40,131 @@ class LibraryItemController {
   constructor() {}
 
   /**
+   * POST: /api/items
+   * Create a virtual library item (no audio files on disk).
+   * Accepts: { libraryId, title, url, authorName, description, tags, transcript }
+   *
+   * @this {import('../routers/ApiRouter')}
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async create(req, res) {
+    if (!req.user.canUpdate) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to create item without permission`)
+      return res.sendStatus(403)
+    }
+
+    const { libraryId, title, url, authorName, description, tags, transcript } = req.body
+    if (!libraryId || !title) {
+      return res.status(400).json({ error: 'libraryId and title are required' })
+    }
+
+    // Validate library exists
+    const library = await Database.libraryModel.findByPk(libraryId)
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' })
+    }
+
+    const { getTitleIgnorePrefix } = require('../utils/index')
+    const transcriptIndexer = require('../utils/transcriptIndexer')
+
+    try {
+      // Build URL value
+      let urlValue = null
+      if (url) {
+        urlValue = Array.isArray(url) ? url : [url]
+      }
+
+      // Build book object
+      const bookObject = {
+        title,
+        titleIgnorePrefix: getTitleIgnorePrefix(title),
+        description: description || null,
+        url: urlValue,
+        tags: tags || [],
+        audioFiles: [],
+        duration: 0,
+        chapters: [],
+        narrators: [],
+        genres: []
+      }
+
+      // Build library item object
+      const libraryItemObj = {
+        ino: null,
+        path: null,
+        relPath: title,
+        mediaType: 'book',
+        isFile: false,
+        isMissing: false,
+        isInvalid: false,
+        mtime: 0,
+        ctime: 0,
+        birthtime: 0,
+        size: 0,
+        libraryFiles: [],
+        extraData: { virtual: true },
+        libraryId,
+        libraryFolderId: null,
+        title,
+        titleIgnorePrefix: getTitleIgnorePrefix(title),
+        authorNamesFirstLast: authorName || '',
+        authorNamesLastFirst: authorName ? Database.authorModel.getLastFirst(authorName) : '',
+        book: bookObject
+      }
+
+      // If author provided, find or create
+      if (authorName) {
+        const author = await Database.authorModel.findOrCreateByNameAndLibrary(authorName.trim(), libraryId)
+        bookObject.bookAuthors = [
+          {
+            authorId: author.id
+          }
+        ]
+        Database.addAuthorToFilterData(libraryId, author.name, author.id)
+      }
+
+      // Add tags to filter data
+      if (tags?.length) {
+        Database.addTagsToFilterData(libraryId, tags)
+      }
+
+      const libraryItem = await Database.libraryItemModel.create(libraryItemObj, {
+        include: {
+          model: Database.bookModel,
+          include: [
+            {
+              model: Database.bookAuthorModel,
+              include: {
+                model: Database.authorModel
+              }
+            }
+          ]
+        }
+      })
+
+      // Load expanded item for response
+      const expandedItem = await Database.libraryItemModel.findOneExpanded({ id: libraryItem.id })
+
+      // Index transcript if provided
+      if (transcript && expandedItem) {
+        await transcriptIndexer.indexTranscript(expandedItem.id, title, transcript)
+      }
+
+      if (expandedItem) {
+        SocketAuthority.libraryItemEmitter('item_added', expandedItem)
+        res.json(expandedItem.toOldJSONExpanded())
+      } else {
+        res.json(libraryItem.toJSON())
+      }
+    } catch (error) {
+      Logger.error(`[LibraryItemController] Failed to create virtual item`, error)
+      res.status(500).json({ error: 'Failed to create item' })
+    }
+  }
+
+  /**
    * GET: /api/items/:id
    * Optional query params:
    * ?include=progress,rssfeed,downloads,share,relatedbooks
@@ -133,7 +258,7 @@ class LibraryItemController {
     }
 
     await this.handleDeleteLibraryItem(req.libraryItem.id, mediaItemIds)
-    if (hardDelete) {
+    if (hardDelete && libraryItemPath) {
       Logger.info(`[LibraryItemController] Deleting library item from file system at "${libraryItemPath}"`)
       await fs.remove(libraryItemPath).catch((error) => {
         Logger.error(`[LibraryItemController] Failed to delete library item from file system at "${libraryItemPath}"`, error)
@@ -172,6 +297,9 @@ class LibraryItemController {
     if (!req.user.canDownload) {
       Logger.warn(`User "${req.user.username}" attempted to download without permission`)
       return res.sendStatus(403)
+    }
+    if (!req.libraryItem.path) {
+      return res.status(400).json({ error: 'Virtual items cannot be downloaded' })
     }
     const libraryItemPath = req.libraryItem.path
     const itemTitle = req.libraryItem.media.title
@@ -846,6 +974,10 @@ class LibraryItemController {
     if (!req.user.isAdminOrUp) {
       Logger.error(`[LibraryItemController] Non-admin user "${req.user.username}" attempted to scan library item`)
       return res.sendStatus(403)
+    }
+
+    if (!req.libraryItem.path) {
+      return res.json({ result: 'NOTHING' })
     }
 
     if (req.libraryItem.isFile) {

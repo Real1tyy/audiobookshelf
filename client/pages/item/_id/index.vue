@@ -289,10 +289,15 @@ export default {
     isPodcast() {
       return this.libraryItem.mediaType === 'podcast'
     },
+    isVirtual() {
+      return !!this.libraryItem?.extraData?.virtual
+    },
     isMissing() {
+      if (this.isVirtual) return false
       return this.libraryItem.isMissing
     },
     isInvalid() {
+      if (this.isVirtual) return false
       return this.libraryItem.isInvalid
     },
     isExplicit() {
@@ -515,7 +520,7 @@ export default {
         })
       }
 
-      if (this.userCanDownload) {
+      if (this.userCanDownload && !this.isVirtual) {
         items.push({
           text: this.$strings.LabelDownload,
           action: 'download'

@@ -160,7 +160,8 @@ class LibraryScanner {
 
     const existingLibraryItems = await Database.libraryItemModel.findAll({
       where: {
-        libraryId: libraryScan.libraryId
+        libraryId: libraryScan.libraryId,
+        path: { [sequelize.Op.ne]: null }
       }
     })
 

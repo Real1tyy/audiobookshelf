@@ -87,6 +87,12 @@
         <!-- series sort select -->
         <controls-sort-select v-if="isSeriesPage && !isBatchSelecting" v-model="settings.seriesSortBy" :descending.sync="settings.seriesSortDesc" :items="seriesSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateSeriesSort" />
 
+        <!-- Add virtual item button -->
+        <button v-if="isBookLibrary && isLibraryPage && !isBatchSelecting && userCanUpdate" class="flex items-center px-2 sm:px-3 py-1 ml-2 sm:ml-4 rounded-full bg-primary hover:bg-primary/80 text-white text-sm transition-colors" @click="showAddVirtualItemModal = true">
+          <span class="material-symbols text-lg mr-0 sm:mr-1">add</span>
+          <span class="hidden sm:inline">Add Item</span>
+        </button>
+
         <!-- Play All button for book library -->
         <button v-if="isBookLibrary && isLibraryPage && !isBatchSelecting" class="flex items-center px-2 sm:px-3 py-1 ml-2 sm:ml-4 rounded-full bg-success hover:bg-success/80 text-white text-sm transition-colors" :disabled="playingAll" @click="playAll">
           <span class="material-symbols text-lg mr-0 sm:mr-1">play_arrow</span>
@@ -164,6 +170,8 @@
         </button>
       </div>
     </div>
+
+    <modals-add-virtual-item-modal v-model="showAddVirtualItemModal" :library-id="currentLibraryId" />
   </div>
 </template>
 
@@ -191,7 +199,8 @@ export default {
       processingAuthors: false,
       playingAll: false,
       searchQuery: '',
-      searchDebounceTimeout: null
+      searchDebounceTimeout: null,
+      showAddVirtualItemModal: false
     }
   },
   computed: {

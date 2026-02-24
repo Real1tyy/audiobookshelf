@@ -559,7 +559,7 @@ class LibraryItem extends Model {
   async saveMetadataFile() {
     let metadataPath = Path.join(global.MetadataPath, 'items', this.id)
     let storeMetadataWithItem = global.ServerSettings.storeMetadataWithItem
-    if (storeMetadataWithItem && !this.isFile) {
+    if (storeMetadataWithItem && !this.isFile && this.path) {
       metadataPath = this.path
     } else {
       // Make sure metadata book dir exists

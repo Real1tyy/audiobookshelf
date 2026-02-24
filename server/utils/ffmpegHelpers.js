@@ -517,35 +517,75 @@ async function mergeAudioFiles(audioTracks, duration, itemCachePath, outputFileP
 module.exports.mergeAudioFiles = mergeAudioFiles
 
 /**
- * Trims an audio file by removing specified time sections using FFmpeg's aselect filter.
- * Re-encodes the audio to support sample-level selection.
+ * Convert sections-to-remove into sections-to-keep.
+ * @param {Array<{start: number, end: number}>} removeSections - sorted, non-overlapping sections to remove
+ * @param {number} totalDuration - total file duration in seconds
+ * @returns {Array<{start: number, end: number}>}
+ */
+function computeKeepSegments(removeSections, totalDuration) {
+  const sorted = [...removeSections].sort((a, b) => a.start - b.start)
+  const keeps = []
+  let cursor = 0
+
+  for (const section of sorted) {
+    if (section.start > cursor) {
+      keeps.push({ start: cursor, end: section.start })
+    }
+    cursor = Math.max(cursor, section.end)
+  }
+
+  if (cursor < totalDuration) {
+    keeps.push({ start: cursor, end: totalDuration })
+  }
+
+  return keeps
+}
+
+/**
+ * Trims an audio file by removing specified time sections.
+ * Uses atrim filters with concat to produce the output reliably.
  *
  * @param {string} audioFilePath - Path to the input audio file.
  * @param {Array<{start: number, end: number}>} sections - Time sections to remove (in seconds, file-local).
  * @param {number} duration - Total duration of the audio file in seconds.
  * @param {function(number): void|null} progressCB - Progress callback (0-100).
- * @param {import('../libs/fluentFfmpeg/index').FfmpegCommand} ffmpeg - FFmpeg instance (for DI).
- * @param {function(string, string): Promise<void>} copyFunc - Copy function (for DI).
  * @returns {Promise<void>}
  */
-async function trimAudioFile(audioFilePath, sections, duration, progressCB = null, ffmpeg = Ffmpeg(), copyFunc = copyToExisting) {
+async function trimAudioFile(audioFilePath, sections, duration, progressCB = null) {
   const audioFileDir = Path.dirname(audioFilePath)
   const audioFileExt = Path.extname(audioFilePath)
   const audioFileBaseName = Path.basename(audioFilePath, audioFileExt)
   const tempFilePath = filePathToPOSIX(Path.join(audioFileDir, `${audioFileBaseName}.tmp${audioFileExt}`))
 
-  // Build aselect filter expression: keep everything NOT in the removal sections
-  const betweenExprs = sections.map((s) => `between(t,${s.start},${s.end})`).join('+')
-  const aselectFilter = `aselect='not(${betweenExprs})',asetpts=N/SR/TB`
+  const keepSegments = computeKeepSegments(sections, duration)
+
+  if (keepSegments.length === 0) {
+    throw new Error('Nothing would remain after trimming')
+  }
+
+  // Build a complex filter graph: for each keep segment, atrim + asetpts, then concat
+  const filterParts = []
+  const concatInputs = []
+  for (let i = 0; i < keepSegments.length; i++) {
+    const seg = keepSegments[i]
+    filterParts.push(`[0:a]atrim=start=${seg.start}:end=${seg.end},asetpts=PTS-STARTPTS[seg${i}]`)
+    concatInputs.push(`[seg${i}]`)
+  }
+  filterParts.push(`${concatInputs.join('')}concat=n=${keepSegments.length}:v=0:a=1[outa]`)
+  const filterGraph = filterParts.join(';')
+
+  Logger.debug(`[ffmpegHelpers] trimAudioFile keep segments: ${JSON.stringify(keepSegments)}`)
+  Logger.debug(`[ffmpegHelpers] trimAudioFile filter_complex: ${filterGraph}`)
+
+  const ffmpeg = Ffmpeg()
 
   return new Promise((resolve, reject) => {
     ffmpeg
       .input(audioFilePath)
-      .audioFilters(aselectFilter)
-      .outputOptions(['-map 0:a'])
+      .outputOptions(['-filter_complex', filterGraph, '-map', '[outa]'])
       .output(tempFilePath)
       .on('start', (commandLine) => {
-        Logger.debug('[ffmpegHelpers] trimAudioFile command: ' + commandLine)
+        Logger.info('[ffmpegHelpers] trimAudioFile command: ' + commandLine)
       })
       .on('progress', (progress) => {
         if (!progressCB) return
@@ -556,15 +596,14 @@ async function trimAudioFile(audioFilePath, sections, duration, progressCB = nul
           progressCB(progress.percent)
         }
       })
-      .on('end', async (stdout, stderr) => {
-        Logger.debug('[ffmpegHelpers] trimAudioFile stdout:', stdout)
-        Logger.debug('[ffmpegHelpers] trimAudioFile stderr:', stderr)
+      .on('end', async () => {
         try {
-          await copyFunc(tempFilePath, audioFilePath)
-          await fs.remove(tempFilePath)
+          // Replace original with trimmed version
+          await fs.move(tempFilePath, audioFilePath, { overwrite: true })
+          Logger.info(`[ffmpegHelpers] trimAudioFile: replaced original with trimmed file`)
           resolve()
         } catch (error) {
-          Logger.error(`[ffmpegHelpers] Failed to move trimmed temp file: "${tempFilePath}" -> "${audioFilePath}"`, error)
+          Logger.error(`[ffmpegHelpers] Failed to replace original file: "${tempFilePath}" -> "${audioFilePath}"`, error)
           reject(error)
         }
       })
