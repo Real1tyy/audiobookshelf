@@ -36,17 +36,27 @@ async function removeTranscript(libraryItemId) {
 }
 
 /**
- * Index a transcript from a file on disk
+ * Index a transcript from a file on disk and persist it to the book model.
  *
  * @param {string} libraryItemId
  * @param {string} title
  * @param {string} filePath - absolute path to transcript.txt
+ * @param {string} [bookId] - optional book ID to persist transcript text to
  */
-async function indexTranscriptFromFile(libraryItemId, title, filePath) {
+async function indexTranscriptFromFile(libraryItemId, title, filePath, bookId) {
   try {
     const text = await fs.readFile(filePath, 'utf8')
     if (text && text.trim()) {
-      await indexTranscript(libraryItemId, title, text.trim())
+      const trimmed = text.trim()
+      await indexTranscript(libraryItemId, title, trimmed)
+
+      // Persist transcript text to book model if bookId provided
+      if (bookId) {
+        await Database.sequelize.query('UPDATE books SET transcript = :transcript WHERE id = :bookId', {
+          replacements: { transcript: trimmed, bookId }
+        })
+      }
+
       return true
     } else {
       Logger.warn(`${loggerPrefix} Transcript file is empty: "${filePath}"`)
@@ -58,39 +68,83 @@ async function indexTranscriptFromFile(libraryItemId, title, filePath) {
 }
 
 /**
+ * Save transcript text to the book model and index into FTS.
+ *
+ * @param {string} libraryItemId
+ * @param {string} bookId
+ * @param {string} title
+ * @param {string} transcriptText
+ */
+async function saveAndIndex(libraryItemId, bookId, title, transcriptText) {
+  // Persist to book model
+  await Database.sequelize.query('UPDATE books SET transcript = :transcript WHERE id = :bookId', {
+    replacements: { transcript: transcriptText, bookId }
+  })
+
+  // Index into FTS
+  await indexTranscript(libraryItemId, title, transcriptText)
+  Logger.info(`${loggerPrefix} Saved and indexed transcript for "${title}" (${libraryItemId})`)
+}
+
+/**
  * Re-index all transcripts in the database.
- * Queries all library items that have a transcript.txt in their libraryFiles,
- * reads each file from disk, and inserts into the FTS table.
+ * Reads transcript text from the books.transcript column (source of truth)
+ * and also checks for transcript.txt files on disk for items without stored transcripts.
  */
 async function reindexAll() {
   Logger.info(`${loggerPrefix} Starting full transcript re-index`)
 
-  // Find all library items that have a transcript.txt file
-  const [rows] = await Database.sequelize.query(`
-    SELECT li.id, li.title, json_extract(jf.value, '$.metadata.path') AS transcriptPath
+  // Clear existing FTS data
+  await Database.sequelize.query('DELETE FROM transcriptsFts')
+
+  // 1. Index all books that have transcript text stored in the DB
+  const [dbRows] = await Database.sequelize.query(`
+    SELECT li.id AS libraryItemId, li.title, b.transcript
+    FROM books b
+    JOIN libraryItems li ON li.mediaId = b.id
+    WHERE b.transcript IS NOT NULL
+      AND b.transcript != ''
+  `)
+
+  let indexed = 0
+  const indexedItemIds = new Set()
+
+  for (const row of dbRows) {
+    try {
+      await indexTranscript(row.libraryItemId, row.title, row.transcript)
+      indexedItemIds.add(row.libraryItemId)
+      indexed++
+    } catch (error) {
+      Logger.error(`${loggerPrefix} Failed to index transcript from DB for "${row.title}" (${row.libraryItemId}):`, error.message)
+    }
+  }
+
+  Logger.info(`${loggerPrefix} Indexed ${indexed} transcripts from database`)
+
+  // 2. Also check for transcript.txt files on disk that aren't yet in the DB
+  const [fileRows] = await Database.sequelize.query(`
+    SELECT li.id AS libraryItemId, li.title, li.mediaId AS bookId,
+           json_extract(jf.value, '$.metadata.path') AS transcriptPath
     FROM libraryItems li, json_each(li.libraryFiles) AS jf
     WHERE json_valid(li.libraryFiles)
       AND json_extract(jf.value, '$.metadata.filename') = 'transcript.txt'
   `)
 
-  if (!rows.length) {
-    Logger.info(`${loggerPrefix} No transcript.txt files found in any library items`)
-    return 0
+  let fileIndexed = 0
+  for (const row of fileRows) {
+    if (indexedItemIds.has(row.libraryItemId)) continue // Already indexed from DB
+
+    const success = await indexTranscriptFromFile(row.libraryItemId, row.title, row.transcriptPath, row.bookId)
+    if (success) fileIndexed++
   }
 
-  Logger.info(`${loggerPrefix} Found ${rows.length} library items with transcript.txt`)
-
-  // Clear existing FTS data
-  await Database.sequelize.query('DELETE FROM transcriptsFts')
-
-  let indexed = 0
-  for (const row of rows) {
-    const success = await indexTranscriptFromFile(row.id, row.title, row.transcriptPath)
-    if (success) indexed++
+  if (fileIndexed > 0) {
+    Logger.info(`${loggerPrefix} Indexed ${fileIndexed} additional transcripts from files on disk`)
   }
 
-  Logger.info(`${loggerPrefix} Re-indexed ${indexed}/${rows.length} transcripts`)
-  return indexed
+  const total = indexed + fileIndexed
+  Logger.info(`${loggerPrefix} Re-indexed ${total} total transcripts`)
+  return total
 }
 
 /**
@@ -115,6 +169,7 @@ module.exports = {
   indexTranscript,
   removeTranscript,
   indexTranscriptFromFile,
+  saveAndIndex,
   reindexAll,
   reindexIfEmpty
 }

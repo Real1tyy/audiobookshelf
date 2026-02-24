@@ -10,7 +10,8 @@
       "Bash(node -c:*)",
       "Bash(node:*)",
       "Bash(find:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(tail:*)"
     ]
   }
 }

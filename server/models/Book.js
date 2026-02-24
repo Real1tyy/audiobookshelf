@@ -187,7 +187,8 @@ class Book extends Model {
         ebookFile: DataTypes.JSON,
         chapters: DataTypes.JSON,
         tags: DataTypes.JSON,
-        genres: DataTypes.JSON
+        genres: DataTypes.JSON,
+        transcript: DataTypes.TEXT
       },
       {
         sequelize,

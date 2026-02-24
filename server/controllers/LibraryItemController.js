@@ -147,9 +147,9 @@ class LibraryItemController {
       // Load expanded item for response
       const expandedItem = await Database.libraryItemModel.findOneExpanded({ id: libraryItem.id })
 
-      // Index transcript if provided
+      // Save and index transcript if provided
       if (transcript && expandedItem) {
-        await transcriptIndexer.indexTranscript(expandedItem.id, title, transcript)
+        await transcriptIndexer.saveAndIndex(expandedItem.id, libraryItem.book.id, title, transcript)
       }
 
       if (expandedItem) {
@@ -395,6 +395,22 @@ class LibraryItemController {
         authorUpdateData.authorsAdded.forEach((au) => {
           Database.addAuthorToFilterData(req.libraryItem.libraryId, au.name, au.id)
         })
+        hasUpdates = true
+      }
+    }
+
+    // Handle transcript update for books
+    if (req.libraryItem.isBook && typeof mediaPayload.transcript === 'string') {
+      const transcriptIndexer = require('../utils/transcriptIndexer')
+      const newTranscript = mediaPayload.transcript.trim() || null
+      if (req.libraryItem.media.transcript !== newTranscript) {
+        req.libraryItem.media.transcript = newTranscript
+        await req.libraryItem.media.save()
+        if (newTranscript) {
+          await transcriptIndexer.saveAndIndex(req.libraryItem.id, req.libraryItem.media.id, req.libraryItem.media.title, newTranscript)
+        } else {
+          await transcriptIndexer.removeTranscript(req.libraryItem.id)
+        }
         hasUpdates = true
       }
     }

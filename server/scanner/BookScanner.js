@@ -428,9 +428,9 @@ class BookScanner {
     libraryScan.seriesRemovedFromBooks.push(...bookSeriesRemoved)
     libraryScan.authorsRemovedFromBooks.push(...bookAuthorsRemoved)
 
-    // Re-index transcript.txt into FTS table
+    // Re-index transcript.txt into FTS table and persist to book model
     if (libraryItemData.transcriptTxtLibraryFile) {
-      await transcriptIndexer.indexTranscriptFromFile(existingLibraryItem.id, media.title, libraryItemData.transcriptTxtLibraryFile.metadata.path)
+      await transcriptIndexer.indexTranscriptFromFile(existingLibraryItem.id, media.title, libraryItemData.transcriptTxtLibraryFile.metadata.path, media.id)
     }
 
     return {
@@ -639,9 +639,9 @@ class BookScanner {
       await libraryItem.save()
     }
 
-    // Index transcript.txt into FTS table
+    // Index transcript.txt into FTS table and persist to book model
     if (libraryItemData.transcriptTxtLibraryFile) {
-      await transcriptIndexer.indexTranscriptFromFile(libraryItem.id, bookMetadata.title, libraryItemData.transcriptTxtLibraryFile.metadata.path)
+      await transcriptIndexer.indexTranscriptFromFile(libraryItem.id, bookMetadata.title, libraryItemData.transcriptTxtLibraryFile.metadata.path, libraryItem.book?.id)
     }
 
     return libraryItem
