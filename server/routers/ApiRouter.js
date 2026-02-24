@@ -104,6 +104,11 @@ class ApiRouter {
     this.router.get('/libraries/:id/download', LibraryController.middleware.bind(this), LibraryController.downloadMultiple.bind(this))
 
     //
+    // YouTube Routes
+    //
+    this.router.post('/youtube/transcript', LibraryItemController.fetchYouTubeTranscript.bind(this))
+
+    //
     // Item Routes
     //
     this.router.post('/items', LibraryItemController.create.bind(this))

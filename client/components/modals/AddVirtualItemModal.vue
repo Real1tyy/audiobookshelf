@@ -24,7 +24,13 @@
             <ui-text-input-with-label v-model="newTags" label="Tags (comma-separated)" trim-whitespace />
           </div>
           <div class="w-full mb-2 p-1">
-            <ui-textarea-with-label v-model="newTranscript" label="Transcript" :rows="6" />
+            <div class="flex items-center mb-1">
+              <label class="text-sm font-semibold text-gray-200">Transcript</label>
+              <button v-if="isYouTubeUrl" type="button" class="ml-2 px-2 py-0.5 text-xs rounded bg-primary hover:bg-primary/80 text-white disabled:opacity-50" :disabled="fetchingTranscript" @click="fetchTranscript">
+                {{ fetchingTranscript ? 'Fetching...' : 'Fetch from YouTube' }}
+              </button>
+            </div>
+            <ui-textarea-with-label v-model="newTranscript" :label="''" :rows="6" />
           </div>
           <div class="flex px-1 pt-4">
             <div class="grow" />
@@ -48,6 +54,7 @@ export default {
   data() {
     return {
       processing: false,
+      fetchingTranscript: false,
       newTitle: '',
       newUrl: '',
       newAuthorName: '',
@@ -73,9 +80,31 @@ export default {
       set(val) {
         this.$emit('input', val)
       }
+    },
+    isYouTubeUrl() {
+      if (!this.newUrl) return false
+      return /(?:youtube\.com\/(?:watch|embed|v|shorts|live)|youtu\.be\/)/.test(this.newUrl)
     }
   },
   methods: {
+    async fetchTranscript() {
+      if (!this.newUrl || this.fetchingTranscript) return
+
+      this.fetchingTranscript = true
+      try {
+        const result = await this.$axios.$post('/api/youtube/transcript', { url: this.newUrl })
+        if (result.transcript) {
+          this.newTranscript = result.transcript
+          this.$toast.success('Transcript fetched')
+        }
+      } catch (error) {
+        const msg = error.response?.data?.error || 'Failed to fetch transcript'
+        this.$toast.error(msg)
+        console.error('Failed to fetch transcript', error)
+      } finally {
+        this.fetchingTranscript = false
+      }
+    },
     async submitForm() {
       document.activeElement?.blur?.()
       await this.$nextTick()
@@ -122,6 +151,7 @@ export default {
       this.newDescription = ''
       this.newTags = ''
       this.newTranscript = ''
+      this.fetchingTranscript = false
     }
   }
 }

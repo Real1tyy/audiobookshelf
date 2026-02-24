@@ -9,6 +9,7 @@ const Database = require('../Database')
 const zipHelpers = require('../utils/zipHelpers')
 const { reqSupportsWebp } = require('../utils/index')
 const { ScanResult, AudioMimeType } = require('../utils/constants')
+const youtubeTranscript = require('../utils/youtubeTranscript')
 const { getAudioMimeTypeFromExtname, encodeUriPath } = require('../utils/fileUtils')
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 const AudioFileScanner = require('../scanner/AudioFileScanner')
@@ -147,9 +148,23 @@ class LibraryItemController {
       // Load expanded item for response
       const expandedItem = await Database.libraryItemModel.findOneExpanded({ id: libraryItem.id })
 
-      // Save and index transcript if provided
+      // Save and index transcript if provided, or auto-fetch from YouTube
       if (transcript && expandedItem) {
         await transcriptIndexer.saveAndIndex(expandedItem.id, libraryItem.book.id, title, transcript)
+      } else if (!transcript && expandedItem && url && youtubeTranscript.isYouTubeUrl(Array.isArray(url) ? url[0] : url)) {
+        // Auto-fetch transcript from YouTube (non-blocking — item still created if this fails)
+        const ytUrl = Array.isArray(url) ? url[0] : url
+        youtubeTranscript
+          .fetchTranscript(ytUrl)
+          .then(({ transcript: ytTranscript }) => {
+            return transcriptIndexer.saveAndIndex(expandedItem.id, libraryItem.book.id, title, ytTranscript)
+          })
+          .then(() => {
+            Logger.info(`[LibraryItemController] Auto-fetched YouTube transcript for "${title}"`)
+          })
+          .catch((err) => {
+            Logger.warn(`[LibraryItemController] Failed to auto-fetch YouTube transcript for "${title}": ${err.message}`)
+          })
       }
 
       if (expandedItem) {
@@ -161,6 +176,32 @@ class LibraryItemController {
     } catch (error) {
       Logger.error(`[LibraryItemController] Failed to create virtual item`, error)
       res.status(500).json({ error: 'Failed to create item' })
+    }
+  }
+
+  /**
+   * POST: /api/youtube/transcript
+   * Fetch transcript from a YouTube video URL.
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async fetchYouTubeTranscript(req, res) {
+    const { url } = req.body
+    if (!url) {
+      return res.status(400).json({ error: 'url is required' })
+    }
+
+    if (!youtubeTranscript.isYouTubeUrl(url)) {
+      return res.status(400).json({ error: 'Not a valid YouTube URL' })
+    }
+
+    try {
+      const result = await youtubeTranscript.fetchTranscript(url)
+      res.json(result)
+    } catch (error) {
+      Logger.error(`[LibraryItemController] Failed to fetch YouTube transcript: ${error.message}`)
+      res.status(422).json({ error: error.message || 'Failed to fetch transcript' })
     }
   }
 
