@@ -186,6 +186,41 @@ export default {
       return this.$store.state.playerQueueItems || []
     }
   },
+  watch: {
+    streamLibraryItem: {
+      handler(newVal, oldVal) {
+        if (!newVal || !oldVal) return
+        if (newVal.id !== oldVal.id) return // Different item, not a refresh
+
+        const newDuration = newVal.media?.duration
+        const oldDuration = oldVal.media?.duration
+        if (newDuration && oldDuration && newDuration !== oldDuration) {
+          console.log(`[MediaPlayerContainer] Duration changed from ${oldDuration} to ${newDuration}, updating player`)
+          this.setDuration(newDuration)
+
+          // Update the player's internal audio tracks so getDuration() returns correct value
+          if (this.playerHandler?.player?.audioTracks?.length) {
+            const tracks = this.playerHandler.player.audioTracks
+            const lastTrack = tracks[tracks.length - 1]
+            // Adjust the last track's duration so the total matches the new duration
+            const totalExceptLast = tracks.length > 1 ? lastTrack.startOffset : 0
+            lastTrack.duration = newDuration - totalExceptLast
+          }
+
+          // Update the queue item duration
+          const queueItems = this.$store.state.playerQueueItems
+          const queueIdx = queueItems.findIndex((i) => i.libraryItemId === newVal.id && !i.episodeId)
+          if (queueIdx >= 0) {
+            const updated = { ...queueItems[queueIdx], duration: newDuration }
+            const newQueue = [...queueItems]
+            newQueue[queueIdx] = updated
+            this.$store.commit('setPlayerQueueItems', newQueue)
+          }
+        }
+      },
+      deep: false
+    }
+  },
   methods: {
     mediaFinished(libraryItemId, episodeId) {
       // Play next item in queue
