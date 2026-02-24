@@ -1412,28 +1412,75 @@ module.exports = {
     const sanitizedQuery = query.replace(/[*"():^{}~\-]/g, ' ').replace(/\s+/g, ' ').trim()
     if (!sanitizedQuery) return []
 
-    // Wrap each word in double quotes for exact matching, then join with spaces (implicit AND)
-    const ftsQuery = sanitizedQuery.split(' ').map((word) => `"${word}"`).join(' ')
+    const words = sanitizedQuery.split(' ')
+    const isMultiWord = words.length > 1
+
+    // For multi-word queries: prioritize exact phrase matches, then individual word matches
+    // For single-word queries: just do a simple match
+    const wordsQuery = words.map((word) => `"${word}"`).join(' ')
 
     try {
-      Logger.debug(`[libraryItemsBookFilters] Searching transcripts with FTS query: "${ftsQuery}" in library ${library.id}`)
-      const [results] = await Database.sequelize.query(
-        `SELECT libraryItemId, title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, rank
-         FROM transcriptsFts
-         WHERE transcriptsFts MATCH :ftsQuery
-           AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)
-         ORDER BY rank
-         LIMIT :limit OFFSET :offset`,
-        {
-          replacements: {
-            ftsQuery,
-            libraryId: library.id,
-            limit,
-            offset
-          },
-          raw: true
-        }
-      )
+      let results
+
+      if (isMultiWord) {
+        // Exact phrase query: "word1 word2 word3" (words must appear together in order)
+        const phraseQuery = `"${sanitizedQuery}"`
+
+        Logger.debug(`[libraryItemsBookFilters] Searching transcripts — phrase: ${phraseQuery}, words: ${wordsQuery} in library ${library.id}`)
+
+        // Run phrase match and individual word match, prioritize phrase matches
+        const [rows] = await Database.sequelize.query(
+          `SELECT libraryItemId, title, snippet, priority, rank FROM (
+             SELECT libraryItemId, title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, 0 AS priority, rank
+             FROM transcriptsFts
+             WHERE transcriptsFts MATCH :phraseQuery
+               AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)
+
+             UNION ALL
+
+             SELECT libraryItemId, title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, 1 AS priority, rank
+             FROM transcriptsFts
+             WHERE transcriptsFts MATCH :wordsQuery
+               AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)
+           )
+           GROUP BY libraryItemId
+           ORDER BY MIN(priority), rank
+           LIMIT :limit OFFSET :offset`,
+          {
+            replacements: {
+              phraseQuery,
+              wordsQuery,
+              libraryId: library.id,
+              limit,
+              offset
+            },
+            raw: true
+          }
+        )
+        results = rows
+      } else {
+        Logger.debug(`[libraryItemsBookFilters] Searching transcripts with FTS query: "${wordsQuery}" in library ${library.id}`)
+
+        const [rows] = await Database.sequelize.query(
+          `SELECT libraryItemId, title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, rank
+           FROM transcriptsFts
+           WHERE transcriptsFts MATCH :ftsQuery
+             AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)
+           ORDER BY rank
+           LIMIT :limit OFFSET :offset`,
+          {
+            replacements: {
+              ftsQuery: wordsQuery,
+              libraryId: library.id,
+              limit,
+              offset
+            },
+            raw: true
+          }
+        )
+        results = rows
+      }
+
       Logger.debug(`[libraryItemsBookFilters] Transcript search returned ${results.length} results`)
       return results
     } catch (error) {

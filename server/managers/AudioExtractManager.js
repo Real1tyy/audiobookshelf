@@ -239,99 +239,88 @@ class AudioExtractManager {
       return
     }
 
-    // Now create the library item for the highlight
+    // Let the library scanner discover the new folder as a proper library item
+    // This ensures audio files, duration, and all metadata are populated correctly
     try {
-      const { getTitleIgnorePrefix } = require('../utils/index')
       const sourceAuthorName = task.data.sourceAuthorName
       const sourceTags = task.data.sourceTags
       const sourceDescription = task.data.sourceDescription
-
-      // relatedBooks stores book (media) IDs, not library item IDs
       const sourceBookId = sourceItem.media.id
 
-      const bookObject = {
-        title,
-        titleIgnorePrefix: getTitleIgnorePrefix(title),
-        description: sourceDescription ? `Highlight from "${task.data.sourceTitle}". ${sourceDescription}` : `Highlight from "${task.data.sourceTitle}"`,
-        tags: sourceTags,
-        audioFiles: [],
-        duration: 0,
-        chapters: [],
-        narrators: [],
-        genres: [],
-        relatedBooks: [sourceBookId]
-      }
-
-      const libraryItemObj = {
-        ino: null,
-        path: outputDir,
-        relPath: sanitizedTitle,
-        mediaType: 'book',
-        isFile: false,
-        isMissing: false,
-        isInvalid: false,
-        mtime: Date.now(),
-        ctime: Date.now(),
-        birthtime: Date.now(),
-        size: 0,
-        libraryFiles: [],
-        extraData: { highlightOf: libraryItemId, startTime, endTime },
-        libraryId,
-        libraryFolderId: sourceItem.libraryFolderId || null,
-        title,
-        titleIgnorePrefix: getTitleIgnorePrefix(title),
-        authorNamesFirstLast: sourceAuthorName,
-        authorNamesLastFirst: sourceAuthorName ? Database.authorModel.getLastFirst(sourceAuthorName) : '',
-        book: bookObject
-      }
-
-      // If author provided, find or create
-      if (sourceAuthorName) {
-        const author = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthorName.trim(), libraryId)
-        bookObject.bookAuthors = [{ authorId: author.id }]
-        Database.addAuthorToFilterData(libraryId, author.name, author.id)
-      }
-
-      if (sourceTags?.length) {
-        Database.addTagsToFilterData(libraryId, sourceTags)
-      }
-
-      const newLibraryItem = await Database.libraryItemModel.create(libraryItemObj, {
-        include: {
-          model: Database.bookModel,
-          include: [
-            {
-              model: Database.bookAuthorModel,
-              include: {
-                model: Database.authorModel
-              }
-            }
-          ]
-        }
+      // Find the library and its folders for scanning
+      const library = await Database.libraryModel.findByPk(libraryId, {
+        include: Database.libraryFolderModel
       })
 
-      // Add bidirectional relatedBooks link on the source item (uses book/media IDs)
-      const sourceBook = sourceItem.media
-      const newBookId = newLibraryItem.book?.id || newLibraryItem.mediaId
-      const sourceRelated = sourceBook.relatedBooks || []
-      if (newBookId && !sourceRelated.includes(newBookId)) {
-        sourceBook.relatedBooks = [...sourceRelated, newBookId]
-        sourceBook.changed('relatedBooks', true)
-        await sourceBook.save()
+      if (!library || !library.libraryFolders?.length) {
+        throw new Error(`Library or folder not found for library ${libraryId}`)
       }
 
-      // Scan the newly created item to pick up the audio file
-      try {
-        await LibraryItemScanner.scanLibraryItem(newLibraryItem.id)
-        Logger.info(`[AudioExtractManager] Scanned new highlight item ${newLibraryItem.id}`)
-      } catch (scanErr) {
-        Logger.warn(`[AudioExtractManager] Failed to scan new highlight item: ${scanErr.message}`)
+      // Find the folder that contains the output directory
+      const outputDirPosix = fileUtils.filePathToPOSIX(outputDir)
+      let folder = library.libraryFolders.find((f) => outputDirPosix.startsWith(fileUtils.filePathToPOSIX(f.path)))
+      if (!folder) {
+        // Fallback to the source item's folder or first folder
+        folder = library.libraryFolders.find((f) => f.id === sourceItem.libraryFolderId) || library.libraryFolders[0]
       }
 
-      // Emit socket event for the new item
-      const expandedItem = await Database.libraryItemModel.findOneExpanded({ id: newLibraryItem.id })
+      // Use scanPotentialNewLibraryItem to properly discover and create the item
+      const newLibraryItem = await LibraryItemScanner.scanPotentialNewLibraryItem(outputDir, library, folder, false)
+
+      if (!newLibraryItem) {
+        throw new Error('Scanner did not create a library item from the extracted audio')
+      }
+
+      Logger.info(`[AudioExtractManager] Scanner created highlight item ${newLibraryItem.id}`)
+
+      // Now update the scanned item's metadata with source info
+      const expandedItem = await Database.libraryItemModel.getExpandedById(newLibraryItem.id)
       if (expandedItem) {
-        SocketAuthority.libraryItemEmitter('item_added', expandedItem)
+        const media = expandedItem.media
+
+        // Update description and metadata on the book
+        const descPrefix = `Highlight from "${task.data.sourceTitle}"`
+        media.description = sourceDescription ? `${descPrefix}. ${sourceDescription}` : descPrefix
+        media.tags = sourceTags || []
+        media.relatedBooks = [sourceBookId]
+        media.changed('description', true)
+        media.changed('tags', true)
+        media.changed('relatedBooks', true)
+        await media.save()
+
+        // Set extraData on the library item (not the book)
+        expandedItem.extraData = { highlightOf: libraryItemId, startTime, endTime }
+        expandedItem.changed('extraData', true)
+        await expandedItem.save()
+
+        // Link author if present
+        if (sourceAuthorName) {
+          const author = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthorName.trim(), libraryId)
+          const existingAuthors = await Database.bookAuthorModel.findAll({ where: { bookId: media.id } })
+          if (!existingAuthors.some((ba) => ba.authorId === author.id)) {
+            await Database.bookAuthorModel.create({ bookId: media.id, authorId: author.id })
+          }
+          Database.addAuthorToFilterData(libraryId, author.name, author.id)
+        }
+
+        if (sourceTags?.length) {
+          Database.addTagsToFilterData(libraryId, sourceTags)
+        }
+
+        // Add bidirectional relatedBooks link on the source item (uses book/media IDs)
+        const sourceBook = sourceItem.media
+        const sourceRelated = sourceBook.relatedBooks || []
+        if (!sourceRelated.includes(media.id)) {
+          sourceBook.relatedBooks = [...sourceRelated, media.id]
+          sourceBook.changed('relatedBooks', true)
+          await sourceBook.save()
+        }
+
+        // Re-fetch and emit item_added so client picks it up
+        const finalItem = await Database.libraryItemModel.getExpandedById(newLibraryItem.id)
+        if (finalItem) {
+          SocketAuthority.libraryItemEmitter('item_added', finalItem)
+        }
       }
 
       Logger.info(`[AudioExtractManager] Created highlight library item "${title}" (${newLibraryItem.id})`)
