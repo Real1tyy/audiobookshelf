@@ -1418,12 +1418,11 @@ module.exports = {
     try {
       Logger.debug(`[libraryItemsBookFilters] Searching transcripts with FTS query: "${ftsQuery}" in library ${library.id}`)
       const [results] = await Database.sequelize.query(
-        `SELECT f.libraryItemId, f.title, snippet(f, 2, '<mark>', '</mark>', '...', 40) AS snippet, f.rank
-         FROM transcriptsFts f
-         JOIN libraryItems li ON li.id = f.libraryItemId
-         WHERE f MATCH :ftsQuery
-           AND li.libraryId = :libraryId
-         ORDER BY f.rank
+        `SELECT libraryItemId, title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, rank
+         FROM transcriptsFts
+         WHERE transcriptsFts MATCH :ftsQuery
+           AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)
+         ORDER BY rank
          LIMIT :limit OFFSET :offset`,
         {
           replacements: {
