@@ -246,6 +246,9 @@ class AudioExtractManager {
       const sourceTags = task.data.sourceTags
       const sourceDescription = task.data.sourceDescription
 
+      // relatedBooks stores book (media) IDs, not library item IDs
+      const sourceBookId = sourceItem.media.id
+
       const bookObject = {
         title,
         titleIgnorePrefix: getTitleIgnorePrefix(title),
@@ -256,7 +259,7 @@ class AudioExtractManager {
         chapters: [],
         narrators: [],
         genres: [],
-        relatedBooks: [libraryItemId]
+        relatedBooks: [sourceBookId]
       }
 
       const libraryItemObj = {
@@ -307,11 +310,12 @@ class AudioExtractManager {
         }
       })
 
-      // Add bidirectional relatedBooks link on the source item
+      // Add bidirectional relatedBooks link on the source item (uses book/media IDs)
       const sourceBook = sourceItem.media
+      const newBookId = newLibraryItem.book?.id || newLibraryItem.mediaId
       const sourceRelated = sourceBook.relatedBooks || []
-      if (!sourceRelated.includes(newLibraryItem.id)) {
-        sourceBook.relatedBooks = [...sourceRelated, newLibraryItem.id]
+      if (newBookId && !sourceRelated.includes(newBookId)) {
+        sourceBook.relatedBooks = [...sourceRelated, newBookId]
         sourceBook.changed('relatedBooks', true)
         await sourceBook.save()
       }

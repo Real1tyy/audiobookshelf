@@ -257,25 +257,29 @@ class BookScanner {
         for (const seriesObj of bookMetadata.series) {
           const existingBookSeries = media.series.find((se) => se.name === seriesObj.name)
           if (!existingBookSeries) {
-            const existingSeriesId = await Database.getSeriesIdByName(libraryItemData.libraryId, seriesObj.name)
-            if (existingSeriesId) {
-              await Database.bookSeriesModel.create({
-                bookId: media.id,
-                seriesId: existingSeriesId,
-                sequence: seriesObj.sequence
-              })
-              libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" added series "${seriesObj.name}"${seriesObj.sequence ? ` with sequence "${seriesObj.sequence}"` : ''}`)
-              seriesUpdated = true
-            } else {
-              const newSeries = await Database.seriesModel.create({
-                name: seriesObj.name,
-                nameIgnorePrefix: getTitleIgnorePrefix(seriesObj.name),
-                libraryId: libraryItemData.libraryId
-              })
-              await media.addSeries(newSeries, { through: { sequence: seriesObj.sequence } })
-              Database.addSeriesToFilterData(libraryItemData.libraryId, newSeries.name, newSeries.id)
-              libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" added new series "${seriesObj.name}"${seriesObj.sequence ? ` with sequence "${seriesObj.sequence}"` : ''}`)
-              seriesUpdated = true
+            try {
+              const existingSeriesId = await Database.getSeriesIdByName(libraryItemData.libraryId, seriesObj.name)
+              if (existingSeriesId) {
+                await Database.bookSeriesModel.create({
+                  bookId: media.id,
+                  seriesId: existingSeriesId,
+                  sequence: seriesObj.sequence
+                })
+                libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" added series "${seriesObj.name}"${seriesObj.sequence ? ` with sequence "${seriesObj.sequence}"` : ''}`)
+                seriesUpdated = true
+              } else {
+                const newSeries = await Database.seriesModel.create({
+                  name: seriesObj.name,
+                  nameIgnorePrefix: getTitleIgnorePrefix(seriesObj.name),
+                  libraryId: libraryItemData.libraryId
+                })
+                await media.addSeries(newSeries, { through: { sequence: seriesObj.sequence } })
+                Database.addSeriesToFilterData(libraryItemData.libraryId, newSeries.name, newSeries.id)
+                libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" added new series "${seriesObj.name}"${seriesObj.sequence ? ` with sequence "${seriesObj.sequence}"` : ''}`)
+                seriesUpdated = true
+              }
+            } catch (seriesErr) {
+              libraryScan.addLog(LogLevel.ERROR, `Failed to add series "${seriesObj.name}" to book "${bookMetadata.title}": ${seriesErr.message}`)
             }
           } else if (seriesObj.sequence && existingBookSeries.bookSeries.sequence !== seriesObj.sequence) {
             libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" series "${seriesObj.name}" sequence "${existingBookSeries.bookSeries.sequence || ''}" => "${seriesObj.sequence}"`)

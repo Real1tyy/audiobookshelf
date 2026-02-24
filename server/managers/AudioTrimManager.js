@@ -6,6 +6,7 @@ const ffmpegHelpers = require('../utils/ffmpegHelpers')
 const TaskManager = require('./TaskManager')
 const Task = require('../objects/Task')
 const fileUtils = require('../utils/fileUtils')
+const Database = require('../Database')
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 
 class AudioTrimManager {
@@ -193,6 +194,18 @@ class AudioTrimManager {
       Logger.info(`[AudioTrimManager] Rescanned library item ${task.data.libraryItemId}`)
     } catch (err) {
       Logger.error(`[AudioTrimManager] Failed to rescan library item ${task.data.libraryItemId}`, err)
+
+      // Rescan failed (e.g. FK constraint error) — manually emit item_updated
+      // so the client still gets the updated duration
+      try {
+        const expandedItem = await Database.libraryItemModel.getExpandedById(task.data.libraryItemId)
+        if (expandedItem) {
+          SocketAuthority.libraryItemEmitter('item_updated', expandedItem)
+          Logger.info(`[AudioTrimManager] Manually emitted item_updated for ${task.data.libraryItemId}`)
+        }
+      } catch (emitErr) {
+        Logger.error(`[AudioTrimManager] Failed to emit item_updated for ${task.data.libraryItemId}`, emitErr)
+      }
     }
 
     task.setFinished()
