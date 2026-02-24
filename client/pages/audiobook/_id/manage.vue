@@ -108,6 +108,32 @@
           <p v-else class="text-success text-lg font-semibold">Trim Finished</p>
         </div>
       </div>
+      <!-- extract highlight action buttons -->
+      <div v-else-if="isExtractTool" class="w-full mb-4">
+        <div class="mb-4">
+          <p class="text-lg font-semibold mb-2">Extract Highlight</p>
+          <p class="text-sm text-gray-300 mb-3">Total duration: {{ $secondsToTimestamp(totalDuration) }}. Extract a section of audio as a new library item.</p>
+          <div class="flex items-center gap-4 mb-3">
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-300">Start:</label>
+              <input v-model="extractStartText" type="text" placeholder="start" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="processing" />
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-300">End:</label>
+              <input v-model="extractEndText" type="text" placeholder="end" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="processing" />
+            </div>
+          </div>
+          <div class="flex items-center gap-2 mb-3">
+            <label class="text-sm text-gray-300">Title:</label>
+            <input v-model="extractTitle" type="text" placeholder="Highlight title" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-64 text-white" :disabled="processing" />
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <ui-btn v-if="!isTaskFinished" color="bg-primary" :loading="processing" :progress="progress" @click.stop="extractClick">Start Extract</ui-btn>
+          <p v-else-if="taskFailed" class="text-error text-lg font-semibold">Extract Failed: {{ taskError }}</p>
+          <p v-else class="text-success text-lg font-semibold">Extract Finished</p>
+        </div>
+      </div>
       <!-- m4b embed action buttons -->
       <div v-else class="w-full flex items-center mb-4">
         <div class="grow" />
@@ -131,6 +157,10 @@
       </div>
 
       <div class="mb-4">
+        <div v-if="isExtractTool" class="flex items-start mb-2">
+          <span class="material-symbols text-base text-warning pt-1">star</span>
+          <p class="text-gray-200 ml-2">This will extract the specified section and create a new library item. The original audio is not modified.</p>
+        </div>
         <div v-if="isTrimTool" class="flex items-start mb-2">
           <span class="material-symbols text-base text-warning pt-1">star</span>
           <p class="text-gray-200 ml-2">This is a destructive operation. Audio will be re-encoded to remove the specified sections. This cannot be undone.</p>
@@ -261,7 +291,10 @@ export default {
         channels: '2',
         codec: 'aac'
       },
-      trimSections: [{ startText: '0:00:00', endText: '0:00:00' }]
+      trimSections: [{ startText: '0:00:00', endText: '0:00:00' }],
+      extractStartText: 'start',
+      extractEndText: 'end',
+      extractTitle: ''
     }
   },
   watch: {
@@ -292,6 +325,9 @@ export default {
     isTrimTool() {
       return this.selectedTool === 'trim'
     },
+    isExtractTool() {
+      return this.selectedTool === 'extract'
+    },
     totalDuration() {
       return this.audioFiles.reduce((sum, af) => sum + (af.duration || 0), 0)
     },
@@ -320,7 +356,8 @@ export default {
       return [
         { value: 'embed', text: this.$strings.LabelToolsEmbedMetadata },
         { value: 'm4b', text: this.$strings.LabelToolsM4bEncoder },
-        { value: 'trim', text: 'Audio Trimmer' }
+        { value: 'trim', text: 'Audio Trimmer' },
+        { value: 'extract', text: 'Extract Highlight' }
       ]
     },
     taskFailed() {
@@ -344,10 +381,14 @@ export default {
     trimTask() {
       return this.tasks.find((t) => t.action === 'trim-audio')
     },
+    extractTask() {
+      return this.tasks.find((t) => t.action === 'extract-highlight')
+    },
     task() {
       if (this.isEmbedTool) return this.embedTask
       else if (this.isM4BTool) return this.encodeTask
       else if (this.isTrimTool) return this.trimTask
+      else if (this.isExtractTool) return this.extractTask
       return null
     },
     taskRunning() {
@@ -502,6 +543,55 @@ export default {
         type: 'yesNo'
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    extractClick() {
+      const startTime = this.parseTimestamp(this.extractStartText)
+      const endTime = this.parseTimestamp(this.extractEndText)
+
+      if (isNaN(startTime) || isNaN(endTime)) {
+        this.$toast.error('Invalid time format. Use H:MM:SS, MM:SS, seconds, "start", or "end".')
+        return
+      }
+      if (startTime < 0) {
+        this.$toast.error('Start time must be >= 0')
+        return
+      }
+      if (startTime >= endTime) {
+        this.$toast.error('Start must be less than end')
+        return
+      }
+      if (endTime > this.totalDuration) {
+        this.$toast.error('End time exceeds total duration')
+        return
+      }
+      if (!this.extractTitle.trim()) {
+        this.$toast.error('Title is required')
+        return
+      }
+
+      const payload = {
+        message: `Extract audio from ${this.$secondsToTimestamp(startTime)} to ${this.$secondsToTimestamp(endTime)} as "${this.extractTitle.trim()}"? A new library item will be created.`,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.executeExtract(startTime, endTime, this.extractTitle.trim())
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    executeExtract(startTime, endTime, title) {
+      this.processing = true
+      this.$axios
+        .$post(`/api/tools/item/${this.libraryItemId}/extract-highlight`, { startTime, endTime, title })
+        .then(() => {
+          console.log('Audio extract started')
+        })
+        .catch((error) => {
+          const errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
+          this.$toast.error(errorMsg)
+          this.processing = false
+        })
     },
     executeTrim(sections) {
       this.processing = true

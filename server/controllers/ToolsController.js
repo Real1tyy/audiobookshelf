@@ -203,6 +203,60 @@ class ToolsController {
   }
 
   /**
+   * POST: /api/tools/item/:id/extract-highlight
+   * Extract a section of audio as a new highlight library item
+   *
+   * @this import('../routers/ApiRouter')
+   *
+   * @param {RequestWithLibraryItem} req
+   * @param {Response} res
+   */
+  async extractHighlight(req, res) {
+    if (!req.user.isRoot) {
+      Logger.error(`[ToolsController] extractHighlight: Non-root user "${req.user.username}" attempted to extract highlight`)
+      return res.sendStatus(403)
+    }
+
+    if (req.libraryItem.isMissing || req.libraryItem.isInvalid) {
+      Logger.error(`[ToolsController] extractHighlight: library item not found or invalid ${req.params.id}`)
+      return res.status(404).send('Audiobook not found')
+    }
+
+    if (!req.libraryItem.isBook) {
+      Logger.error(`[ToolsController] extractHighlight: Invalid library item ${req.params.id}: not a book`)
+      return res.status(400).send('Invalid library item: not a book')
+    }
+
+    if (!req.libraryItem.hasAudioTracks) {
+      Logger.error(`[ToolsController] extractHighlight: Invalid audiobook ${req.params.id}: no audio tracks`)
+      return res.status(400).send('Invalid audiobook: no audio tracks')
+    }
+
+    if (this.audioExtractManager.getIsLibraryItemQueuedOrProcessing(req.libraryItem.id)) {
+      Logger.error(`[ToolsController] extractHighlight: Audiobook ${req.params.id} is already processing`)
+      return res.status(400).send('Audiobook is already processing')
+    }
+
+    const { startTime, endTime, title } = req.body
+    if (typeof startTime !== 'number' || typeof endTime !== 'number' || !title || typeof title !== 'string') {
+      return res.status(400).send('Invalid request: startTime (number), endTime (number), and title (string) are required')
+    }
+
+    if (startTime < 0 || startTime >= endTime) {
+      return res.status(400).send('Invalid request: startTime must be >= 0 and less than endTime')
+    }
+
+    if (endTime > req.libraryItem.media.duration) {
+      return res.status(400).send('Invalid request: endTime exceeds audio duration')
+    }
+
+    Logger.info(`[ToolsController] extractHighlight: Starting extract for "${req.libraryItem.media.title}" (${startTime}s - ${endTime}s) as "${title}"`)
+    this.audioExtractManager.extractHighlightForItem(req.user.id, req.libraryItem, startTime, endTime, title.trim())
+
+    res.sendStatus(200)
+  }
+
+  /**
    *
    * @param {RequestWithUser} req
    * @param {Response} res

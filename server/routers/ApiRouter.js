@@ -52,6 +52,8 @@ class ApiRouter {
     this.audioMetadataManager = Server.audioMetadataManager
     /** @type {import('../managers/AudioTrimManager')} */
     this.audioTrimManager = Server.audioTrimManager
+    /** @type {import('../managers/AudioExtractManager')} */
+    this.audioExtractManager = Server.audioExtractManager
     /** @type {import('../managers/CronManager')} */
     this.cronManager = Server.cronManager
     /** @type {import('../managers/EmailManager')} */
@@ -322,6 +324,7 @@ class ApiRouter {
     this.router.post('/tools/item/:id/embed-metadata', ToolsController.middleware.bind(this), ToolsController.embedAudioFileMetadata.bind(this))
     this.router.post('/tools/batch/embed-metadata', ToolsController.middleware.bind(this), ToolsController.batchEmbedMetadata.bind(this))
     this.router.post('/tools/item/:id/trim-audio', ToolsController.middleware.bind(this), ToolsController.trimAudio.bind(this))
+    this.router.post('/tools/item/:id/extract-highlight', ToolsController.middleware.bind(this), ToolsController.extractHighlight.bind(this))
 
     //
     // RSS Feed Routes (Admin and up)

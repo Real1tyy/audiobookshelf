@@ -113,6 +113,11 @@
               <ui-icon-btn icon="content_cut" outlined class="mx-0.5" @click="showTrimPopover = true" />
             </ui-tooltip>
 
+            <!-- Create Highlight Button -->
+            <ui-tooltip v-if="isBook && tracks.length && userIsRoot" text="Create Highlight" direction="top">
+              <ui-icon-btn icon="auto_awesome" outlined class="mx-0.5" @click="showHighlightPopover = true" />
+            </ui-tooltip>
+
             <!-- Only admin or root user can download new episodes -->
             <ui-tooltip v-if="isPodcast && userIsAdminOrUp" :text="$strings.LabelFindEpisodes" direction="top">
               <ui-icon-btn icon="search" class="mx-0.5" :aria-label="$strings.LabelFindEpisodes" :loading="fetchingRSSFeed" outlined @click="findEpisodesClick" />
@@ -213,6 +218,44 @@
         </div>
       </div>
     </div>
+
+    <!-- Create Highlight Modal -->
+    <div v-if="showHighlightPopover" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showHighlightPopover = false">
+      <div class="bg-bg border border-gray-600 rounded-lg shadow-xl p-5 w-full max-w-md mx-4">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-base font-semibold text-gray-100">Create Highlight</p>
+          <button class="text-gray-400 hover:text-white" @click="showHighlightPopover = false">
+            <span class="material-symbols text-xl">close</span>
+          </button>
+        </div>
+        <p class="text-sm text-gray-400 mb-2">Extract a section of audio as a new library item.</p>
+        <p class="text-xs text-gray-500 mb-3">Total duration: {{ $secondsToTimestamp(duration) }}</p>
+        <div class="flex items-center gap-4 mb-3">
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-300">Start:</label>
+            <input v-model="highlightStartText" type="text" placeholder="start" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="isExtracting" />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-300">End:</label>
+            <input v-model="highlightEndText" type="text" placeholder="end" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="isExtracting" />
+          </div>
+        </div>
+        <div class="flex items-center gap-2 mb-3">
+          <label class="text-sm text-gray-300">Title:</label>
+          <input v-model="highlightTitle" type="text" placeholder="Highlight title" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm flex-1 text-white" :disabled="isExtracting" />
+        </div>
+        <p class="text-xs text-gray-500 mb-3">Format: H:MM:SS, MM:SS, seconds, or use "start" / "end". The original audio is not modified.</p>
+        <div class="flex items-center justify-between">
+          <p v-if="highlightError" class="text-xs text-error flex-1 mr-2">{{ highlightError }}</p>
+          <div class="flex items-center gap-2 ml-auto">
+            <ui-btn small class="text-gray-300" @click="showHighlightPopover = false">Cancel</ui-btn>
+            <ui-btn :disabled="isExtracting" color="bg-primary" small @click="submitHighlight">
+              {{ isExtracting ? 'Extracting...' : 'Create' }}
+            </ui-btn>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -257,6 +300,12 @@ export default {
       trimSections: [{ startText: 'start', endText: 'end' }],
       trimError: '',
       isTrimming: false,
+      showHighlightPopover: false,
+      highlightStartText: 'start',
+      highlightEndText: 'end',
+      highlightTitle: '',
+      highlightError: '',
+      isExtracting: false,
       showTranscript: false,
       transcriptLoading: false,
       transcriptLoadError: false,
@@ -1008,6 +1057,64 @@ export default {
         })
         .finally(() => {
           this.isTrimming = false
+        })
+    },
+    submitHighlight() {
+      this.highlightError = ''
+      const startTime = this.parseTrimTimestamp(this.highlightStartText)
+      const endTime = this.parseTrimTimestamp(this.highlightEndText)
+
+      if (isNaN(startTime) || isNaN(endTime)) {
+        this.highlightError = 'Invalid time format. Use H:MM:SS, MM:SS, seconds, "start", or "end".'
+        return
+      }
+      if (startTime < 0) {
+        this.highlightError = 'Start time must be >= 0'
+        return
+      }
+      if (startTime >= endTime) {
+        this.highlightError = 'Start must be less than end'
+        return
+      }
+      if (endTime > this.duration) {
+        this.highlightError = 'End time exceeds total duration'
+        return
+      }
+      if (!this.highlightTitle.trim()) {
+        this.highlightError = 'Title is required'
+        return
+      }
+
+      const payload = {
+        message: `Extract audio from ${this.$secondsToTimestamp(startTime)} to ${this.$secondsToTimestamp(endTime)} as "${this.highlightTitle.trim()}"? A new library item will be created.`,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.executeHighlight(startTime, endTime, this.highlightTitle.trim())
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    executeHighlight(startTime, endTime, title) {
+      this.isExtracting = true
+      this.$axios
+        .$post(`/api/tools/item/${this.libraryItemId}/extract-highlight`, { startTime, endTime, title })
+        .then(() => {
+          console.log('Audio extract started')
+          this.$toast.success('Highlight extraction started')
+          this.showHighlightPopover = false
+          this.highlightStartText = 'start'
+          this.highlightEndText = 'end'
+          this.highlightTitle = ''
+        })
+        .catch((error) => {
+          const errorMsg = error.response ? error.response.data || 'Extract failed' : 'Extract failed'
+          console.error('Extract failed', errorMsg)
+          this.highlightError = errorMsg
+        })
+        .finally(() => {
+          this.isExtracting = false
         })
     },
     contextMenuAction({ action, data }) {

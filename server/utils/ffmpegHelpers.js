@@ -624,3 +624,62 @@ async function trimAudioFile(audioFilePath, sections, duration, progressCB = nul
 }
 
 module.exports.trimAudioFile = trimAudioFile
+
+/**
+ * Extracts a section of audio from an input file and writes it to a new output file.
+ * Uses atrim filter to keep only the specified time range.
+ *
+ * @param {string} inputPath - Path to the input audio file.
+ * @param {number} startTime - Start time in seconds.
+ * @param {number} endTime - End time in seconds.
+ * @param {string} outputPath - Path to write the extracted audio.
+ * @param {function(number): void|null} progressCB - Progress callback (0-100).
+ * @returns {Promise<void>}
+ */
+async function extractAudioSection(inputPath, startTime, endTime, outputPath, progressCB = null) {
+  const duration = endTime - startTime
+  const filterGraph = `[0:a]atrim=start=${startTime}:end=${endTime},asetpts=PTS-STARTPTS[outa]`
+
+  Logger.debug(`[ffmpegHelpers] extractAudioSection: ${startTime}s to ${endTime}s from "${inputPath}" -> "${outputPath}"`)
+  Logger.debug(`[ffmpegHelpers] extractAudioSection filter_complex: ${filterGraph}`)
+
+  const ffmpeg = Ffmpeg()
+
+  return new Promise((resolve, reject) => {
+    ffmpeg
+      .input(inputPath)
+      .outputOptions(['-filter_complex', filterGraph, '-map', '[outa]'])
+      .output(outputPath)
+      .on('start', (commandLine) => {
+        Logger.info('[ffmpegHelpers] extractAudioSection command: ' + commandLine)
+      })
+      .on('progress', (progress) => {
+        if (!progressCB) return
+        if (progress.timemark && duration) {
+          const percent = Math.min(100, (ffmpgegUtils.timemarkToSeconds(progress.timemark) / duration) * 100)
+          progressCB(percent)
+        } else if (progress.percent) {
+          progressCB(progress.percent)
+        }
+      })
+      .on('end', () => {
+        Logger.info(`[ffmpegHelpers] extractAudioSection: complete`)
+        resolve()
+      })
+      .on('error', (err, stdout, stderr) => {
+        if (err.message && err.message.includes('SIGKILL')) {
+          Logger.info('[ffmpegHelpers] extractAudioSection killed by user')
+          reject(new Error('FFMPEG_CANCELED'))
+        } else {
+          Logger.error('[ffmpegHelpers] extractAudioSection error:', err)
+          Logger.error('ffmpeg stdout:', stdout)
+          Logger.error('ffmpeg stderr:', stderr)
+          reject(err)
+        }
+      })
+
+    ffmpeg.run()
+  })
+}
+
+module.exports.extractAudioSection = extractAudioSection
