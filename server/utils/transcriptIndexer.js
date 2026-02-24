@@ -1,8 +1,12 @@
 const Logger = require('../Logger')
-const Database = require('../Database')
 const fs = require('../libs/fsExtra')
 
 const loggerPrefix = '[TranscriptIndexer]'
+
+// Lazy-load Database to avoid circular dependency (Database requires this module during init)
+function getDatabase() {
+  return require('../Database')
+}
 
 /**
  * Index a single transcript into the FTS table
@@ -13,12 +17,12 @@ const loggerPrefix = '[TranscriptIndexer]'
  */
 async function indexTranscript(libraryItemId, title, transcriptText) {
   // Delete existing entry for this library item
-  await Database.sequelize.query('DELETE FROM transcriptsFts WHERE libraryItemId = :libraryItemId', {
+  await getDatabase().sequelize.query('DELETE FROM transcriptsFts WHERE libraryItemId = :libraryItemId', {
     replacements: { libraryItemId }
   })
 
   // Insert new entry
-  await Database.sequelize.query('INSERT INTO transcriptsFts (libraryItemId, title, transcriptText) VALUES (:libraryItemId, :title, :transcriptText)', {
+  await getDatabase().sequelize.query('INSERT INTO transcriptsFts (libraryItemId, title, transcriptText) VALUES (:libraryItemId, :title, :transcriptText)', {
     replacements: { libraryItemId, title, transcriptText }
   })
   Logger.debug(`${loggerPrefix} Indexed transcript for "${title}" (${libraryItemId}), text length: ${transcriptText.length}`)
@@ -30,7 +34,7 @@ async function indexTranscript(libraryItemId, title, transcriptText) {
  * @param {string} libraryItemId
  */
 async function removeTranscript(libraryItemId) {
-  await Database.sequelize.query('DELETE FROM transcriptsFts WHERE libraryItemId = :libraryItemId', {
+  await getDatabase().sequelize.query('DELETE FROM transcriptsFts WHERE libraryItemId = :libraryItemId', {
     replacements: { libraryItemId }
   })
 }
@@ -52,7 +56,7 @@ async function indexTranscriptFromFile(libraryItemId, title, filePath, bookId) {
 
       // Persist transcript text to book model if bookId provided
       if (bookId) {
-        await Database.sequelize.query('UPDATE books SET transcript = :transcript WHERE id = :bookId', {
+        await getDatabase().sequelize.query('UPDATE books SET transcript = :transcript WHERE id = :bookId', {
           replacements: { transcript: trimmed, bookId }
         })
       }
@@ -77,7 +81,7 @@ async function indexTranscriptFromFile(libraryItemId, title, filePath, bookId) {
  */
 async function saveAndIndex(libraryItemId, bookId, title, transcriptText) {
   // Persist to book model
-  await Database.sequelize.query('UPDATE books SET transcript = :transcript WHERE id = :bookId', {
+  await getDatabase().sequelize.query('UPDATE books SET transcript = :transcript WHERE id = :bookId', {
     replacements: { transcript: transcriptText, bookId }
   })
 
@@ -95,10 +99,10 @@ async function reindexAll() {
   Logger.info(`${loggerPrefix} Starting full transcript re-index`)
 
   // Clear existing FTS data
-  await Database.sequelize.query('DELETE FROM transcriptsFts')
+  await getDatabase().sequelize.query('DELETE FROM transcriptsFts')
 
   // 1. Index all books that have transcript text stored in the DB
-  const [dbRows] = await Database.sequelize.query(`
+  const [dbRows] = await getDatabase().sequelize.query(`
     SELECT li.id AS libraryItemId, li.title, b.transcript
     FROM books b
     JOIN libraryItems li ON li.mediaId = b.id
@@ -122,7 +126,7 @@ async function reindexAll() {
   Logger.info(`${loggerPrefix} Indexed ${indexed} transcripts from database`)
 
   // 2. Also check for transcript.txt files on disk that aren't yet in the DB
-  const [fileRows] = await Database.sequelize.query(`
+  const [fileRows] = await getDatabase().sequelize.query(`
     SELECT li.id AS libraryItemId, li.title, li.mediaId AS bookId,
            json_extract(jf.value, '$.metadata.path') AS transcriptPath
     FROM libraryItems li, json_each(li.libraryFiles) AS jf
@@ -153,7 +157,7 @@ async function reindexAll() {
  */
 async function reindexIfEmpty() {
   try {
-    const [results] = await Database.sequelize.query('SELECT count(*) AS cnt FROM transcriptsFts')
+    const [results] = await getDatabase().sequelize.query('SELECT count(*) AS cnt FROM transcriptsFts')
     const count = Number(results[0].cnt)
     Logger.info(`${loggerPrefix} FTS table has ${count} entries`)
     if (count === 0) {
