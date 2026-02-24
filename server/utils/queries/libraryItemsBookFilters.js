@@ -1412,36 +1412,44 @@ module.exports = {
     const sanitizedQuery = query.replace(/[*"():^{}~\-]/g, ' ').replace(/\s+/g, ' ').trim()
     if (!sanitizedQuery) return []
 
-    const words = sanitizedQuery.split(' ')
-    const isMultiWord = words.length > 1
-
-    // For multi-word queries: prioritize exact phrase matches, then individual word matches
-    // For single-word queries: just do a simple match
-    const wordsQuery = words.map((word) => `"${word}"`).join(' ')
+    const words = sanitizedQuery.split(' ').filter(Boolean)
+    const libraryFilter = 'AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)'
 
     try {
-      let results
-
-      if (isMultiWord) {
-        // Exact phrase query: "word1 word2 word3" (words must appear together in order)
+      if (words.length > 1) {
+        // Multi-word: 3-tier ranking
+        //   Tier 0 — Exact phrase: "word1 word2 word3"
+        //   Tier 1 — Proximity (NEAR within 10 tokens): words close together but not exact phrase
+        //   Tier 2 — All words present anywhere (AND)
         const phraseQuery = `"${sanitizedQuery}"`
+        const nearQuery = `NEAR(${words.map((w) => `"${w}"`).join(' ')}, 10)`
+        const andQuery = words.map((w) => `"${w}"`).join(' ')
 
-        Logger.debug(`[libraryItemsBookFilters] Searching transcripts — phrase: ${phraseQuery}, words: ${wordsQuery} in library ${library.id}`)
+        Logger.debug(`[libraryItemsBookFilters] Transcript search — phrase: ${phraseQuery}, near: ${nearQuery}, and: ${andQuery}`)
 
-        // Run phrase match and individual word match, prioritize phrase matches
-        const [rows] = await Database.sequelize.query(
+        const [results] = await Database.sequelize.query(
           `SELECT libraryItemId, title, snippet, priority, rank FROM (
-             SELECT libraryItemId, title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, 0 AS priority, rank
+             SELECT libraryItemId, title,
+                    snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 50) AS snippet,
+                    0 AS priority, rank
              FROM transcriptsFts
-             WHERE transcriptsFts MATCH :phraseQuery
-               AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)
+             WHERE transcriptsFts MATCH :phraseQuery ${libraryFilter}
 
              UNION ALL
 
-             SELECT libraryItemId, title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, 1 AS priority, rank
+             SELECT libraryItemId, title,
+                    snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 50) AS snippet,
+                    1 AS priority, rank
              FROM transcriptsFts
-             WHERE transcriptsFts MATCH :wordsQuery
-               AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)
+             WHERE transcriptsFts MATCH :nearQuery ${libraryFilter}
+
+             UNION ALL
+
+             SELECT libraryItemId, title,
+                    snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 50) AS snippet,
+                    2 AS priority, rank
+             FROM transcriptsFts
+             WHERE transcriptsFts MATCH :andQuery ${libraryFilter}
            )
            GROUP BY libraryItemId
            ORDER BY MIN(priority), rank
@@ -1449,7 +1457,8 @@ module.exports = {
           {
             replacements: {
               phraseQuery,
-              wordsQuery,
+              nearQuery,
+              andQuery,
               libraryId: library.id,
               limit,
               offset
@@ -1457,20 +1466,27 @@ module.exports = {
             raw: true
           }
         )
-        results = rows
-      } else {
-        Logger.debug(`[libraryItemsBookFilters] Searching transcripts with FTS query: "${wordsQuery}" in library ${library.id}`)
 
-        const [rows] = await Database.sequelize.query(
-          `SELECT libraryItemId, title, snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 40) AS snippet, rank
+        Logger.debug(`[libraryItemsBookFilters] Transcript search returned ${results.length} results`)
+        return results
+      } else {
+        // Single word: prefix search so partial words match (e.g. "motiv" matches "motivation")
+        const word = words[0]
+        const ftsQuery = word.length >= 3 ? `${word}*` : `"${word}"`
+
+        Logger.debug(`[libraryItemsBookFilters] Transcript search — query: ${ftsQuery}`)
+
+        const [results] = await Database.sequelize.query(
+          `SELECT libraryItemId, title,
+                  snippet(transcriptsFts, 2, '<mark>', '</mark>', '...', 50) AS snippet,
+                  rank
            FROM transcriptsFts
-           WHERE transcriptsFts MATCH :ftsQuery
-             AND libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = :libraryId)
+           WHERE transcriptsFts MATCH :ftsQuery ${libraryFilter}
            ORDER BY rank
            LIMIT :limit OFFSET :offset`,
           {
             replacements: {
-              ftsQuery: wordsQuery,
+              ftsQuery,
               libraryId: library.id,
               limit,
               offset
@@ -1478,11 +1494,10 @@ module.exports = {
             raw: true
           }
         )
-        results = rows
-      }
 
-      Logger.debug(`[libraryItemsBookFilters] Transcript search returned ${results.length} results`)
-      return results
+        Logger.debug(`[libraryItemsBookFilters] Transcript search returned ${results.length} results`)
+        return results
+      }
     } catch (error) {
       Logger.error('[libraryItemsBookFilters] Transcript search failed', error)
       return []
