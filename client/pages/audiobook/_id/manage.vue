@@ -486,16 +486,10 @@ export default {
       this.trimSections.splice(index, 1)
     },
     parseTimestamp(str) {
-      // Parses H:MM:SS or MM:SS or SS to seconds, or "start"/"end" keywords
-      str = str.trim().toLowerCase()
-      if (str === 'start') return 0
-      if (str === 'end') return this.totalDuration
-      const parts = str.split(':').map(Number)
-      if (parts.some(isNaN)) return NaN
-      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-      if (parts.length === 2) return parts[0] * 60 + parts[1]
-      if (parts.length === 1) return parts[0]
-      return NaN
+      return this.$parseTimestampWithKeywords(str, {
+        totalDuration: this.totalDuration,
+        currentTime: this.$store.state.playerQueueCurrentTime || 0
+      })
     },
     trimClick() {
       const sections = this.trimSections.map((s) => ({
@@ -507,7 +501,7 @@ export default {
       for (let i = 0; i < sections.length; i++) {
         const s = sections[i]
         if (isNaN(s.start) || isNaN(s.end)) {
-          this.$toast.error(`Section ${i + 1}: Invalid time format. Use H:MM:SS, MM:SS, seconds, "start", or "end".`)
+          this.$toast.error(`Section ${i + 1}: Invalid time format. Use H:MM:SS, MM:SS, seconds, or keywords (start/end/now +/- offset).`)
           return
         }
         if (s.start < 0) {
@@ -549,7 +543,7 @@ export default {
       const endTime = this.parseTimestamp(this.extractEndText)
 
       if (isNaN(startTime) || isNaN(endTime)) {
-        this.$toast.error('Invalid time format. Use H:MM:SS, MM:SS, seconds, "start", or "end".')
+        this.$toast.error('Invalid time format. Use H:MM:SS, MM:SS, seconds, or keywords (start/end/now +/- offset).')
         return
       }
       if (startTime < 0) {

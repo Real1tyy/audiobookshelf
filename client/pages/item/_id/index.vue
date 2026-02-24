@@ -206,7 +206,7 @@
           </button>
         </div>
         <button class="text-sm text-gray-200 hover:text-white mt-1 mb-3" :disabled="isTrimming" @click="addTrimSection">+ Add Section</button>
-        <p class="text-xs text-gray-500 mb-3">Format: H:MM:SS, MM:SS, seconds, or use "start" / "end". This is destructive and cannot be undone.</p>
+        <p class="text-xs text-gray-500 mb-3">Format: H:MM:SS, MM:SS, seconds, or "start" / "end" / "now" / "now + 30" / "now - 10". This is destructive and cannot be undone.</p>
         <div class="flex items-center justify-between">
           <p v-if="trimError" class="text-xs text-error flex-1 mr-2">{{ trimError }}</p>
           <div class="flex items-center gap-2 ml-auto">
@@ -244,7 +244,7 @@
           <label class="text-sm text-gray-300">Title:</label>
           <input v-model="highlightTitle" type="text" placeholder="Highlight title" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm flex-1 text-white" :disabled="isExtracting" />
         </div>
-        <p class="text-xs text-gray-500 mb-3">Format: H:MM:SS, MM:SS, seconds, or use "start" / "end". The original audio is not modified.</p>
+        <p class="text-xs text-gray-500 mb-3">Format: H:MM:SS, MM:SS, seconds, or "start" / "end" / "now" / "now + 30" / "now - 10". The original audio is not modified.</p>
         <div class="flex items-center justify-between">
           <p v-if="highlightError" class="text-xs text-error flex-1 mr-2">{{ highlightError }}</p>
           <div class="flex items-center gap-2 ml-auto">
@@ -983,15 +983,10 @@ export default {
       this.trimSections.splice(index, 1)
     },
     parseTrimTimestamp(str) {
-      str = str.trim().toLowerCase()
-      if (str === 'start') return 0
-      if (str === 'end') return this.duration
-      const parts = str.split(':').map(Number)
-      if (parts.some(isNaN)) return NaN
-      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-      if (parts.length === 2) return parts[0] * 60 + parts[1]
-      if (parts.length === 1) return parts[0]
-      return NaN
+      return this.$parseTimestampWithKeywords(str, {
+        totalDuration: this.duration,
+        currentTime: this.$store.state.playerQueueCurrentTime || 0
+      })
     },
     submitTrim() {
       this.trimError = ''
@@ -1003,7 +998,7 @@ export default {
       for (let i = 0; i < sections.length; i++) {
         const s = sections[i]
         if (isNaN(s.start) || isNaN(s.end)) {
-          this.trimError = `Section ${i + 1}: Invalid time format. Use H:MM:SS, MM:SS, seconds, "start", or "end".`
+          this.trimError = `Section ${i + 1}: Invalid time format. Use H:MM:SS, MM:SS, seconds, or keywords (start/end/now +/- offset).`
           return
         }
         if (s.start < 0) {
@@ -1065,7 +1060,7 @@ export default {
       const endTime = this.parseTrimTimestamp(this.highlightEndText)
 
       if (isNaN(startTime) || isNaN(endTime)) {
-        this.highlightError = 'Invalid time format. Use H:MM:SS, MM:SS, seconds, "start", or "end".'
+        this.highlightError = 'Invalid time format. Use H:MM:SS, MM:SS, seconds, or keywords (start/end/now +/- offset).'
         return
       }
       if (startTime < 0) {

@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import cronParser from 'cron-parser'
 import { nanoid } from 'nanoid'
+import { parseTimestampWithKeywords } from '../utils/timestampParser'
 
 Vue.prototype.$randomId = (len = null) => {
   if (len && !isNaN(len)) return nanoid(len)
@@ -225,6 +226,8 @@ Vue.prototype.$downloadFile = (url, filename = null, openInNewTab = false) => {
     a.remove()
   })
 }
+
+Vue.prototype.$parseTimestampWithKeywords = parseTimestampWithKeywords
 
 export function supplant(str, subs) {
   // source: http://crockford.com/javascript/remedial.html
