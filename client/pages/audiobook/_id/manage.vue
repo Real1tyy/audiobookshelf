@@ -90,11 +90,11 @@
           <div v-for="(section, index) in trimSections" :key="index" class="flex items-center gap-2 mb-2">
             <div class="flex items-center gap-2">
               <label class="text-sm text-gray-300">Start:</label>
-              <input v-model="section.startText" type="text" placeholder="0:00:00" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="processing" />
+              <input v-model="section.startText" type="text" placeholder="start" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="processing" />
             </div>
             <div class="flex items-center gap-2">
               <label class="text-sm text-gray-300">End:</label>
-              <input v-model="section.endText" type="text" placeholder="0:00:00" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="processing" />
+              <input v-model="section.endText" type="text" placeholder="end" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="processing" />
             </div>
             <button v-if="trimSections.length > 1" class="text-error hover:text-red-400 ml-1" :disabled="processing" @click="removeTrimSection(index)">
               <span class="material-symbols text-lg">delete</span>
@@ -445,7 +445,10 @@ export default {
       this.trimSections.splice(index, 1)
     },
     parseTimestamp(str) {
-      // Parses H:MM:SS or MM:SS or SS to seconds
+      // Parses H:MM:SS or MM:SS or SS to seconds, or "start"/"end" keywords
+      str = str.trim().toLowerCase()
+      if (str === 'start') return 0
+      if (str === 'end') return this.totalDuration
       const parts = str.split(':').map(Number)
       if (parts.some(isNaN)) return NaN
       if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
@@ -463,7 +466,7 @@ export default {
       for (let i = 0; i < sections.length; i++) {
         const s = sections[i]
         if (isNaN(s.start) || isNaN(s.end)) {
-          this.$toast.error(`Section ${i + 1}: Invalid time format. Use H:MM:SS, MM:SS, or seconds.`)
+          this.$toast.error(`Section ${i + 1}: Invalid time format. Use H:MM:SS, MM:SS, seconds, "start", or "end".`)
           return
         }
         if (s.start < 0) {

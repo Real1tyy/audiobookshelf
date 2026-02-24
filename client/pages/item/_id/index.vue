@@ -185,20 +185,28 @@
             <span class="material-symbols text-xl">close</span>
           </button>
         </div>
-        <p class="text-sm text-gray-400 mb-3">Sections to <strong>remove</strong> from the audio. One per line.</p>
-        <textarea
-          v-model="trimInput"
-          rows="4"
-          class="w-full bg-primary text-gray-100 text-sm rounded px-3 py-2 border border-gray-600 focus:border-yellow-500 focus:outline-none font-mono"
-          placeholder="0:15-0:36&#10;1:25:00-1:30:00"
-          :disabled="isTrimming"
-        />
-        <p class="text-xs text-gray-500 mt-1 mb-3">Format: start-end (e.g. 0:15-0:36 or 1:25:00-1:30:00). This is destructive and cannot be undone.</p>
+        <p class="text-sm text-gray-400 mb-2">Sections to <strong>remove</strong> from the audio.</p>
+        <p class="text-xs text-gray-500 mb-3">Total duration: {{ $secondsToTimestamp(duration) }}</p>
+        <div v-for="(section, index) in trimSections" :key="index" class="flex items-center gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-300">Start:</label>
+            <input v-model="section.startText" type="text" placeholder="start" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="isTrimming" />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-300">End:</label>
+            <input v-model="section.endText" type="text" placeholder="end" class="bg-primary/50 border border-white/10 rounded px-2 py-1 text-sm w-28 text-white" :disabled="isTrimming" />
+          </div>
+          <button v-if="trimSections.length > 1" class="text-error hover:text-red-400 ml-1" :disabled="isTrimming" @click="removeTrimSection(index)">
+            <span class="material-symbols text-lg">delete</span>
+          </button>
+        </div>
+        <button class="text-sm text-gray-200 hover:text-white mt-1 mb-3" :disabled="isTrimming" @click="addTrimSection">+ Add Section</button>
+        <p class="text-xs text-gray-500 mb-3">Format: H:MM:SS, MM:SS, seconds, or use "start" / "end". This is destructive and cannot be undone.</p>
         <div class="flex items-center justify-between">
           <p v-if="trimError" class="text-xs text-error flex-1 mr-2">{{ trimError }}</p>
           <div class="flex items-center gap-2 ml-auto">
             <ui-btn small class="text-gray-300" @click="showTrimPopover = false">Cancel</ui-btn>
-            <ui-btn :disabled="isTrimming || !trimInput.trim()" color="bg-warning" small @click="submitTrim">
+            <ui-btn :disabled="isTrimming" color="bg-warning" small @click="submitTrim">
               {{ isTrimming ? 'Trimming...' : 'Trim' }}
             </ui-btn>
           </div>
@@ -246,7 +254,7 @@ export default {
       isDescriptionClamped: false,
       showFullDescription: false,
       showTrimPopover: false,
-      trimInput: '',
+      trimSections: [{ startText: 'start', endText: 'end' }],
       trimError: '',
       isTrimming: false,
       showTranscript: false,
@@ -919,46 +927,61 @@ export default {
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
     },
+    addTrimSection() {
+      this.trimSections.push({ startText: '0:00:00', endText: '0:00:00' })
+    },
+    removeTrimSection(index) {
+      this.trimSections.splice(index, 1)
+    },
     parseTrimTimestamp(str) {
-      str = str.trim()
+      str = str.trim().toLowerCase()
+      if (str === 'start') return 0
+      if (str === 'end') return this.duration
       const parts = str.split(':').map(Number)
-      if (parts.some(isNaN)) return null
-      if (parts.length === 1) return parts[0]
-      if (parts.length === 2) return parts[0] * 60 + parts[1]
+      if (parts.some(isNaN)) return NaN
       if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-      return null
+      if (parts.length === 2) return parts[0] * 60 + parts[1]
+      if (parts.length === 1) return parts[0]
+      return NaN
     },
     submitTrim() {
       this.trimError = ''
-      const lines = this.trimInput.trim().split('\n').filter((l) => l.trim())
-      const sections = []
+      const sections = this.trimSections.map((s) => ({
+        start: this.parseTrimTimestamp(s.startText),
+        end: this.parseTrimTimestamp(s.endText)
+      }))
 
-      for (const line of lines) {
-        const match = line.trim().match(/^(.+?)\s*[-–]\s*(.+)$/)
-        if (!match) {
-          this.trimError = `Invalid format: "${line.trim()}". Use start-end (e.g. 0:15-0:36)`
+      for (let i = 0; i < sections.length; i++) {
+        const s = sections[i]
+        if (isNaN(s.start) || isNaN(s.end)) {
+          this.trimError = `Section ${i + 1}: Invalid time format. Use H:MM:SS, MM:SS, seconds, "start", or "end".`
           return
         }
-        const start = this.parseTrimTimestamp(match[1])
-        const end = this.parseTrimTimestamp(match[2])
-        if (start === null || end === null) {
-          this.trimError = `Invalid time in: "${line.trim()}"`
+        if (s.start < 0) {
+          this.trimError = `Section ${i + 1}: Start time must be >= 0`
           return
         }
-        if (start >= end) {
-          this.trimError = `Start must be before end: "${line.trim()}"`
+        if (s.start >= s.end) {
+          this.trimError = `Section ${i + 1}: Start must be less than end`
           return
         }
-        sections.push({ start, end })
+        if (s.end > this.duration) {
+          this.trimError = `Section ${i + 1}: End time exceeds total duration`
+          return
+        }
       }
 
-      if (!sections.length) {
-        this.trimError = 'Enter at least one section'
-        return
+      // Check for overlaps
+      const sorted = [...sections].sort((a, b) => a.start - b.start)
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].start < sorted[i - 1].end) {
+          this.trimError = 'Sections must not overlap'
+          return
+        }
       }
 
       const payload = {
-        message: `Remove ${sections.length} section(s) from this audio? This is destructive and cannot be undone.`,
+        message: `Are you sure you want to remove ${sections.length} section(s) from the audio? This will re-encode the affected files. This cannot be undone.`,
         callback: (confirmed) => {
           if (confirmed) {
             this.executeTrim(sections)
@@ -968,18 +991,24 @@ export default {
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
     },
-    async executeTrim(sections) {
+    executeTrim(sections) {
       this.isTrimming = true
-      try {
-        await this.$axios.$post(`/api/tools/item/${this.libraryItemId}/trim-audio`, { sections })
-        this.$toast.success('Audio trim started')
-        this.showTrimPopover = false
-        this.trimInput = ''
-      } catch (err) {
-        console.error('Trim failed', err)
-        this.trimError = err.response?.data || 'Trim failed'
-      }
-      this.isTrimming = false
+      this.$axios
+        .$post(`/api/tools/item/${this.libraryItemId}/trim-audio`, { sections })
+        .then(() => {
+          console.log('Audio trim started')
+          this.$toast.success('Audio trim started')
+          this.showTrimPopover = false
+          this.trimSections = [{ startText: 'start', endText: 'end' }]
+        })
+        .catch((error) => {
+          const errorMsg = error.response ? error.response.data || 'Trim failed' : 'Trim failed'
+          console.error('Trim failed', errorMsg)
+          this.trimError = errorMsg
+        })
+        .finally(() => {
+          this.isTrimming = false
+        })
     },
     contextMenuAction({ action, data }) {
       if (action === 'bookmarks') {
