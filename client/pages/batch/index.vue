@@ -85,6 +85,34 @@
                 />
               </div>
             </div>
+            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+              <ui-checkbox v-model="selectedBatchUsage.rating" />
+              <ui-text-input-with-label ref="ratingInput" v-model="batchDetails.rating" :disabled="!selectedBatchUsage.rating" label="Rating" type="number" :step="0.1" :min="0" :max="10" trim-whitespace class="mb-5 ml-4" />
+            </div>
+            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+              <ui-checkbox v-model="selectedBatchUsage.isbn" />
+              <ui-text-input-with-label ref="isbnInput" v-model="batchDetails.isbn" :disabled="!selectedBatchUsage.isbn" label="ISBN" trim-whitespace class="mb-5 ml-4" />
+            </div>
+            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+              <ui-checkbox v-model="selectedBatchUsage.asin" />
+              <ui-text-input-with-label ref="asinInput" v-model="batchDetails.asin" :disabled="!selectedBatchUsage.asin" label="ASIN" trim-whitespace class="mb-5 ml-4" />
+            </div>
+            <div v-if="!isPodcastLibrary" class="flex items-center px-4 h-18 w-1/2">
+              <ui-checkbox v-model="selectedBatchUsage.url" />
+              <ui-multi-select ref="urlSelect" v-model="batchDetails.url" :disabled="!selectedBatchUsage.url" label="URLs" :items="[]" class="mb-5 ml-4" />
+            </div>
+            <div v-if="!isPodcastLibrary" class="flex items-center px-4 min-h-18 w-1/2">
+              <ui-checkbox v-model="selectedBatchUsage.relatedBooks" />
+              <div class="mb-5 ml-4 grow">
+                <widgets-related-books-widget ref="relatedBooksWidget" v-model="batchDetails.relatedBooks" :disabled="!selectedBatchUsage.relatedBooks" :library-id="currentLibraryId" />
+              </div>
+            </div>
+            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-start px-4 py-2 w-full">
+              <ui-checkbox v-model="selectedBatchUsage.description" class="mt-1" />
+              <div class="mb-5 ml-4 grow">
+                <ui-rich-text-editor ref="descriptionInput" v-model="batchDetails.description" :disabled="!selectedBatchUsage.description" :label="$strings.LabelDescription" />
+              </div>
+            </div>
 
             <div class="w-full flex items-center p-4 space-x-2">
               <ui-btn small @click.stop="resetMapDetails">{{ $strings.ButtonReset }}</ui-btn>
@@ -164,7 +192,13 @@ export default {
         publisher: null,
         language: null,
         explicit: false,
-        abridged: false
+        abridged: false,
+        rating: null,
+        url: [],
+        relatedBooks: [],
+        isbn: null,
+        asin: null,
+        description: null
       },
       selectedBatchUsage: {
         subtitle: false,
@@ -177,9 +211,15 @@ export default {
         publisher: false,
         language: false,
         explicit: false,
-        abridged: false
+        abridged: false,
+        rating: false,
+        url: false,
+        relatedBooks: false,
+        isbn: false,
+        asin: false,
+        description: false
       },
-      appendableKeys: ['authors', 'genres', 'tags', 'narrators', 'series'],
+      appendableKeys: ['authors', 'genres', 'tags', 'narrators', 'series', 'url', 'relatedBooks'],
       openMapOptions: false,
       itemsWithChanges: []
     }
@@ -251,7 +291,13 @@ export default {
         publisher: null,
         language: null,
         explicit: false,
-        abridged: false
+        abridged: false,
+        rating: null,
+        url: [],
+        relatedBooks: [],
+        isbn: null,
+        asin: null,
+        description: null
       }
       this.selectedBatchUsage = {
         subtitle: false,
@@ -264,7 +310,13 @@ export default {
         publisher: false,
         language: false,
         explicit: false,
-        abridged: false
+        abridged: false,
+        rating: false,
+        url: false,
+        relatedBooks: false,
+        isbn: false,
+        asin: false,
+        description: false
       }
     },
     populateFromExisting(libraryItemId) {
@@ -305,9 +357,17 @@ export default {
                 existingValues.push(entity.name)
               }
             })
-          } else if (key === 'genres' || key === 'narrators') {
+          } else if (key === 'genres' || key === 'narrators' || key === 'relatedBooks') {
             if (!existingValues) existingValues = []
-            li.media.metadata[key].forEach((item) => {
+            ;(li.media.metadata[key] || []).forEach((item) => {
+              if (!existingValues.includes(item)) {
+                existingValues.push(item)
+              }
+            })
+          } else if (key === 'url') {
+            if (!existingValues) existingValues = []
+            const urls = Array.isArray(li.media.metadata.url) ? li.media.metadata.url : li.media.metadata.url ? [li.media.metadata.url] : []
+            urls.forEach((item) => {
               if (!existingValues.includes(item)) {
                 existingValues.push(item)
               }
@@ -342,6 +402,12 @@ export default {
       }
       if (this.$refs.tagsSelect && this.$refs.tagsSelect.isFocused) {
         this.$refs.tagsSelect.forceBlur()
+      }
+      if (this.$refs.urlSelect && this.$refs.urlSelect.isFocused) {
+        this.$refs.urlSelect.forceBlur()
+      }
+      if (this.$refs.relatedBooksWidget && this.$refs.relatedBooksWidget.forceBlur) {
+        this.$refs.relatedBooksWidget.forceBlur()
       }
 
       for (const key in this.batchDetails) {
@@ -410,6 +476,12 @@ export default {
         }
         if (copy.media.metadata.genres) {
           copy.media.metadata.genres = [...copy.media.metadata.genres]
+        }
+        if (copy.media.metadata.url) {
+          copy.media.metadata.url = Array.isArray(copy.media.metadata.url) ? [...copy.media.metadata.url] : copy.media.metadata.url ? [copy.media.metadata.url] : []
+        }
+        if (copy.media.metadata.relatedBooks) {
+          copy.media.metadata.relatedBooks = [...copy.media.metadata.relatedBooks]
         }
         copy.originalLibraryItem = li
         return copy

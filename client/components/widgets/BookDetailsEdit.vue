@@ -185,7 +185,7 @@ export default {
           if (key === 'tags') {
             // Concat and remove dupes
             this.newTags = [...new Set(this.newTags.concat(batchDetails.tags))]
-          } else if (key === 'genres' || key === 'narrators' || key === 'url') {
+          } else if (key === 'genres' || key === 'narrators' || key === 'url' || key === 'relatedBooks') {
             // Concat and remove dupes
             this.details[key] = [...new Set(this.details[key].concat(batchDetails[key]))]
           } else if (key === 'authors' || key === 'series') {
@@ -199,7 +199,7 @@ export default {
         } else {
           if (key === 'tags') {
             this.newTags = [...batchDetails.tags]
-          } else if (key === 'genres' || key === 'narrators' || key === 'url') {
+          } else if (key === 'genres' || key === 'narrators' || key === 'url' || key === 'relatedBooks') {
             this.details[key] = [...batchDetails[key]]
           } else if (key === 'authors' || key === 'series') {
             this.details[key] = batchDetails[key].map((i) => ({ ...i }))
