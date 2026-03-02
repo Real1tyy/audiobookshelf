@@ -28,6 +28,9 @@
           <span class="material-symbols fill text-blue-400" :style="{ fontSize: 0.7 + 'em' }">schedule</span>
           <span class="text-blue-400 font-bold" :style="{ fontSize: 0.65 + 'em' }">{{ formattedListeningTime }}</span>
         </div>
+        <div v-if="isDownloadedOffline" class="flex items-center">
+          <span class="material-symbols fill text-success" :style="{ fontSize: 0.7 + 'em' }">cloud_done</span>
+        </div>
       </div>
 
       <div class="w-full h-full absolute top-0 left-0 rounded-sm overflow-hidden z-10">
@@ -113,10 +116,6 @@
         <!-- media item shared icon -->
         <div cy-id="mediaItemShare" v-if="mediaItemShare && !isSelectionMode && !isHovering" class="absolute text-success left-0 z-10" :style="{ padding: 0.375 + 'em', top: rssFeed ? '2em' : '0px' }">
           <span class="material-symbols" aria-hidden="true" :style="{ fontSize: 1.5 + 'em' }">public</span>
-        </div>
-        <!-- Offline downloaded badge -->
-        <div v-if="isDownloadedOffline && !isSelectionMode && !isHovering" class="absolute text-success z-10" :style="{ bottom: '0.375em', left: '0.375em' }">
-          <span class="material-symbols" :style="{ fontSize: '1.2em' }">cloud_done</span>
         </div>
 
         <!-- Series sequence -->
@@ -742,7 +741,7 @@ export default {
       return Math.round(this.mediaMetadata.totalListeningTime || 0)
     },
     hasListeningStats() {
-      return this.viewedCount > 0 || this.totalListeningMinutes > 0
+      return this.viewedCount > 0 || this.totalListeningMinutes > 0 || this.isDownloadedOffline
     },
     formattedListeningTime() {
       const minutes = this.totalListeningMinutes
