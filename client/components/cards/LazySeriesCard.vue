@@ -211,13 +211,8 @@ export default {
     mouseleave() {
       this.isHovering = false
     },
-    playSeries() {
-      if (!this.playableBooks.length) return
-
-      const eventBus = this.$eventBus || this.$nuxt.$eventBus
-
-      // Build queue items from all playable books in sequence order
-      const queueItems = this.playableBooks.map((book) => {
+    buildSeriesQueueItems(fromIndex = 0) {
+      return this.playableBooks.slice(fromIndex).map((book) => {
         const authorName = book.media?.metadata?.authorName || book.authorName || ''
         return {
           libraryItemId: book.id,
@@ -230,13 +225,40 @@ export default {
           coverPath: book.media?.coverPath || book.coverPath || null
         }
       })
+    },
+    async playSeries() {
+      if (!this.playableBooks.length) return
 
-      // Play the first item and set the queue
-      eventBus.$emit('play-item', {
-        libraryItemId: queueItems[0].libraryItemId,
-        episodeId: null,
-        queueItems
-      })
+      const eventBus = this.$eventBus || this.$nuxt.$eventBus
+      const axios = this.$axios || this.$nuxt.$axios
+
+      // Check for existing series progress
+      const progress = await axios.$get(`/api/me/series-progress/${this.seriesId}`).catch(() => null)
+
+      if (progress && !progress.isFinished) {
+        // Resume from saved position
+        const queueItems = this.buildSeriesQueueItems(progress.currentBookIndex || 0)
+        if (!queueItems.length) return
+
+        eventBus.$emit('play-item', {
+          libraryItemId: queueItems[0].libraryItemId,
+          episodeId: null,
+          queueItems,
+          startTime: progress.currentTime || 0,
+          seriesId: this.seriesId
+        })
+      } else {
+        // Start from beginning
+        const queueItems = this.buildSeriesQueueItems(0)
+        if (!queueItems.length) return
+
+        eventBus.$emit('play-item', {
+          libraryItemId: queueItems[0].libraryItemId,
+          episodeId: null,
+          queueItems,
+          seriesId: this.seriesId
+        })
+      }
     },
     imageLoaded() {
       this.imageReady = true

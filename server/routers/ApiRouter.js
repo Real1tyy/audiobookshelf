@@ -206,6 +206,9 @@ class ApiRouter {
     this.router.get('/me/queue', MeController.getPlayerQueue.bind(this))
     this.router.post('/me/queue', MeController.savePlayerQueue.bind(this))
     this.router.delete('/me/queue', MeController.clearPlayerQueue.bind(this))
+    this.router.get('/me/series-progress/:seriesId', MeController.getSeriesProgress.bind(this))
+    this.router.patch('/me/series-progress/:seriesId', MeController.updateSeriesProgress.bind(this))
+    this.router.delete('/me/series-progress/:seriesId', MeController.deleteSeriesProgress.bind(this))
 
     //
     // Backup Routes

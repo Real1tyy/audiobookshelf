@@ -539,5 +539,86 @@ class MeController {
 
     res.json({ success: true })
   }
+
+  /**
+   * GET: /api/me/series-progress/:seriesId
+   * Get user's series playback progress
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async getSeriesProgress(req, res) {
+    const progress = await Database.seriesProgressModel.findOne({
+      where: {
+        userId: req.user.id,
+        seriesId: req.params.seriesId
+      }
+    })
+    res.json(progress ? progress.toJSON() : null)
+  }
+
+  /**
+   * PATCH: /api/me/series-progress/:seriesId
+   * Create or update user's series playback progress
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async updateSeriesProgress(req, res) {
+    const { currentBookId, currentTime, currentBookIndex, isFinished } = req.body
+    const seriesId = req.params.seriesId
+
+    // Verify series exists
+    const series = await Database.seriesModel.findByPk(seriesId)
+    if (!series) {
+      return res.status(404).send('Series not found')
+    }
+
+    const updateData = {
+      lastPlayedAt: new Date()
+    }
+    if (currentBookId !== undefined) updateData.currentBookId = currentBookId
+    if (currentTime !== undefined) updateData.currentTime = currentTime
+    if (currentBookIndex !== undefined) updateData.currentBookIndex = currentBookIndex
+    if (isFinished !== undefined) updateData.isFinished = isFinished
+
+    let progress = await Database.seriesProgressModel.findOne({
+      where: {
+        userId: req.user.id,
+        seriesId
+      }
+    })
+
+    if (progress) {
+      await progress.update(updateData)
+    } else {
+      progress = await Database.seriesProgressModel.create({
+        userId: req.user.id,
+        seriesId,
+        ...updateData
+      })
+    }
+
+    SocketAuthority.clientEmitter(req.user.id, 'user_series_progress_updated', progress.toJSON())
+
+    res.json(progress.toJSON())
+  }
+
+  /**
+   * DELETE: /api/me/series-progress/:seriesId
+   * Delete user's series playback progress (reset)
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async deleteSeriesProgress(req, res) {
+    await Database.seriesProgressModel.destroy({
+      where: {
+        userId: req.user.id,
+        seriesId: req.params.seriesId
+      }
+    })
+    res.sendStatus(200)
+  }
 }
 module.exports = new MeController()

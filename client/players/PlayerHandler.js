@@ -18,6 +18,8 @@ export default class PlayerHandler {
     this.startTimeOverride = undefined // Used for starting playback at a specific time (i.e. clicking bookmark from library item page)
     this.startTime = 0
 
+    this.seriesId = null
+
     this.failedProgressSyncs = 0
     this.lastSyncTime = 0
     this.listeningTimeSinceSync = 0
@@ -63,6 +65,7 @@ export default class PlayerHandler {
     this.episodeId = episodeId
     this.playWhenReady = playWhenReady
     this.initialPlaybackRate = playbackRate
+    // seriesId is set externally before load() if playing as part of a series
 
     this.startTimeOverride = startTimeOverride == null || isNaN(startTimeOverride) ? undefined : Number(startTimeOverride)
 
@@ -224,7 +227,8 @@ export default class PlayerHandler {
       supportedMimeTypes: this.player.playableMimeTypes,
       mediaPlayer: this.isCasting ? 'chromecast' : 'html5',
       forceTranscode,
-      forceDirectPlay: this.isCasting // TODO: add transcode support for chromecast
+      forceDirectPlay: this.isCasting, // TODO: add transcode support for chromecast
+      seriesId: this.seriesId || undefined
     }
 
     const path = this.episodeId ? `/api/items/${this.libraryItem.id}/play/${this.episodeId}` : `/api/items/${this.libraryItem.id}/play`

@@ -246,6 +246,13 @@ export default {
           nextItemInQueue = this.playerQueueItems[0]
         } else {
           console.log('Finished last item in queue')
+          // Mark series as finished if this was a series playback
+          const seriesId = this.playerHandler.seriesId
+          if (seriesId) {
+            this.$axios.$patch(`/api/me/series-progress/${seriesId}`, { isFinished: true }).catch((err) => {
+              console.error('Failed to mark series as finished', err)
+            })
+          }
           return
         }
       } else {
@@ -256,7 +263,8 @@ export default {
         this.playLibraryItem({
           libraryItemId: nextItemInQueue.libraryItemId,
           episodeId: nextItemInQueue.episodeId || null,
-          queueItems: this.playerQueueItems
+          queueItems: this.playerQueueItems,
+          seriesId: this.playerHandler.seriesId || undefined
         })
       }
     },
@@ -734,6 +742,9 @@ export default {
       this.$nextTick(() => {
         if (this.$refs.audioPlayer) this.$refs.audioPlayer.checkUpdateChapterTrack()
       })
+
+      // Pass seriesId through to player handler for series progress tracking
+      this.playerHandler.seriesId = payload.seriesId || null
 
       // Use payload.play to control auto-play (defaults to true for backwards compatibility)
       const shouldPlay = payload.play !== false

@@ -335,6 +335,10 @@ class PlaybackSessionManager {
     const newPlaybackSession = new PlaybackSession()
     newPlaybackSession.setData(libraryItem, user.id, mediaPlayer, deviceInfo, userStartTime, episodeId)
 
+    if (options.seriesId) {
+      newPlaybackSession.seriesId = options.seriesId
+    }
+
     let audioTracks = []
     if (shouldDirectPlay) {
       Logger.debug(`[PlaybackSessionManager] "${user.username}" starting direct play session for item "${libraryItem.id}" with id ${newPlaybackSession.id} (Device: ${newPlaybackSession.deviceDescription})`)
@@ -408,7 +412,75 @@ class PlaybackSessionManager {
     }
     await this.saveSession(session)
 
+    // Update series progress if this is a series playback
+    await this.updateSeriesProgressFromSession(user, session, updateResponse)
+
     return true
+  }
+
+  /**
+   * Update SeriesProgress when syncing a session that is part of a series playback
+   *
+   * @param {import('../models/User')} user
+   * @param {*} session
+   * @param {{mediaProgress: import('../models/MediaProgress')|null}} updateResponse
+   */
+  async updateSeriesProgressFromSession(user, session, updateResponse) {
+    const seriesId = session.seriesId
+    if (!seriesId) return
+
+    const bookId = session.bookId
+    if (!bookId) return
+
+    try {
+      // Get all books in this series ordered by sequence
+      const bookSeriesEntries = await Database.bookSeriesModel.findAll({
+        where: { seriesId },
+        order: [['sequence', 'ASC']]
+      })
+
+      if (!bookSeriesEntries.length) return
+
+      // Find the current book's index in the series
+      const currentBookIndex = bookSeriesEntries.findIndex((bs) => bs.bookId === bookId)
+      if (currentBookIndex < 0) return
+
+      const isLastBook = currentBookIndex === bookSeriesEntries.length - 1
+      const bookIsFinished = updateResponse?.mediaProgress?.isFinished
+
+      const updateData = {
+        currentBookId: bookId,
+        currentTime: session.currentTime,
+        currentBookIndex,
+        lastPlayedAt: new Date()
+      }
+
+      // Mark series finished if the last book is finished
+      if (isLastBook && bookIsFinished) {
+        updateData.isFinished = true
+      }
+
+      let progress = await Database.seriesProgressModel.findOne({
+        where: {
+          userId: user.id,
+          seriesId
+        }
+      })
+
+      if (progress) {
+        await progress.update(updateData)
+      } else {
+        progress = await Database.seriesProgressModel.create({
+          userId: user.id,
+          seriesId,
+          ...updateData
+        })
+      }
+
+      SocketAuthority.clientEmitter(user.id, 'user_series_progress_updated', progress.toJSON())
+    } catch (error) {
+      Logger.error(`[PlaybackSessionManager] Failed to update series progress for series ${seriesId}:`, error)
+    }
   }
 
   /**

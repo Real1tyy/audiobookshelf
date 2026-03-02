@@ -163,6 +163,11 @@ class Database {
     return this.models.device
   }
 
+  /** @type {typeof import('./models/SeriesProgress')} */
+  get seriesProgressModel() {
+    return this.models.seriesProgress
+  }
+
   /**
    * Check if db file exists
    * @returns {boolean}
@@ -336,6 +341,7 @@ class Database {
     require('./models/MediaProgress').init(this.sequelize)
     require('./models/Series').init(this.sequelize)
     require('./models/BookSeries').init(this.sequelize)
+    require('./models/SeriesProgress').init(this.sequelize)
     require('./models/Author').init(this.sequelize)
     require('./models/BookAuthor').init(this.sequelize)
     require('./models/Collection').init(this.sequelize)

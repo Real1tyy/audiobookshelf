@@ -8,7 +8,7 @@
             <covers-preview-cover :src="seriesCoverUrl" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
           </div>
           <!-- Play button overlay -->
-          <div v-if="hasPlayableBooks" class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer rounded" @click="playSeries">
+          <div v-if="hasPlayableBooks" class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer rounded" @click="hasResumeableProgress ? resumeSeries() : playSeriesFromStart()">
             <span class="material-symbols fill text-white text-5xl">play_arrow</span>
           </div>
         </div>
@@ -16,10 +16,17 @@
           <div class="flex items-center mb-4">
             <h1 class="text-2xl">{{ series.name }}</h1>
 
-            <!-- Play button -->
-            <ui-btn v-if="hasPlayableBooks" color="bg-success" :padding-x="4" small class="flex items-center h-9 mx-4" @click="playSeries">
+            <!-- Resume button (shown when resumable progress exists) -->
+            <ui-btn v-if="hasPlayableBooks && hasResumeableProgress" color="bg-success" :padding-x="4" small class="flex items-center h-9 mx-4" @click="resumeSeries">
               <span class="material-symbols fill text-xl -ml-1 pr-1 text-white">play_arrow</span>
-              {{ $strings.ButtonPlay }}
+              Resume
+            </ui-btn>
+            <span v-if="hasPlayableBooks && hasResumeableProgress" class="text-white/60 text-xs mr-2">{{ resumeSubtitle }}</span>
+
+            <!-- Start Over button (secondary when Resume exists, primary otherwise) -->
+            <ui-btn v-if="hasPlayableBooks" :color="hasResumeableProgress ? 'primary' : 'bg-success'" :padding-x="4" small class="flex items-center h-9 mx-4" @click="playSeriesFromStart">
+              <span class="material-symbols fill text-xl -ml-1 pr-1 text-white">{{ hasResumeableProgress ? 'replay' : 'play_arrow' }}</span>
+              {{ hasResumeableProgress ? 'Start Over' : $strings.ButtonPlay }}
             </ui-btn>
 
             <!-- Download All button -->
@@ -74,6 +81,9 @@
       <div class="py-4">
         <div class="flex flex-wrap">
           <div v-for="item in filteredLibraryItems" :key="item.id" class="p-2 relative" :style="{ width: cardWidth + 'px', height: cardHeight + 'px' }">
+            <div v-if="isCurrentSeriesBook(item)" class="absolute top-0 right-0 z-50 bg-success text-white text-xs px-2 py-0.5 rounded-full m-1">
+              Current
+            </div>
             <cards-lazy-book-card :ref="`book-card-${item.id}`" :book-mount="item" :bookshelf-view="$constants.BookshelfView.AUTHOR" :height="bookCoverHeight" @edit="editItem" @select="selectItem" />
           </div>
         </div>
@@ -137,7 +147,8 @@ export default {
       filterBy: 'all',
       sortBy: 'sequence',
       sortDesc: false,
-      isLoadingSearch: false
+      isLoadingSearch: false,
+      seriesProgressData: null
     }
   },
   watch: {
@@ -235,6 +246,19 @@ export default {
           return String(seqA).localeCompare(String(seqB), undefined, { numeric: true })
         })
     },
+    hasResumeableProgress() {
+      return this.seriesProgressData && !this.seriesProgressData.isFinished
+    },
+    resumeSubtitle() {
+      if (!this.seriesProgressData) return ''
+      const book = this.playableBooks[this.seriesProgressData.currentBookIndex]
+      const title = book?.media?.metadata?.title || book?.title || `Book ${this.seriesProgressData.currentBookIndex + 1}`
+      const totalSeconds = Math.floor(this.seriesProgressData.currentTime || 0)
+      const hours = Math.floor(totalSeconds / 3600)
+      const minutes = Math.floor((totalSeconds % 3600) / 60)
+      const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+      return `${title} · ${timeStr}`
+    },
     isSeriesRemovedFromContinueListening() {
       return this.$store.getters['user/getIsSeriesRemovedFromContinueListening'](this.seriesId)
     },
@@ -325,11 +349,9 @@ export default {
     editSeries() {
       this.$store.commit('globals/showEditSeriesModal', this.series)
     },
-    playSeries() {
-      if (!this.playableBooks.length) return
-
-      // Build queue items from all playable books in sequence order
-      const queueItems = this.playableBooks.map((item) => {
+    buildQueueItems(fromIndex = 0) {
+      const books = this.playableBooks.slice(fromIndex)
+      return books.map((item) => {
         const authors = item.media?.metadata?.authors || []
         return {
           libraryItemId: item.id,
@@ -342,13 +364,59 @@ export default {
           coverPath: item.media?.coverPath || null
         }
       })
+    },
+    playSeries() {
+      if (this.hasResumeableProgress) {
+        this.resumeSeries()
+      } else {
+        this.playSeriesFromStart()
+      }
+    },
+    resumeSeries() {
+      if (!this.playableBooks.length || !this.seriesProgressData) return
 
-      // Play the first item and set the queue
+      const startIndex = this.seriesProgressData.currentBookIndex || 0
+      const queueItems = this.buildQueueItems(startIndex)
+      if (!queueItems.length) return
+
       this.$eventBus.$emit('play-item', {
         libraryItemId: queueItems[0].libraryItemId,
         episodeId: null,
-        queueItems
+        queueItems,
+        startTime: this.seriesProgressData.currentTime || 0,
+        seriesId: this.seriesId
       })
+    },
+    async playSeriesFromStart() {
+      if (!this.playableBooks.length) return
+
+      // Delete existing series progress to start fresh
+      if (this.seriesProgressData) {
+        await this.$axios.$delete(`/api/me/series-progress/${this.seriesId}`).catch(() => {})
+        this.seriesProgressData = null
+      }
+
+      const queueItems = this.buildQueueItems(0)
+
+      this.$eventBus.$emit('play-item', {
+        libraryItemId: queueItems[0].libraryItemId,
+        episodeId: null,
+        queueItems,
+        startTime: 0,
+        seriesId: this.seriesId
+      })
+    },
+    isCurrentSeriesBook(item) {
+      if (!this.seriesProgressData) return false
+      return item.id === this.seriesProgressData.currentBookId
+    },
+    async fetchSeriesProgress() {
+      this.seriesProgressData = await this.$axios.$get(`/api/me/series-progress/${this.seriesId}`).catch(() => null)
+    },
+    seriesProgressUpdated(data) {
+      if (data.seriesId === this.seriesId) {
+        this.seriesProgressData = data
+      }
     },
     editItem(libraryItem) {
       const itemIds = this.filteredLibraryItems.map((e) => e.id)
@@ -521,10 +589,13 @@ export default {
     this.sortBy = this.$route.query.sort || 'sequence'
     this.sortDesc = this.$route.query.desc === '1' ? true : false
 
+    this.fetchSeriesProgress()
+
     this.$root.socket.on('series_updated', this.seriesUpdated)
     this.$root.socket.on('series_removed', this.seriesRemoved)
     this.$root.socket.on('rss_feed_open', this.rssFeedOpen)
     this.$root.socket.on('rss_feed_closed', this.rssFeedClosed)
+    this.$root.socket.on('user_series_progress_updated', this.seriesProgressUpdated)
     this.$eventBus.$on('bookshelf_clear_selection', this.clearSelectedEntities)
     this.$eventBus.$on('bookshelf_select_all', this.selectAllEntities)
   },
@@ -533,6 +604,7 @@ export default {
     this.$root.socket.off('series_removed', this.seriesRemoved)
     this.$root.socket.off('rss_feed_open', this.rssFeedOpen)
     this.$root.socket.off('rss_feed_closed', this.rssFeedClosed)
+    this.$root.socket.off('user_series_progress_updated', this.seriesProgressUpdated)
     this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)
     this.$eventBus.$off('bookshelf_select_all', this.selectAllEntities)
   }
