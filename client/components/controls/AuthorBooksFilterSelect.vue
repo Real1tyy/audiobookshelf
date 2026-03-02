@@ -72,6 +72,14 @@ export default {
         {
           text: this.$strings.LabelNotFinished,
           value: 'not-finished'
+        },
+        {
+          text: this.$strings.LabelListened,
+          value: 'listened'
+        },
+        {
+          text: this.$strings.LabelNotListened,
+          value: 'not-listened'
         }
       ]
     },

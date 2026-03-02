@@ -94,6 +94,40 @@ module.exports = {
           '$books.mediaProgresses.isFinished$': false
         }
       ]
+    } else if (value === 'listened') {
+      mediaWhere[Sequelize.Op.or] = [
+        {
+          '$books.mediaProgresses.currentTime$': {
+            [Sequelize.Op.gt]: 0
+          }
+        },
+        {
+          '$books.mediaProgresses.ebookProgress$': {
+            [Sequelize.Op.gt]: 0
+          }
+        },
+        {
+          '$books.mediaProgresses.isFinished$': true
+        }
+      ]
+    } else if (value === 'not-listened') {
+      mediaWhere[Sequelize.Op.and] = [
+        {
+          '$books.mediaProgresses.currentTime$': {
+            [Sequelize.Op.or]: [null, 0]
+          }
+        },
+        {
+          '$books.mediaProgresses.ebookProgress$': {
+            [Sequelize.Op.or]: [null, 0]
+          }
+        },
+        {
+          '$books.mediaProgresses.isFinished$': {
+            [Sequelize.Op.or]: [null, false]
+          }
+        }
+      ]
     }
     return mediaWhere
   },
@@ -148,6 +182,40 @@ module.exports = {
           },
           {
             '$mediaProgresses.isFinished$': false
+          }
+        ]
+      } else if (value === 'listened') {
+        mediaWhere[Sequelize.Op.or] = [
+          {
+            '$mediaProgresses.currentTime$': {
+              [Sequelize.Op.gt]: 0
+            }
+          },
+          {
+            '$mediaProgresses.ebookProgress$': {
+              [Sequelize.Op.gt]: 0
+            }
+          },
+          {
+            '$mediaProgresses.isFinished$': true
+          }
+        ]
+      } else if (value === 'not-listened') {
+        mediaWhere[Sequelize.Op.and] = [
+          {
+            '$mediaProgresses.currentTime$': {
+              [Sequelize.Op.or]: [null, 0]
+            }
+          },
+          {
+            '$mediaProgresses.ebookProgress$': {
+              [Sequelize.Op.or]: [null, 0]
+            }
+          },
+          {
+            '$mediaProgresses.isFinished$': {
+              [Sequelize.Op.or]: [null, false]
+            }
           }
         ]
       } else if (value === 'audio-in-progress') {

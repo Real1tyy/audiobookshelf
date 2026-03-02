@@ -51,6 +51,10 @@ function applyProgressFilter(libraryItems, filterBy, user) {
         return !progress || progress.progress === 0
       case 'not-finished':
         return !progress || !progress.isFinished
+      case 'listened':
+        return progress && (progress.progress > 0 || progress.isFinished)
+      case 'not-listened':
+        return !progress || (progress.progress === 0 && !progress.isFinished)
       default:
         return true
     }

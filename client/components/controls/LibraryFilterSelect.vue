@@ -430,6 +430,14 @@ export default {
         {
           id: 'not-finished',
           name: this.$strings.LabelNotFinished
+        },
+        {
+          id: 'listened',
+          name: this.$strings.LabelListened
+        },
+        {
+          id: 'not-listened',
+          name: this.$strings.LabelNotListened
         }
       ]
     },

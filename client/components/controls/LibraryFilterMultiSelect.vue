@@ -155,7 +155,9 @@ export default {
           'not-finished': this.$strings.LabelNotFinished,
           'audio-in-progress': this.$strings.LabelInProgress,
           'ebook-in-progress': this.$strings.LabelInProgress,
-          'ebook-finished': this.$strings.LabelFinished
+          'ebook-finished': this.$strings.LabelFinished,
+          'listened': this.$strings.LabelListened,
+          'not-listened': this.$strings.LabelNotListened
         }
         valueLabel = progressLabels[decodedValue] || decodedValue
       }

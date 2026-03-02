@@ -495,6 +495,8 @@
   "LabelNoCustomMetadataProviders": "No custom metadata providers",
   "LabelNoEpisodesSelected": "No episodes selected",
   "LabelNotFinished": "Not Finished",
+  "LabelListened": "Listened",
+  "LabelNotListened": "Not Listened",
   "LabelNotStarted": "Not Started",
   "LabelNotes": "Notes",
   "LabelNotificationAppriseURL": "Apprise URL(s)",
