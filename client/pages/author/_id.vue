@@ -21,6 +21,12 @@
               <span class="material-symbols text-lg mr-1">play_arrow</span>
               <span class="text-sm font-medium">{{ $strings.LabelPlayAll || 'Play All' }}</span>
             </button>
+
+            <!-- Download All Button -->
+            <button v-if="libraryItems.length" class="flex items-center px-3 py-1.5 rounded-full bg-info hover:bg-info/80 text-white transition-colors ml-2" @click="downloadAll">
+              <span class="material-symbols text-lg mr-1">cloud_download</span>
+              <span class="text-sm font-medium">Download All</span>
+            </button>
           </div>
 
           <p v-if="author.description" class="text-white/60 uppercase text-xs mb-2">{{ $strings.LabelDescription }}</p>
@@ -641,6 +647,12 @@ export default {
       })
 
       this.$toast.success(this.$getString('MessageItemsAddedToQueue', [queueItems.length]) || `${queueItems.length} items added to queue`)
+    },
+    downloadAll() {
+      const token = this.$store.getters['user/getToken']
+      const items = this.libraryItems
+      this.$store.dispatch('offline/enqueue', { libraryItems: items, token })
+      this.$toast.success(`Queued ${items.length} items for download`)
     },
     handleResize() {
       this.windowWidth = window.innerWidth
