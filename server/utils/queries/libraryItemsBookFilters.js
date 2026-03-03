@@ -256,39 +256,13 @@ module.exports = {
       }
     } else if (group === 'series' && value === 'no-series') {
       mediaWhere['$series.id$'] = null
-    } else if (group === 'abridged') {
-      mediaWhere['abridged'] = true
-    } else if (group === 'explicit') {
-      mediaWhere['explicit'] = true
-    } else if (['genres', 'tags', 'narrators'].includes(group)) {
+    } else if (['genres', 'tags'].includes(group)) {
       mediaWhere = Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(${group}) WHERE json_valid(${group}) AND json_each.value = :filterValue)`), {
         [Sequelize.Op.gte]: 1
       })
       replacements.filterValue = value
-    } else if (group === 'publishers') {
-      mediaWhere['publisher'] = value
     } else if (group === 'languages') {
       mediaWhere['language'] = value
-    } else if (group === 'tracks') {
-      if (value === 'none') {
-        mediaWhere = Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col('audioFiles')), 0)
-      } else if (value === 'multi') {
-        mediaWhere = Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col('audioFiles')), {
-          [Sequelize.Op.gt]: 1
-        })
-      } else {
-        mediaWhere = Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col('audioFiles')), 1)
-      }
-    } else if (group === 'ebooks') {
-      if (value === 'ebook') {
-        mediaWhere['ebookFile'] = {
-          [Sequelize.Op.not]: null
-        }
-      } else if (value == 'no-ebook') {
-        mediaWhere['ebookFile'] = {
-          [Sequelize.Op.eq]: null
-        }
-      }
     } else if (group === 'missing') {
       if (['asin', 'isbn', 'subtitle', 'publishedYear', 'description', 'publisher', 'language', 'cover'].includes(value)) {
         let key = value
@@ -305,12 +279,6 @@ module.exports = {
       } else if (value === 'series') {
         mediaWhere['$series.id$'] = null
       }
-    } else if (group === 'publishedDecades') {
-      const startYear = parseInt(value)
-      const endYear = parseInt(value, 10) + 9
-      mediaWhere = Sequelize.where(Sequelize.literal('CAST(publishedYear AS INTEGER)'), {
-        [Sequelize.Op.between]: [startYear, endYear]
-      })
     } else if (group === 'rating') {
       // Support rating filters with format: gte-5, lte-3, eq-8, etc.
       const match = value.match(/^(gte|lte|gt|lt|eq)-(\d+(?:\.\d+)?)$/)
@@ -537,12 +505,10 @@ module.exports = {
     const libraryItemIncludes = []
     const bookIncludes = []
 
-    if (filterGroup === 'feed-open' || includeRSSFeed) {
-      const rssFeedRequired = filterGroup === 'feed-open'
+    if (includeRSSFeed) {
       libraryItemIncludes.push({
         model: Database.feedModel,
-        required: rssFeedRequired,
-        separate: !rssFeedRequired
+        separate: true
       })
     }
 
@@ -555,17 +521,6 @@ module.exports = {
         model: Database.mediaItemShareModel,
         required: true
       })
-    }
-
-    if (hasFilterValue('ebooks', 'supplementary')) {
-      // TODO: Temp workaround for filtering supplementary ebook
-      libraryItemWhere['libraryFiles'] = {
-        [Sequelize.Op.substring]: `"isSupplementary":true`
-      }
-    } else if (hasFilterValue('ebooks', 'no-supplementary')) {
-      libraryItemWhere['libraryFiles'] = {
-        [Sequelize.Op.notLike]: Sequelize.literal(`\'%"isSupplementary":true%\'`)
-      }
     }
 
     // Missing-author/series filters need special includes so `$authors.id$` / `$series.id$` constraints work.

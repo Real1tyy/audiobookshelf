@@ -94,9 +94,6 @@ export default {
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
     },
-    userCanAccessExplicitContent() {
-      return this.$store.getters['user/getUserCanAccessExplicitContent']
-    },
     libraryMediaType() {
       return this.$store.getters['libraries/getCurrentLibraryMediaType']
     },
@@ -125,18 +122,6 @@ export default {
           text: this.$strings.LabelAuthor,
           textPlural: this.$strings.LabelAuthors,
           value: 'authors',
-          sublist: true
-        },
-        {
-          text: this.$strings.LabelNarrator,
-          textPlural: this.$strings.LabelNarrators,
-          value: 'narrators',
-          sublist: true
-        },
-        {
-          text: this.$strings.LabelPublisher,
-          textPlural: this.$strings.LabelPublishers,
-          value: 'publishers',
           sublist: true
         },
         {
@@ -183,24 +168,6 @@ export default {
           sublist: true
         },
         {
-          text: this.$strings.LabelNarrator,
-          textPlural: this.$strings.LabelNarrators,
-          value: 'narrators',
-          sublist: true
-        },
-        {
-          text: this.$strings.LabelPublisher,
-          textPlural: this.$strings.LabelPublishers,
-          value: 'publishers',
-          sublist: true
-        },
-        {
-          text: this.$strings.LabelPublishedDecade,
-          textPlural: this.$strings.LabelPublishedDecades,
-          value: 'publishedDecades',
-          sublist: true
-        },
-        {
           text: this.$strings.LabelLanguage,
           textPlural: this.$strings.LabelLanguages,
           value: 'languages',
@@ -222,39 +189,11 @@ export default {
           sublist: true
         },
         {
-          text: this.$strings.LabelTracks,
-          value: 'tracks',
-          sublist: true
-        },
-        {
-          text: this.$strings.LabelEbooks,
-          value: 'ebooks',
-          sublist: true
-        },
-        {
-          text: this.$strings.LabelAbridged,
-          value: 'abridged',
-          sublist: false
-        },
-        {
           text: this.$strings.ButtonIssues,
           value: 'issues',
           sublist: false
-        },
-        {
-          text: this.$strings.LabelRSSFeedOpen,
-          value: 'feed-open',
-          sublist: false
         }
       ]
-
-      if (this.userCanAccessExplicitContent) {
-        items.push({
-          text: this.$strings.LabelExplicit,
-          value: 'explicit',
-          sublist: false
-        })
-      }
 
       if (this.userIsAdminOrUp) {
         items.push({
@@ -369,17 +308,8 @@ export default {
     authors() {
       return this.filterData.authors || []
     },
-    narrators() {
-      return this.filterData.narrators || []
-    },
     languages() {
       return this.filterData.languages || []
-    },
-    publishers() {
-      return this.filterData.publishers || []
-    },
-    publishedDecades() {
-      return this.filterData.publishedDecades || []
     },
     rating() {
       return [
@@ -438,42 +368,6 @@ export default {
         {
           id: 'not-listened',
           name: this.$strings.LabelNotListened
-        }
-      ]
-    },
-    tracks() {
-      return [
-        {
-          id: 'none',
-          name: this.$strings.LabelTracksNone
-        },
-        {
-          id: 'single',
-          name: this.$strings.LabelTracksSingleTrack
-        },
-        {
-          id: 'multi',
-          name: this.$strings.LabelTracksMultiTrack
-        }
-      ]
-    },
-    ebooks() {
-      return [
-        {
-          id: 'ebook',
-          name: this.$strings.LabelHasEbook
-        },
-        {
-          id: 'no-ebook',
-          name: this.$strings.LabelMissingEbook
-        },
-        {
-          id: 'supplementary',
-          name: this.$strings.LabelHasSupplementaryEbook
-        },
-        {
-          id: 'no-supplementary',
-          name: this.$strings.LabelMissingSupplementaryEbook
         }
       ]
     },

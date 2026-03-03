@@ -524,30 +524,6 @@ class Database {
     })
   }
 
-  replaceNarratorInFilterData(oldNarrator, newNarrator) {
-    for (const libraryId in this.libraryFilterData) {
-      const indexOf = this.libraryFilterData[libraryId].narrators.findIndex((n) => n === oldNarrator)
-      if (indexOf >= 0) {
-        this.libraryFilterData[libraryId].narrators.splice(indexOf, 1, newNarrator)
-      }
-    }
-  }
-
-  removeNarratorFromFilterData(narrator) {
-    for (const libraryId in this.libraryFilterData) {
-      this.libraryFilterData[libraryId].narrators = this.libraryFilterData[libraryId].narrators.filter((n) => n !== narrator)
-    }
-  }
-
-  addNarratorsToFilterData(libraryId, narrators) {
-    if (!this.libraryFilterData[libraryId] || !narrators?.length) return
-    narrators.forEach((n) => {
-      if (!this.libraryFilterData[libraryId].narrators.includes(n)) {
-        this.libraryFilterData[libraryId].narrators.push(n)
-      }
-    })
-  }
-
   removeSeriesFromFilterData(libraryId, seriesId) {
     if (!this.libraryFilterData[libraryId]) return
     this.libraryFilterData[libraryId].series = this.libraryFilterData[libraryId].series.filter((se) => se.id !== seriesId)
@@ -576,16 +552,6 @@ class Database {
       id: authorId,
       name: authorName
     })
-  }
-
-  addPublisherToFilterData(libraryId, publisher) {
-    if (!this.libraryFilterData[libraryId] || !publisher || this.libraryFilterData[libraryId].publishers.includes(publisher)) return
-    this.libraryFilterData[libraryId].publishers.push(publisher)
-  }
-
-  addPublishedDecadeToFilterData(libraryId, decade) {
-    if (!this.libraryFilterData[libraryId] || !decade || this.libraryFilterData[libraryId].publishedDecades.includes(decade)) return
-    this.libraryFilterData[libraryId].publishedDecades.push(decade)
   }
 
   addLanguageToFilterData(libraryId, language) {

@@ -26,7 +26,7 @@ module.exports = {
     let filterValue = null
     let filterGroup = null
     if (filterBy) {
-      const searchGroups = ['genres', 'tags', 'authors', 'progress', 'narrators', 'publishers', 'languages']
+      const searchGroups = ['genres', 'tags', 'authors', 'progress', 'languages']
       const group = searchGroups.find((_group) => filterBy.startsWith(_group + '.'))
       filterGroup = group || filterBy
       filterValue = group ? this.decode(filterBy.replace(`${group}.`, '')) : null
@@ -67,14 +67,11 @@ module.exports = {
     // Handle filters
     // TODO: Simplify and break-out
     let attrQuery = null
-    if (['genres', 'tags', 'narrators'].includes(filterGroup)) {
+    if (['genres', 'tags'].includes(filterGroup)) {
       attrQuery = `SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND (SELECT count(*) FROM json_each(b.${filterGroup}) WHERE json_valid(b.${filterGroup}) AND json_each.value = :filterValue) > 0`
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'authors') {
       attrQuery = 'SELECT count(*) FROM books b, bookSeries bs, bookAuthors ba WHERE bs.seriesId = series.id AND bs.bookId = b.id AND ba.bookId = b.id AND ba.authorId = :filterValue'
-      userPermissionBookWhere.replacements.filterValue = filterValue
-    } else if (filterGroup === 'publishers') {
-      attrQuery = 'SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND b.publisher = :filterValue'
       userPermissionBookWhere.replacements.filterValue = filterValue
     } else if (filterGroup === 'languages') {
       attrQuery = 'SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id AND b.language = :filterValue'

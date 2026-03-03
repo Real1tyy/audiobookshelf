@@ -1425,9 +1425,6 @@ class LibraryController {
       return res.status(400).send('Invalid request payload. Name not specified.')
     }
 
-    // Update filter data
-    Database.replaceNarratorInFilterData(narratorName, updatedName)
-
     const itemsUpdated = []
 
     const itemsWithNarrator = await libraryItemFilters.getAllLibraryItemsWithNarrators([narratorName])
@@ -1468,9 +1465,6 @@ class LibraryController {
     }
 
     const narratorName = libraryFilters.decode(req.params.narratorId)
-
-    // Update filter data
-    Database.removeNarratorFromFilterData(narratorName)
 
     const itemsUpdated = []
 

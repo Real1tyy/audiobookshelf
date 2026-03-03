@@ -6,10 +6,8 @@
  * For database-level filtering (more efficient for large datasets), use libraryFilters.getFilteredLibraryItems
  *
  * Supported filter types (matching frontend LibraryFilterSelect.vue):
- * - Book filters: genres, tags, series, authors, narrators, publishers, publishedDecades,
- *   languages, progress, missing, tracks, ebooks, abridged, issues, feed-open, explicit, share-open
- * - Podcast filters: genres, tags, languages, issues, feed-open, explicit
- * - Series filters: genres, tags, authors, narrators, publishers, languages, progress
+ * - Book filters: genres, tags, series, authors, languages, progress, missing, rating, issues, share-open
+ * - Series filters: genres, tags, authors, languages, progress
  */
 
 /**
@@ -91,37 +89,8 @@ function applyAdvancedFilter(libraryItems, filterGroup, filterValue) {
         }
         return media.series?.some(s => s.id === filterValue)
 
-      case 'narrators':
-        return media.narrators?.includes(filterValue)
-
-      case 'publishers':
-        return media.publisher === filterValue
-
-      case 'publishedDecades':
-        if (media.publishedYear) {
-          const decade = Math.floor(media.publishedYear / 10) * 10
-          return decade.toString() === filterValue
-        }
-        return false
-
       case 'languages':
         return media.language === filterValue
-
-      case 'tracks':
-        const audioFileCount = media.audioFiles?.length || 0
-        if (filterValue === 'none') return audioFileCount === 0
-        if (filterValue === 'single') return audioFileCount === 1
-        if (filterValue === 'multi') return audioFileCount > 1
-        return false
-
-      case 'ebooks':
-        const hasEbook = !!media.ebookFile
-        const hasSupplementary = media.ebookFile?.isSupplementary
-        if (filterValue === 'ebook') return hasEbook
-        if (filterValue === 'no-ebook') return !hasEbook
-        if (filterValue === 'supplementary') return hasSupplementary
-        if (filterValue === 'no-supplementary') return !hasSupplementary
-        return false
 
       case 'missing':
         // Check if specific metadata field is missing
@@ -143,12 +112,6 @@ function applyAdvancedFilter(libraryItems, filterGroup, filterValue) {
         }
         return missingFields[filterValue] || false
 
-      case 'abridged':
-        return media.abridged === true
-
-      case 'explicit':
-        return media.explicit === true
-
       case 'rating':
         // Support rating filters with format: gte-5, lte-3, eq-8, etc.
         const match = filterValue.match(/^(gte|lte|gt|lt|eq)-(\d+(?:\.\d+)?)$/)
@@ -167,9 +130,6 @@ function applyAdvancedFilter(libraryItems, filterGroup, filterValue) {
 
       case 'issues':
         return li.isMissing || li.isInvalid
-
-      case 'feed-open':
-        return !!li.rssFeed || !!li.feeds?.length
 
       case 'share-open':
         return !!li.mediaItemShare
@@ -256,7 +216,7 @@ function parseFilterString(filterBy) {
 
   const parts = filterBy.split('.')
   if (parts.length === 1) {
-    // Simple filter like 'abridged', 'issues', 'feed-open'
+    // Simple filter like 'issues', 'share-open'
     return { filterGroup: parts[0], filterValue: parts[0] }
   }
 

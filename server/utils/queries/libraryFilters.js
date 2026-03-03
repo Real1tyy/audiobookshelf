@@ -43,14 +43,14 @@ module.exports = {
       .map((t) => t.trim())
       .filter((t) => !!t && t !== 'all')
 
-    const searchGroups = ['genres', 'tags', 'series', 'authors', 'progress', 'narrators', 'publishers', 'publishedDecades', 'missing', 'languages', 'tracks', 'ebooks']
+    const searchGroups = ['genres', 'tags', 'series', 'authors', 'progress', 'missing', 'languages']
 
     return tokens.map((token) => {
       const group = searchGroups.find((_group) => token.startsWith(_group + '.')) || token.split('.').shift()
       if (!group) return { filterGroup: null, filterValue: null }
 
       if (!token.includes('.')) {
-        // Simple filter like 'issues', 'feed-open', 'explicit', 'share-open', 'abridged'
+        // Simple filter like 'issues', 'share-open'
         return { filterGroup: group, filterValue: group }
       }
 
@@ -507,10 +507,7 @@ module.exports = {
       genres: new Set(),
       tags: new Set(),
       series: [],
-      narrators: new Set(),
       languages: new Set(),
-      publishers: new Set(),
-      publishedDecades: new Set(),
       bookCount: 0, // How many books returned from database query
       authorCount: 0, // How many authors returned from database query
       seriesCount: 0, // How many series returned from database query
@@ -688,7 +685,7 @@ module.exports = {
             libraryId: libraryId
           }
         },
-        attributes: ['tags', 'genres', 'publisher', 'publishedYear', 'narrators', 'language']
+        attributes: ['tags', 'genres', 'language']
       })
       for (const book of books) {
         if (book.libraryItem.isMissing || book.libraryItem.isInvalid) data.numIssues++
@@ -697,15 +694,6 @@ module.exports = {
         }
         if (book.genres?.length) {
           book.genres.forEach((genre) => data.genres.add(genre))
-        }
-        if (book.narrators?.length) {
-          book.narrators.forEach((narrator) => data.narrators.add(narrator))
-        }
-        if (book.publisher) data.publishers.add(book.publisher)
-        // Check if published year exists and is valid
-        if (book.publishedYear && !isNaN(book.publishedYear) && book.publishedYear > 0 && book.publishedYear < 3000) {
-          const decade = (Math.floor(book.publishedYear / 10) * 10).toString()
-          data.publishedDecades.add(decade)
         }
         if (book.language) data.languages.add(book.language)
       }
@@ -731,9 +719,6 @@ module.exports = {
     data.genres = naturalSort([...data.genres]).asc()
     data.tags = naturalSort([...data.tags]).asc()
     data.series = naturalSort(data.series).asc((se) => se.name)
-    data.narrators = naturalSort([...data.narrators]).asc()
-    data.publishers = naturalSort([...data.publishers]).asc()
-    data.publishedDecades = naturalSort([...data.publishedDecades]).asc()
     data.languages = naturalSort([...data.languages]).asc()
     data.loadedAt = Date.now()
     Database.libraryFilterData[libraryId] = data
