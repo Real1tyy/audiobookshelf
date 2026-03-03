@@ -1,36 +1,19 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, Sequelize } from 'sequelize'
 
-class SeriesProgress extends Model {
-  constructor(values, options) {
-    super(values, options)
+class SeriesProgress extends Model<InferAttributes<SeriesProgress>, InferCreationAttributes<SeriesProgress>> {
+  declare id: CreationOptional<string>
+  declare userId: ForeignKey<string>
+  declare seriesId: ForeignKey<string>
+  declare currentBookId: CreationOptional<string | null>
+  declare currentTime: CreationOptional<number>
+  declare currentBookIndex: CreationOptional<number>
+  declare isFinished: CreationOptional<boolean>
+  declare lastPlayedAt: CreationOptional<Date | null>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {UUIDV4} */
-    this.userId
-    /** @type {UUIDV4} */
-    this.seriesId
-    /** @type {UUIDV4} */
-    this.currentBookId
-    /** @type {number} */
-    this.currentTime
-    /** @type {number} */
-    this.currentBookIndex
-    /** @type {boolean} */
-    this.isFinished
-    /** @type {Date} */
-    this.lastPlayedAt
-    /** @type {Date} */
-    this.createdAt
-    /** @type {Date} */
-    this.updatedAt
-  }
-
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -97,4 +80,4 @@ class SeriesProgress extends Model {
   }
 }
 
-module.exports = SeriesProgress
+export = SeriesProgress

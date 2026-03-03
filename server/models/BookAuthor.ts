@@ -1,21 +1,13 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, Sequelize } from 'sequelize'
 
-class BookAuthor extends Model {
-  constructor(values, options) {
-    super(values, options)
+class BookAuthor extends Model<InferAttributes<BookAuthor>, InferCreationAttributes<BookAuthor>> {
+  declare id: CreationOptional<string>
+  declare bookId: ForeignKey<string>
+  declare authorId: ForeignKey<string>
+  declare createdAt: CreationOptional<Date>
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {UUIDV4} */
-    this.bookId
-    /** @type {UUIDV4} */
-    this.authorId
-    /** @type {Date} */
-    this.createdAt
-  }
-
-  static removeByIds(authorId = null, bookId = null) {
-    const where = {}
+  static removeByIds(authorId: string | null = null, bookId: string | null = null) {
+    const where: Record<string, string> = {}
     if (authorId) where.authorId = authorId
     if (bookId) where.bookId = bookId
     return this.destroy({
@@ -25,11 +17,8 @@ class BookAuthor extends Model {
 
   /**
    * Get number of books for author
-   *
-   * @param {string} authorId
-   * @returns {Promise<number>}
    */
-  static getCountForAuthor(authorId) {
+  static getCountForAuthor(authorId: string): Promise<number> {
     return this.count({
       where: {
         authorId
@@ -37,11 +26,8 @@ class BookAuthor extends Model {
     })
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -81,4 +67,5 @@ class BookAuthor extends Model {
     BookAuthor.belongsTo(author)
   }
 }
-module.exports = BookAuthor
+
+export = BookAuthor

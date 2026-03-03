@@ -14,7 +14,9 @@
       "Bash(tail:*)",
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
-      "Bash(npx mocha:*)"
+      "Bash(npx mocha:*)",
+      "Bash(npm run:*)",
+      "Bash(timeout 10 npx tsx:*)"
     ]
   }
 }

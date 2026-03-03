@@ -1,23 +1,14 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, Sequelize } from 'sequelize'
 
-class BookSeries extends Model {
-  constructor(values, options) {
-    super(values, options)
+class BookSeries extends Model<InferAttributes<BookSeries>, InferCreationAttributes<BookSeries>> {
+  declare id: CreationOptional<string>
+  declare sequence: CreationOptional<string | null>
+  declare bookId: ForeignKey<string>
+  declare seriesId: ForeignKey<string>
+  declare createdAt: CreationOptional<Date>
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {string} */
-    this.sequence
-    /** @type {UUIDV4} */
-    this.bookId
-    /** @type {UUIDV4} */
-    this.seriesId
-    /** @type {Date} */
-    this.createdAt
-  }
-
-  static removeByIds(seriesId = null, bookId = null) {
-    const where = {}
+  static removeByIds(seriesId: string | null = null, bookId: string | null = null) {
+    const where: Record<string, string> = {}
     if (seriesId) where.seriesId = seriesId
     if (bookId) where.bookId = bookId
     return this.destroy({
@@ -25,11 +16,8 @@ class BookSeries extends Model {
     })
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -71,4 +59,4 @@ class BookSeries extends Model {
   }
 }
 
-module.exports = BookSeries
+export = BookSeries

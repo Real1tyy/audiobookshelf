@@ -5,8 +5,9 @@
   "description": "Self-hosted audiobook and podcast server",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch server index.js -- --dev",
-    "start": "node index.js",
+    "dev": "tsx watch index.js -- --dev",
+    "start": "tsx index.js",
+    "start:node": "node index.js",
     "start-dev": "node index.js --prod-with-dev-env",
     "client": "cd client && npm ci && npm run generate",
     "prod": "npm run client && npm ci && node index.js",
@@ -70,6 +71,7 @@
     "nodemon": "^2.0.20",
     "nyc": "^15.1.0",
     "sinon": "^17.0.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"

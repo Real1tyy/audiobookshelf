@@ -1,29 +1,21 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, Sequelize } from 'sequelize'
 
 const oldEmailSettings = require('../objects/settings/EmailSettings')
 const oldServerSettings = require('../objects/settings/ServerSettings')
 const oldNotificationSettings = require('../objects/settings/NotificationSettings')
 
-class Setting extends Model {
-  constructor(values, options) {
-    super(values, options)
-
-    /** @type {string} */
-    this.key
-    /** @type {Object} */
-    this.value
-    /** @type {Date} */
-    this.createdAt
-    /** @type {Date} */
-    this.updatedAt
-  }
+class Setting extends Model<InferAttributes<Setting>, InferCreationAttributes<Setting>> {
+  declare key: string
+  declare value: Record<string, unknown>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 
   static async getOldSettings() {
     const settings = (await this.findAll()).map((se) => se.value)
 
-    const emailSettingsJson = settings.find((se) => se.id === 'email-settings')
-    const serverSettingsJson = settings.find((se) => se.id === 'server-settings')
-    const notificationSettingsJson = settings.find((se) => se.id === 'notification-settings')
+    const emailSettingsJson = settings.find((se) => (se as any).id === 'email-settings')
+    const serverSettingsJson = settings.find((se) => (se as any).id === 'server-settings')
+    const notificationSettingsJson = settings.find((se) => (se as any).id === 'notification-settings')
 
     return {
       settings,
@@ -33,18 +25,15 @@ class Setting extends Model {
     }
   }
 
-  static updateSettingObj(setting) {
+  static updateSettingObj(setting: { id: string; [key: string]: unknown }) {
     return this.upsert({
       key: setting.id,
-      value: setting
+      value: setting as Record<string, unknown>
     })
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         key: {
@@ -61,4 +50,4 @@ class Setting extends Model {
   }
 }
 
-module.exports = Setting
+export = Setting

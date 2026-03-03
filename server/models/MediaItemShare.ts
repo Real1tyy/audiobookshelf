@@ -1,66 +1,21 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, FindOptions, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, NonAttribute, Sequelize } from 'sequelize'
+import type { MediaItemShareExtraData } from './types'
 
-/**
- * @typedef MediaItemShareObject
- * @property {UUIDV4} id
- * @property {UUIDV4} mediaItemId
- * @property {string} mediaItemType
- * @property {string} slug
- * @property {string} pash
- * @property {UUIDV4} userId
- * @property {Date} expiresAt
- * @property {Object} extraData
- * @property {Date} createdAt
- * @property {Date} updatedAt
- * @property {boolean} isDownloadable
- *
- * @typedef {MediaItemShareObject & MediaItemShare} MediaItemShareModel
- */
+class MediaItemShare extends Model<InferAttributes<MediaItemShare, { omit: 'mediaItem' }>, InferCreationAttributes<MediaItemShare, { omit: 'mediaItem' }>> {
+  declare id: CreationOptional<string>
+  declare mediaItemId: string
+  declare mediaItemType: string
+  declare slug: string
+  declare pash: CreationOptional<string | null>
+  declare userId: ForeignKey<string>
+  declare expiresAt: CreationOptional<Date | null>
+  declare extraData: CreationOptional<MediaItemShareExtraData | null>
+  declare isDownloadable: CreationOptional<boolean>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 
-/**
- * @typedef MediaItemShareForClient
- * @property {UUIDV4} id
- * @property {UUIDV4} mediaItemId
- * @property {string} mediaItemType
- * @property {string} slug
- * @property {Date} expiresAt
- * @property {Date} createdAt
- * @property {Date} updatedAt
- * @property {boolean} isDownloadable
- */
-
-class MediaItemShare extends Model {
-  constructor(values, options) {
-    super(values, options)
-
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {UUIDV4} */
-    this.mediaItemId
-    /** @type {string} */
-    this.mediaItemType
-    /** @type {string} */
-    this.slug
-    /** @type {string} */
-    this.pash
-    /** @type {UUIDV4} */
-    this.userId
-    /** @type {Date} */
-    this.expiresAt
-    /** @type {Object} */
-    this.extraData
-    /** @type {Date} */
-    this.createdAt
-    /** @type {Date} */
-    this.updatedAt
-    /** @type {boolean} */
-    this.isDownloadable
-
-    // Expanded properties
-
-    /** @type {import('./Book')|import('./PodcastEpisode')} */
-    this.mediaItem
-  }
+  // Expanded property set by afterFind hook
+  declare mediaItem: NonAttribute<any>
 
   toJSONForClient() {
     return {
@@ -77,18 +32,13 @@ class MediaItemShare extends Model {
 
   /**
    * Expanded book that includes library settings
-   *
-   * @param {string} mediaItemId
-   * @param {string} mediaItemType
-   * @returns {Promise<import('./LibraryItem').LibraryItemExpanded>}
    */
-  static async getMediaItemsLibraryItem(mediaItemId, mediaItemType) {
-    /** @type {typeof import('./LibraryItem')} */
-    const libraryItemModel = this.sequelize.models.libraryItem
+  static async getMediaItemsLibraryItem(mediaItemId: string, mediaItemType: string) {
+    const libraryItemModel = this.sequelize!.models.libraryItem as any
 
     if (mediaItemType === 'book') {
       const libraryItem = await libraryItemModel.findOneExpanded({ mediaId: mediaItemId }, null, {
-        model: this.sequelize.models.library,
+        model: this.sequelize!.models.library,
         attributes: ['settings']
       })
 
@@ -97,23 +47,14 @@ class MediaItemShare extends Model {
     return null
   }
 
-  /**
-   *
-   * @param {import('sequelize').FindOptions} options
-   * @returns {Promise<import('./Book')|import('./PodcastEpisode')>}
-   */
-  getMediaItem(options) {
+  getMediaItem(options?: FindOptions) {
     if (!this.mediaItemType) return Promise.resolve(null)
-    const mixinMethodName = `get${this.sequelize.uppercaseFirst(this.mediaItemType)}`
-    return this[mixinMethodName](options)
+    const mixinMethodName = `get${(this.sequelize as any).uppercaseFirst(this.mediaItemType)}`
+    return (this as any)[mixinMethodName](options)
   }
 
-  /**
-   * Initialize model
-   *
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -158,7 +99,7 @@ class MediaItemShare extends Model {
     })
     MediaItemShare.belongsTo(podcastEpisode, { foreignKey: 'mediaItemId', constraints: false })
 
-    MediaItemShare.addHook('afterFind', (findResult) => {
+    MediaItemShare.addHook('afterFind', (findResult: any) => {
       if (!findResult) return
 
       if (!Array.isArray(findResult)) findResult = [findResult]
@@ -181,4 +122,4 @@ class MediaItemShare extends Model {
   }
 }
 
-module.exports = MediaItemShare
+export = MediaItemShare

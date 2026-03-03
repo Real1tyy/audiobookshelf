@@ -1,39 +1,24 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, FindOptions, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, NonAttribute, Sequelize } from 'sequelize'
 
-class PlaylistMediaItem extends Model {
-  constructor(values, options) {
-    super(values, options)
+class PlaylistMediaItem extends Model<InferAttributes<PlaylistMediaItem, { omit: 'mediaItem' }>, InferCreationAttributes<PlaylistMediaItem, { omit: 'mediaItem' }>> {
+  declare id: CreationOptional<string>
+  declare mediaItemId: string
+  declare mediaItemType: string
+  declare order: number
+  declare playlistId: ForeignKey<string>
+  declare createdAt: CreationOptional<Date>
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {UUIDV4} */
-    this.mediaItemId
-    /** @type {string} */
-    this.mediaItemType
-    /** @type {number} */
-    this.order
-    /** @type {UUIDV4} */
-    this.playlistId
-    /** @type {Date} */
-    this.createdAt
+  // Expanded property set by afterFind hook
+  declare mediaItem: NonAttribute<any>
 
-    // Expanded properties
-
-    /** @type {import('./Book')|import('./PodcastEpisode')} - only set when expanded */
-    this.mediaItem
-  }
-
-  getMediaItem(options) {
+  getMediaItem(options?: FindOptions) {
     if (!this.mediaItemType) return Promise.resolve(null)
-    const mixinMethodName = `get${this.sequelize.uppercaseFirst(this.mediaItemType)}`
-    return this[mixinMethodName](options)
+    const mixinMethodName = `get${(this.sequelize as any).uppercaseFirst(this.mediaItemType)}`
+    return (this as any)[mixinMethodName](options)
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -73,7 +58,7 @@ class PlaylistMediaItem extends Model {
     })
     PlaylistMediaItem.belongsTo(podcastEpisode, { foreignKey: 'mediaItemId', constraints: false })
 
-    PlaylistMediaItem.addHook('afterFind', (findResult) => {
+    PlaylistMediaItem.addHook('afterFind', (findResult: any) => {
       if (!findResult) return
 
       if (!Array.isArray(findResult)) findResult = [findResult]
@@ -101,4 +86,4 @@ class PlaylistMediaItem extends Model {
   }
 }
 
-module.exports = PlaylistMediaItem
+export = PlaylistMediaItem

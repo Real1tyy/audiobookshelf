@@ -1,58 +1,38 @@
-const { DataTypes, Model, where, fn, col } = require('sequelize')
+import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, NonAttribute, Sequelize, where, fn, col } from 'sequelize'
+
 const parseNameString = require('../utils/parsers/parseNameString')
 
-class Author extends Model {
-  constructor(values, options) {
-    super(values, options)
+class Author extends Model<InferAttributes<Author, { omit: 'books' }>, InferCreationAttributes<Author, { omit: 'books' }>> {
+  declare id: CreationOptional<string>
+  declare name: string
+  declare lastFirst: CreationOptional<string | null>
+  declare asin: CreationOptional<string | null>
+  declare description: CreationOptional<string | null>
+  declare imagePath: CreationOptional<string | null>
+  declare libraryId: ForeignKey<string>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {string} */
-    this.name
-    /** @type {string} */
-    this.lastFirst
-    /** @type {string} */
-    this.asin
-    /** @type {string} */
-    this.description
-    /** @type {string} */
-    this.imagePath
-    /** @type {UUIDV4} */
-    this.libraryId
-    /** @type {Date} */
-    this.updatedAt
-    /** @type {Date} */
-    this.createdAt
-  }
+  // Expanded properties from associations
+  declare books?: NonAttribute<any[]>
 
-  /**
-   *
-   * @param {string} name
-   * @returns {string}
-   */
-  static getLastFirst(name) {
+  static getLastFirst(name: string): string | null {
     if (!name) return null
     return parseNameString.nameToLastFirst(name)
   }
 
   /**
    * Check if author exists
-   * @param {string} authorId
-   * @returns {Promise<boolean>}
    */
-  static async checkExistsById(authorId) {
+  static async checkExistsById(authorId: string): Promise<boolean> {
     return (await this.count({ where: { id: authorId } })) > 0
   }
 
   /**
    * Get author by name and libraryId. name case insensitive
    * TODO: Look for authors ignoring punctuation
-   *
-   * @param {string} authorName
-   * @param {string} libraryId
-   * @returns {Promise<Author>}
    */
-  static async getByNameAndLibrary(authorName, libraryId) {
+  static async getByNameAndLibrary(authorName: string, libraryId: string): Promise<Author | null> {
     return this.findOne({
       where: [
         where(fn('lower', col('name')), authorName.toLowerCase()),
@@ -63,28 +43,23 @@ class Author extends Model {
     })
   }
 
-  /**
-   *
-   * @param {string} authorId
-   * @returns {Promise<import('./LibraryItem')[]>}
-   */
-  static async getAllLibraryItemsForAuthor(authorId) {
+  static async getAllLibraryItemsForAuthor(authorId: string) {
     const author = await this.findByPk(authorId, {
       include: [
         {
-          model: this.sequelize.models.book,
+          model: this.sequelize!.models.book,
           include: [
             {
-              model: this.sequelize.models.libraryItem
+              model: this.sequelize!.models.libraryItem
             },
             {
-              model: this.sequelize.models.author,
+              model: this.sequelize!.models.author,
               through: {
                 attributes: []
               }
             },
             {
-              model: this.sequelize.models.series,
+              model: this.sequelize!.models.series,
               through: {
                 attributes: ['sequence']
               }
@@ -94,12 +69,12 @@ class Author extends Model {
       ]
     })
 
-    const libraryItems = []
-    if (author.books) {
+    const libraryItems: any[] = []
+    if (author?.books) {
       for (const book of author.books) {
-        const libraryItem = book.libraryItem
+        const libraryItem = (book as any).libraryItem
         libraryItem.media = book
-        delete book.libraryItem
+        delete (book as any).libraryItem
         libraryItems.push(libraryItem)
       }
     }
@@ -107,13 +82,7 @@ class Author extends Model {
     return libraryItems
   }
 
-  /**
-   *
-   * @param {string} name
-   * @param {string} libraryId
-   * @returns {Promise<Author>}
-   */
-  static async findOrCreateByNameAndLibrary(name, libraryId) {
+  static async findOrCreateByNameAndLibrary(name: string, libraryId: string): Promise<Author> {
     const author = await this.getByNameAndLibrary(name, libraryId)
     if (author) return author
     return this.create({
@@ -123,11 +92,8 @@ class Author extends Model {
     })
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -186,15 +152,9 @@ class Author extends Model {
     }
   }
 
-  /**
-   *
-   * @param {number} numBooks
-   * @returns
-   */
-  toOldJSONExpanded(numBooks = 0) {
+  toOldJSONExpanded(numBooks: number = 0) {
     const oldJson = this.toOldJSON()
-    oldJson.numBooks = numBooks
-    return oldJson
+    return { ...oldJson, numBooks }
   }
 
   toJSONMinimal() {
@@ -204,4 +164,5 @@ class Author extends Model {
     }
   }
 }
-module.exports = Author
+
+export = Author
