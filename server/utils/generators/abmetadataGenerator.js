@@ -13,7 +13,6 @@ function parseJsonMetadataText(text) {
         if (key === 'feedUrl') newModelKey = 'feedURL'
         else if (key === 'imageUrl') newModelKey = 'imageURL'
         else if (key === 'itunesPageUrl') newModelKey = 'itunesPageURL'
-        else if (key === 'type') newModelKey = 'podcastType'
         abmetadataData[newModelKey] = abmetadataData.metadata[key]
       }
     }

@@ -19,8 +19,7 @@ const parseNameString = require('./parsers/parseNameString')
 function isMediaFile(mediaType, ext, audiobooksOnly = false) {
   if (!ext) return false
   const extclean = ext.slice(1).toLowerCase()
-  if (mediaType === 'podcast') return globals.SupportedAudioTypes.includes(extclean)
-  else if (audiobooksOnly) return globals.SupportedAudioTypes.includes(extclean)
+  if (audiobooksOnly) return globals.SupportedAudioTypes.includes(extclean)
   return globals.SupportedAudioTypes.includes(extclean) || globals.SupportedEbookTypes.includes(extclean)
 }
 
@@ -276,21 +275,6 @@ function getASIN(folder) {
 
 /**
  *
- * @param {string} relPath
- * @returns {LibraryItemFilenameMetadata}
- */
-function getPodcastDataFromDir(relPath) {
-  const splitDir = relPath.split('/')
-
-  // Audio files will always be in the directory named for the title
-  const title = splitDir.pop()
-  return {
-    title
-  }
-}
-
-/**
- *
  * @param {string} libraryMediaType
  * @param {string} folderPath
  * @param {string} relPath
@@ -299,14 +283,7 @@ function getPodcastDataFromDir(relPath) {
 function getDataFromMediaDir(libraryMediaType, folderPath, relPath) {
   relPath = filePathToPOSIX(relPath)
   let fullPath = Path.posix.join(folderPath, relPath)
-  let mediaMetadata = null
-
-  if (libraryMediaType === 'podcast') {
-    mediaMetadata = getPodcastDataFromDir(relPath)
-  } else {
-    // book
-    mediaMetadata = getBookDataFromDir(relPath, !!global.ServerSettings.scannerParseSubtitle)
-  }
+  let mediaMetadata = getBookDataFromDir(relPath, !!global.ServerSettings.scannerParseSubtitle)
 
   return {
     mediaMetadata,

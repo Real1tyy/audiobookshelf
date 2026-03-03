@@ -62,10 +62,6 @@ export default {
         {
           value: 'book',
           text: this.$strings.LabelBooks
-        },
-        {
-          value: 'podcast',
-          text: this.$strings.LabelPodcasts
         }
       ]
     },
@@ -73,7 +69,6 @@ export default {
       return this.folders.map((f) => f.fullPath)
     },
     providers() {
-      if (this.mediaType === 'podcast') return this.$store.state.scanners.podcastProviders
       return this.$store.state.scanners.bookProviders
     }
   },

@@ -1,7 +1,6 @@
 const Sequelize = require('sequelize')
 const Database = require('../../Database')
 const libraryItemsBookFilters = require('./libraryItemsBookFilters')
-const libraryItemsPodcastFilters = require('./libraryItemsPodcastFilters')
 
 module.exports = {
   /**
@@ -176,14 +175,10 @@ module.exports = {
    * @param {import('../../models/Library')} library
    * @param {string} query
    * @param {number} limit
-   * @returns {{book:object[], narrators:object[], authors:object[], tags:object[], series:object[], podcast:object[]}}
+   * @returns {{book:object[], narrators:object[], authors:object[], tags:object[], series:object[]}}
    */
   search(user, library, query, limit) {
-    if (library.isBook) {
-      return libraryItemsBookFilters.search(user, library, query, limit, 0)
-    } else {
-      return libraryItemsPodcastFilters.search(user, library, query, limit, 0)
-    }
+    return libraryItemsBookFilters.search(user, library, query, limit, 0)
   },
 
   /**

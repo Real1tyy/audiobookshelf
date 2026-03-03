@@ -12,14 +12,6 @@
         <div v-show="homePage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>
 
-      <nuxt-link v-if="isPodcastLibrary" :to="`/library/${currentLibraryId}/podcast/latest`" class="w-full h-20 flex flex-col items-center justify-center text-white border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isPodcastLatestPage ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="material-symbols text-2xl">&#xe241;</span>
-
-        <p class="pt-1 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonLatest }}</p>
-
-        <div v-show="isPodcastLatestPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
-      </nuxt-link>
-
       <nuxt-link :to="`/library/${currentLibraryId}/bookshelf`" class="w-full h-20 flex flex-col items-center justify-center text-white border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="showLibrary ? 'bg-primary/80' : 'bg-bg/60'">
         <span class="material-symbols text-2xl">import_contacts</span>
 
@@ -34,14 +26,6 @@
         <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonSeries }}</p>
 
         <div v-show="isSeriesPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
-      </nuxt-link>
-
-      <nuxt-link v-if="showPlaylists" :to="`/library/${currentLibraryId}/bookshelf/playlists`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isPlaylistsPage ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="material-symbols text-2.5xl">&#xe03d;</span>
-
-        <p class="pt-0.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonPlaylists }}</p>
-
-        <div v-show="isPlaylistsPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>
 
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/authors`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isAuthorsPage ? 'bg-primary/80' : 'bg-bg/60'">
@@ -66,22 +50,6 @@
         <p class="pt-1 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonStats }}</p>
 
         <div v-show="isStatsPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
-      </nuxt-link>
-
-      <nuxt-link v-if="isPodcastLibrary && userIsAdminOrUp" :to="`/library/${currentLibraryId}/podcast/search`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isPodcastSearchPage ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="abs-icons icon-podcast text-xl"></span>
-
-        <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonAdd }}</p>
-
-        <div v-show="isPodcastSearchPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
-      </nuxt-link>
-
-      <nuxt-link v-if="isPodcastLibrary && userIsAdminOrUp" :to="`/library/${currentLibraryId}/podcast/download-queue`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isPodcastDownloadQueuePage ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="material-symbols text-2xl">&#xf090;</span>
-
-        <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonDownloadQueue }}</p>
-
-        <div v-show="isPodcastDownloadQueuePage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>
 
       <!-- Downloads page link -->
@@ -159,18 +127,6 @@ export default {
     isBookLibrary() {
       return this.currentLibraryMediaType === 'book'
     },
-    isPodcastLibrary() {
-      return this.currentLibraryMediaType === 'podcast'
-    },
-    isPodcastDownloadQueuePage() {
-      return this.$route.name === 'library-library-podcast-download-queue'
-    },
-    isPodcastSearchPage() {
-      return this.$route.name === 'library-library-podcast-search'
-    },
-    isPodcastLatestPage() {
-      return this.$route.name === 'library-library-podcast-latest'
-    },
     homePage() {
       return this.$route.name === 'library-library'
     },
@@ -182,9 +138,6 @@ export default {
     },
     isTagsPage() {
       return this.$route.name === 'library-library-tags'
-    },
-    isPlaylistsPage() {
-      return this.paramId === 'playlists'
     },
     isStatsPage() {
       return this.$route.name === 'library-library-stats'
@@ -216,9 +169,6 @@ export default {
     },
     streamLibraryItem() {
       return this.$store.state.streamLibraryItem
-    },
-    showPlaylists() {
-      return this.$store.state.libraries.numUserPlaylists > 0
     },
     isDownloadsPage() {
       return this.$route.name === 'downloads'

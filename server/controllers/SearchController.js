@@ -1,7 +1,6 @@
 const { Request, Response } = require('express')
 const Logger = require('../Logger')
 const BookFinder = require('../finders/BookFinder')
-const PodcastFinder = require('../finders/PodcastFinder')
 const AuthorFinder = require('../finders/AuthorFinder')
 const Database = require('../Database')
 const { isValidASIN, getQueryParamAsString, ValidationError, NotFoundError } = require('../utils')
@@ -113,41 +112,14 @@ class SearchController {
   async findCovers(req, res) {
     try {
       const query = req.query
-      const podcast = query.podcast === '1' || query.podcast === 1
       const title = getQueryParamAsString(query, 'title', '', true)
       const author = getQueryParamAsString(query, 'author', '')
       const provider = getQueryParamAsString(query, 'provider', 'google')
 
-      let results = null
-      if (podcast) results = await PodcastFinder.findCovers(title)
-      else results = await BookFinder.findCovers(provider, title, author)
+      const results = await BookFinder.findCovers(provider, title, author)
       res.json({ results })
     } catch (error) {
       Logger.error(`[SearchController] findCovers: ${error.message}`)
-      if (error instanceof ValidationError) {
-        return res.status(error.status).json({ error: error.message })
-      }
-      return res.status(500).json({ error: 'Internal server error' })
-    }
-  }
-
-  /**
-   * GET: /api/search/podcasts
-   * Find podcast RSS feeds given a term
-   *
-   * @param {RequestWithUser} req
-   * @param {Response} res
-   */
-  async findPodcasts(req, res) {
-    try {
-      const query = req.query
-      const term = getQueryParamAsString(query, 'term', '', true)
-      const country = getQueryParamAsString(query, 'country', 'us')
-
-      const results = await PodcastFinder.search(term, { country })
-      res.json(results)
-    } catch (error) {
-      Logger.error(`[SearchController] findPodcasts: ${error.message}`)
       if (error instanceof ValidationError) {
         return res.status(error.status).json({ error: error.message })
       }
@@ -221,15 +193,13 @@ class SearchController {
     const customProviders = await Database.customMetadataProviderModel.findAll()
 
     const customBookProviders = customProviders.filter((p) => p.mediaType === 'book')
-    const customPodcastProviders = customProviders.filter((p) => p.mediaType === 'podcast')
 
     const bookProviders = BookFinder.providers.filter((p) => p !== 'audiobookcovers')
 
     // Build minimized payload with custom providers merged in
     const providers = {
       books: [...bookProviders.map((p) => SearchController.formatProvider(p)), ...SearchController.mapCustomProviders(customBookProviders)],
-      booksCovers: [SearchController.formatProvider('best'), ...BookFinder.providers.map((p) => SearchController.formatProvider(p)), ...SearchController.mapCustomProviders(customBookProviders), SearchController.formatProvider('all')],
-      podcasts: [SearchController.formatProvider('itunes'), ...SearchController.mapCustomProviders(customPodcastProviders)]
+      booksCovers: [SearchController.formatProvider('best'), ...BookFinder.providers.map((p) => SearchController.formatProvider(p)), ...SearchController.mapCustomProviders(customBookProviders), SearchController.formatProvider('all')]
     }
 
     res.json({ providers })

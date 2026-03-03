@@ -1,6 +1,5 @@
 const axios = require('axios')
 const Logger = require('../Logger')
-const htmlSanitizer = require('../utils/htmlSanitizer')
 
 /**
  * @typedef iTunesSearchParams
@@ -9,22 +8,6 @@ const htmlSanitizer = require('../utils/htmlSanitizer')
  * @property {string} media
  * @property {string} entity
  * @property {number} limit
- */
-
-/**
- * @typedef iTunesPodcastSearchResult
- * @property {string} id
- * @property {string} artistId
- * @property {string} title
- * @property {string} artistName
- * @property {string} description
- * @property {string} descriptionPlain
- * @property {string} releaseDate
- * @property {string[]} genres
- * @property {string} cover
- * @property {string} feedUrl
- * @property {string} pageUrl
- * @property {boolean} explicit
  */
 
 class iTunes {
@@ -131,40 +114,5 @@ class iTunes {
     })
   }
 
-  /**
-   *
-   * @param {Object} data
-   * @returns {iTunesPodcastSearchResult}
-   */
-  cleanPodcast(data) {
-    return {
-      id: data.collectionId,
-      artistId: data.artistId || null,
-      title: data.collectionName,
-      artistName: data.artistName,
-      description: htmlSanitizer.sanitize(data.description || ''),
-      descriptionPlain: htmlSanitizer.stripAllTags(data.description || ''),
-      releaseDate: data.releaseDate,
-      genres: data.genres || [],
-      cover: this.getCoverArtwork(data),
-      trackCount: data.trackCount,
-      feedUrl: data.feedUrl,
-      pageUrl: data.collectionViewUrl,
-      explicit: data.trackExplicitness === 'explicit'
-    }
-  }
-
-  /**
-   *
-   * @param {string} term
-   * @param {{country:string}} options
-   * @param {number} [timeout] response timeout in ms
-   * @returns {Promise<iTunesPodcastSearchResult[]>}
-   */
-  searchPodcasts(term, options = {}, timeout = this.#responseTimeout) {
-    return this.search({ term, entity: 'podcast', media: 'podcast', ...options }, timeout).then((results) => {
-      return results.map(this.cleanPodcast.bind(this))
-    })
-  }
 }
 module.exports = iTunes

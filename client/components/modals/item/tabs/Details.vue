@@ -1,8 +1,7 @@
 <template>
   <div class="w-full h-full relative">
     <div id="formWrapper" class="w-full overflow-y-auto">
-      <widgets-book-details-edit v-if="mediaType == 'book'" ref="itemDetailsEdit" :library-item="libraryItem" @submit="saveAndClose" />
-      <widgets-podcast-details-edit v-else ref="itemDetailsEdit" :library-item="libraryItem" @submit="saveAndClose" />
+      <widgets-book-details-edit ref="itemDetailsEdit" :library-item="libraryItem" @submit="saveAndClose" />
     </div>
 
     <div class="absolute bottom-0 left-0 w-full py-2 md:py-4 bg-bg" :class="isScrollable ? 'box-shadow-md-up' : 'border-t border-white/5'">

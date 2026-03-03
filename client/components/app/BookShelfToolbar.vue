@@ -2,23 +2,16 @@
   <div class="w-full h-20 md:h-10 relative">
     <div class="flex md:hidden h-10 items-center">
       <nuxt-link :to="`/library/${currentLibraryId}`" class="grow h-full flex justify-center items-center" :class="isHomePage ? 'bg-primary/80' : 'bg-primary/40'">
-        <p v-if="isHomePage || isPodcastLibrary" class="text-sm">{{ $strings.ButtonHome }}</p>
+        <p v-if="isHomePage" class="text-sm">{{ $strings.ButtonHome }}</p>
         <span v-else class="material-symbols text-lg">home</span>
       </nuxt-link>
       <nuxt-link :to="`/library/${currentLibraryId}/bookshelf`" class="grow h-full flex justify-center items-center" :class="isLibraryPage ? 'bg-primary/80' : 'bg-primary/40'">
-        <p v-if="isLibraryPage || isPodcastLibrary" class="text-sm">{{ $strings.ButtonLibrary }}</p>
+        <p v-if="isLibraryPage" class="text-sm">{{ $strings.ButtonLibrary }}</p>
         <span v-else class="material-symbols text-lg">import_contacts</span>
-      </nuxt-link>
-      <nuxt-link v-if="isPodcastLibrary" :to="`/library/${currentLibraryId}/podcast/latest`" class="grow h-full flex justify-center items-center" :class="isPodcastLatestPage ? 'bg-primary/80' : 'bg-primary/40'">
-        <p class="text-sm">{{ $strings.ButtonLatest }}</p>
       </nuxt-link>
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/series`" class="grow h-full flex justify-center items-center" :class="isSeriesPage ? 'bg-primary/80' : 'bg-primary/40'">
         <p v-if="isSeriesPage" class="text-sm">{{ $strings.ButtonSeries }}</p>
         <span v-else class="material-symbols text-lg">view_column</span>
-      </nuxt-link>
-      <nuxt-link v-if="showPlaylists" :to="`/library/${currentLibraryId}/bookshelf/playlists`" class="grow h-full flex justify-center items-center" :class="isPlaylistsPage ? 'bg-primary/80' : 'bg-primary/40'">
-        <p v-if="isPlaylistsPage || isPodcastLibrary" class="text-sm">{{ $strings.ButtonPlaylists }}</p>
-        <span v-else class="material-symbols text-lg">&#xe03d;</span>
       </nuxt-link>
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/authors`" class="grow h-full flex justify-center items-center" :class="isAuthorsPage ? 'bg-primary/80' : 'bg-primary/40'">
         <p v-if="isAuthorsPage" class="text-sm">{{ $strings.ButtonAuthors }}</p>
@@ -27,12 +20,6 @@
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/tags`" class="grow h-full flex justify-center items-center" :class="isTagsPage ? 'bg-primary/80' : 'bg-primary/40'">
         <p v-if="isTagsPage" class="text-sm">{{ $strings.LabelTags }}</p>
         <span v-else class="material-symbols text-lg">label</span>
-      </nuxt-link>
-      <nuxt-link v-if="isPodcastLibrary && userIsAdminOrUp" :to="`/library/${currentLibraryId}/podcast/search`" class="grow h-full flex justify-center items-center" :class="isPodcastSearchPage ? 'bg-primary/80' : 'bg-primary/40'">
-        <p class="text-sm">{{ $strings.ButtonAdd }}</p>
-      </nuxt-link>
-      <nuxt-link v-if="isPodcastLibrary && userIsAdminOrUp" :to="`/library/${currentLibraryId}/podcast/download-queue`" class="grow h-full flex justify-center items-center" :class="isPodcastDownloadQueuePage ? 'bg-primary/80' : 'bg-primary/40'">
-        <p class="text-sm">{{ $strings.ButtonDownloadQueue }}</p>
       </nuxt-link>
       <nuxt-link to="/downloads" class="grow h-full flex justify-center items-center relative" :class="isDownloadsPage ? 'bg-primary/80' : 'bg-primary/40'">
         <span class="material-symbols text-lg">cloud_download</span>
@@ -55,17 +42,12 @@
         </div>
         <div class="grow" />
 
-        <!-- RSS feed -->
-        <ui-tooltip v-if="seriesRssFeed" :text="$strings.LabelOpenRSSFeed" direction="top">
-          <ui-icon-btn icon="rss_feed" class="mx-0.5" :size="7" icon-font-size="1.2rem" bg-color="bg-success" outlined @click="showOpenSeriesRSSFeed" />
-        </ui-tooltip>
-
         <widgets-cover-size-widget setting-key="seriesDetailCoverSize" class="ml-2" />
 
         <ui-context-menu-dropdown v-if="!isBatchSelecting && seriesContextMenuItems.length" :items="seriesContextMenuItems" class="mx-px" @action="seriesContextMenuAction" />
       </template>
       <!-- library & collections page -->
-      <template v-else-if="page !== 'search' && page !== 'podcast-search' && page !== 'recent-episodes' && !isHome && !isAuthorsPage && !isContinueListeningPage && !isRecentlyAddedPage">
+      <template v-else-if="page !== 'search' && !isHome && !isAuthorsPage && !isContinueListeningPage && !isRecentlyAddedPage">
         <p class="hidden md:block">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
 
         <div class="grow hidden sm:inline-block" />
@@ -214,13 +196,6 @@ export default {
         }
       ]
 
-      if (this.userIsAdminOrUp || this.selectedSeries.rssFeed) {
-        items.push({
-          text: this.$strings.LabelOpenRSSFeed,
-          action: 'open-rss-feed'
-        })
-      }
-
       if (this.isSeriesRemovedFromContinueListening) {
         items.push({
           text: this.$strings.LabelReAddSeriesToContinueListening,
@@ -357,32 +332,14 @@ export default {
     isBookLibrary() {
       return this.currentLibraryMediaType === 'book'
     },
-    isPodcastLibrary() {
-      return this.currentLibraryMediaType === 'podcast'
-    },
     isLibraryPage() {
       return this.page === ''
     },
     isSeriesPage() {
       return this.page === 'series'
     },
-    isCollectionsPage() {
-      return this.page === 'collections'
-    },
-    isPlaylistsPage() {
-      return this.page === 'playlists'
-    },
     isHomePage() {
       return this.$route.name === 'library-library'
-    },
-    isPodcastSearchPage() {
-      return this.$route.name === 'library-library-podcast-search'
-    },
-    isPodcastLatestPage() {
-      return this.$route.name === 'library-library-podcast-latest'
-    },
-    isPodcastDownloadQueuePage() {
-      return this.$route.name === 'library-library-podcast-download-queue'
     },
     isAuthorsPage() {
       return this.page === 'authors'
@@ -400,11 +357,8 @@ export default {
       return this.totalEntities
     },
     entityName() {
-      if (this.isPodcastLibrary) return this.$strings.LabelPodcasts
       if (!this.page) return this.$strings.LabelBooks
       if (this.isSeriesPage) return this.$strings.LabelSeries
-      if (this.isCollectionsPage) return this.$strings.LabelCollections
-      if (this.isPlaylistsPage) return this.$strings.LabelPlaylists
       if (this.isAuthorsPage) return this.$strings.LabelAuthors
       if (this.isTagsPage) return this.$strings.LabelTags
       if (this.isContinueListeningPage) return 'Continue Listening'
@@ -419,9 +373,6 @@ export default {
     },
     seriesProgress() {
       return this.selectedSeries ? this.selectedSeries.progress : null
-    },
-    seriesRssFeed() {
-      return this.selectedSeries ? this.selectedSeries.rssFeed : null
     },
     seriesLibraryItemIds() {
       if (!this.seriesProgress) return []
@@ -449,20 +400,10 @@ export default {
     contextMenuItems() {
       const items = []
 
-      if (this.isPodcastLibrary && this.isLibraryPage && this.userCanDownload) {
-        items.push({
-          text: this.$strings.LabelExportOPML,
-          action: 'export-opml'
-        })
-      }
-
       this.addSubtitlesMenuItem(items)
       this.addCollapseSeriesMenuItem(items)
 
       return items
-    },
-    showPlaylists() {
-      return this.$store.state.libraries.numUserPlaylists > 0
     },
     isDownloadsPage() {
       return this.$route.name === 'downloads'
@@ -479,8 +420,6 @@ export default {
     currentPageCoverSizeKey() {
       if (this.isLibraryPage) return 'libraryCoverSize'
       if (this.isSeriesPage) return 'seriesCoverSize'
-      if (this.isPlaylistsPage) return 'playlistsCoverSize'
-      if (this.isCollectionsPage) return 'libraryCoverSize'
       return 'libraryCoverSize'
     }
   },
@@ -578,17 +517,11 @@ export default {
       return false
     },
     contextMenuAction({ action }) {
-      if (action === 'export-opml') {
-        this.exportOPML()
-        return
-      } else if (this.handleSubtitlesAction(action)) {
+      if (this.handleSubtitlesAction(action)) {
         return
       } else if (this.handleCollapseSeriesAction(action)) {
         return
       }
-    },
-    exportOPML() {
-      this.$downloadFile(`/api/libraries/${this.currentLibraryId}/opml?token=${this.$store.getters['user/getToken']}`, null, true)
     },
     async playAll() {
       if (this.playingAll) return
@@ -660,9 +593,7 @@ export default {
       }
     },
     seriesContextMenuAction({ action }) {
-      if (action === 'open-rss-feed') {
-        this.showOpenSeriesRSSFeed()
-      } else if (action === 're-add-to-continue-listening') {
+      if (action === 're-add-to-continue-listening') {
         if (this.processingSeries) {
           console.warn('Already processing series')
           return
@@ -679,14 +610,6 @@ export default {
       } else if (this.handleCollapseSubSeriesAction(action)) {
         return
       }
-    },
-    showOpenSeriesRSSFeed() {
-      this.$store.commit('globals/setRSSFeedOpenCloseModal', {
-        id: this.selectedSeries.id,
-        name: this.selectedSeries.name,
-        type: 'series',
-        feed: this.selectedSeries.rssFeed
-      })
     },
     reAddSeriesToContinueListening() {
       this.processingSeries = true
@@ -882,31 +805,15 @@ export default {
     setBookshelfTotalEntities(totalEntities) {
       this.totalEntities = totalEntities
     },
-    rssFeedOpen(data) {
-      if (data.entityId === this.seriesId) {
-        console.log('RSS Feed Opened', data)
-        this.selectedSeries.rssFeed = data
-      }
-    },
-    rssFeedClosed(data) {
-      if (data.entityId === this.seriesId) {
-        console.log('RSS Feed Closed', data)
-        this.selectedSeries.rssFeed = null
-      }
-    }
   },
   mounted() {
     this.init()
     this.$eventBus.$on('user-settings', this.settingsUpdated)
     this.$eventBus.$on('bookshelf-total-entities', this.setBookshelfTotalEntities)
-    this.$root.socket.on('rss_feed_open', this.rssFeedOpen)
-    this.$root.socket.on('rss_feed_closed', this.rssFeedClosed)
   },
   beforeDestroy() {
     this.$eventBus.$off('user-settings', this.settingsUpdated)
     this.$eventBus.$off('bookshelf-total-entities', this.setBookshelfTotalEntities)
-    this.$root.socket.off('rss_feed_open', this.rssFeedOpen)
-    this.$root.socket.off('rss_feed_closed', this.rssFeedClosed)
     // Clear any pending search timeout
     if (this.searchDebounceTimeout) {
       clearTimeout(this.searchDebounceTimeout)

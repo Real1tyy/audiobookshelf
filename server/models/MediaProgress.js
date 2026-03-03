@@ -34,8 +34,6 @@ class MediaProgress extends Model {
     this.updatedAt
     /** @type {Date} */
     this.createdAt
-    /** @type {UUIDV4} */
-    this.podcastId
   }
 
   static removeById(mediaProgressId) {
@@ -48,9 +46,6 @@ class MediaProgress extends Model {
 
   /**
    * Initialize model
-   *
-   * Polymorphic association: Book has many MediaProgress. PodcastEpisode has many MediaProgress.
-   * @see https://sequelize.org/docs/v6/advanced-association-concepts/polymorphic-associations/
    *
    * @param {import('../Database').sequelize} sequelize
    */
@@ -71,8 +66,7 @@ class MediaProgress extends Model {
         ebookLocation: DataTypes.STRING,
         ebookProgress: DataTypes.FLOAT,
         finishedAt: DataTypes.DATE,
-        extraData: DataTypes.JSON,
-        podcastId: DataTypes.UUID
+        extraData: DataTypes.JSON
       },
       {
         sequelize,
@@ -85,7 +79,7 @@ class MediaProgress extends Model {
       }
     )
 
-    const { book, podcastEpisode, user } = sequelize.models
+    const { book, user } = sequelize.models
 
     book.hasMany(MediaProgress, {
       foreignKey: 'mediaItemId',
@@ -96,33 +90,19 @@ class MediaProgress extends Model {
     })
     MediaProgress.belongsTo(book, { foreignKey: 'mediaItemId', constraints: false })
 
-    podcastEpisode.hasMany(MediaProgress, {
-      foreignKey: 'mediaItemId',
-      constraints: false,
-      scope: {
-        mediaItemType: 'podcastEpisode'
-      }
-    })
-    MediaProgress.belongsTo(podcastEpisode, { foreignKey: 'mediaItemId', constraints: false })
-
     MediaProgress.addHook('afterFind', (findResult) => {
       if (!findResult) return
 
       if (!Array.isArray(findResult)) findResult = [findResult]
 
       for (const instance of findResult) {
-        if (instance.mediaItemType === 'book' && instance.book !== undefined) {
+        if (instance.book !== undefined) {
           instance.mediaItem = instance.book
           instance.dataValues.mediaItem = instance.dataValues.book
-        } else if (instance.mediaItemType === 'podcastEpisode' && instance.podcastEpisode !== undefined) {
-          instance.mediaItem = instance.podcastEpisode
-          instance.dataValues.mediaItem = instance.dataValues.podcastEpisode
         }
         // To prevent mistakes:
         delete instance.book
         delete instance.dataValues.book
-        delete instance.podcastEpisode
-        delete instance.dataValues.podcastEpisode
       }
     })
 
@@ -149,13 +129,11 @@ class MediaProgress extends Model {
   }
 
   getOldMediaProgress() {
-    const isPodcastEpisode = this.mediaItemType === 'podcastEpisode'
-
     return {
       id: this.id,
       userId: this.userId,
       libraryItemId: this.extraData?.libraryItemId || null,
-      episodeId: isPodcastEpisode ? this.mediaItemId : null,
+      episodeId: null,
       mediaItemId: this.mediaItemId,
       mediaItemType: this.mediaItemType,
       duration: this.duration,

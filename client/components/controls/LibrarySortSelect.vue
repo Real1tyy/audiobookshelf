@@ -50,48 +50,6 @@ export default {
         this.$emit('update:descending', val)
       }
     },
-    libraryMediaType() {
-      return this.$store.getters['libraries/getCurrentLibraryMediaType']
-    },
-    isPodcast() {
-      return this.libraryMediaType === 'podcast'
-    },
-    podcastItems() {
-      return [
-        {
-          text: this.$strings.LabelTitle,
-          value: 'media.metadata.title'
-        },
-        {
-          text: this.$strings.LabelAuthor,
-          value: 'media.metadata.author'
-        },
-        {
-          text: this.$strings.LabelAddedAt,
-          value: 'addedAt'
-        },
-        {
-          text: this.$strings.LabelSize,
-          value: 'size'
-        },
-        {
-          text: this.$strings.LabelNumberOfEpisodes,
-          value: 'media.numTracks'
-        },
-        {
-          text: this.$strings.LabelFileBirthtime,
-          value: 'birthtimeMs'
-        },
-        {
-          text: this.$strings.LabelFileModified,
-          value: 'mtimeMs'
-        },
-        {
-          text: this.$strings.LabelRandomly,
-          value: 'random'
-        }
-      ]
-    },
     bookItems() {
       return [
         {
@@ -171,9 +129,7 @@ export default {
     },
     selectItems() {
       let items = null
-      if (this.isPodcast) {
-        items = this.podcastItems
-      } else if (this.$store.getters['user/getUserSetting']('filterBy').startsWith('series.')) {
+      if (this.$store.getters['user/getUserSetting']('filterBy').startsWith('series.')) {
         items = this.seriesItems
       } else {
         items = this.bookItems

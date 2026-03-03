@@ -2,7 +2,6 @@ const Sequelize = require('sequelize')
 const Logger = require('../../Logger')
 const Database = require('../../Database')
 const libraryItemsBookFilters = require('./libraryItemsBookFilters')
-const libraryItemsPodcastFilters = require('./libraryItemsPodcastFilters')
 const { createNewSortInstance } = require('../../libs/fastSort')
 const { profile } = require('../../utils/profiler')
 const naturalSort = createNewSortInstance({
@@ -72,25 +71,21 @@ module.exports = {
     const filters = this.parseFilters(filterBy)
     const primary = filters[0] || { filterGroup: null, filterValue: null }
 
-    if (mediaType === 'book') {
-      return libraryItemsBookFilters.getFilteredLibraryItems(
-        libraryId,
-        user,
-        primary.filterGroup,
-        primary.filterValue,
-        sortBy,
-        sortDesc,
-        collapseseries,
-        include,
-        limit,
-        offset,
-        false,
-        searchQuery,
-        filters
-      )
-    } else {
-      return libraryItemsPodcastFilters.getFilteredLibraryItems(libraryId, user, primary.filterGroup, primary.filterValue, sortBy, sortDesc, include, limit, offset, searchQuery, filters)
-    }
+    return libraryItemsBookFilters.getFilteredLibraryItems(
+      libraryId,
+      user,
+      primary.filterGroup,
+      primary.filterValue,
+      sortBy,
+      sortDesc,
+      collapseseries,
+      include,
+      limit,
+      offset,
+      false,
+      searchQuery,
+      filters
+    )
   },
 
   /**
@@ -102,31 +97,19 @@ module.exports = {
    * @returns {Promise<{ items:import('../../models/LibraryItem')[], count:number }>}
    */
   async getMediaItemsInProgress(library, user, include, limit) {
-    if (library.isBook) {
-      const { libraryItems, count } = await libraryItemsBookFilters.getFilteredLibraryItems(library.id, user, 'progress', 'in-progress', 'progress', true, false, include, limit, 0, true)
-      return {
-        items: libraryItems.map((li) => {
-          const oldLibraryItem = li.toOldJSONMinified()
-          if (li.rssFeed) {
-            oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-          }
-          if (li.mediaItemShare) {
-            oldLibraryItem.mediaItemShare = li.mediaItemShare
-          }
-          return oldLibraryItem
-        }),
-        count
-      }
-    } else {
-      const { libraryItems, count } = await libraryItemsPodcastFilters.getFilteredPodcastEpisodes(library.id, user, 'progress', 'in-progress', 'progress', true, limit, 0, true)
-      return {
-        count,
-        items: libraryItems.map((li) => {
-          const oldLibraryItem = li.toOldJSONMinified()
-          oldLibraryItem.recentEpisode = li.recentEpisode
-          return oldLibraryItem
-        })
-      }
+    const { libraryItems, count } = await libraryItemsBookFilters.getFilteredLibraryItems(library.id, user, 'progress', 'in-progress', 'progress', true, false, include, limit, 0, true)
+    return {
+      items: libraryItems.map((li) => {
+        const oldLibraryItem = li.toOldJSONMinified()
+        if (li.rssFeed) {
+          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
+        }
+        if (li.mediaItemShare) {
+          oldLibraryItem.mediaItemShare = li.mediaItemShare
+        }
+        return oldLibraryItem
+      }),
+      count
     }
   },
 
@@ -139,42 +122,22 @@ module.exports = {
    * @returns {object} { libraryItems:LibraryItem[], count:number }
    */
   async getLibraryItemsMostRecentlyAdded(library, user, include, limit) {
-    if (library.isBook) {
-      const { libraryItems, count } = await libraryItemsBookFilters.getFilteredLibraryItems(library.id, user, 'recent', null, 'addedAt', true, false, include, limit, 0)
-      return {
-        libraryItems: libraryItems.map((li) => {
-          const oldLibraryItem = li.toOldJSONMinified()
-          if (li.rssFeed) {
-            oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-          }
-          if (li.size && !oldLibraryItem.media.size) {
-            oldLibraryItem.media.size = li.size
-          }
-          if (li.mediaItemShare) {
-            oldLibraryItem.mediaItemShare = li.mediaItemShare
-          }
-          return oldLibraryItem
-        }),
-        count
-      }
-    } else {
-      const { libraryItems, count } = await libraryItemsPodcastFilters.getFilteredLibraryItems(library.id, user, 'recent', null, 'addedAt', true, include, limit, 0)
-      return {
-        libraryItems: libraryItems.map((li) => {
-          const oldLibraryItem = li.toOldJSONMinified()
-          if (li.rssFeed) {
-            oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-          }
-          if (li.size && !oldLibraryItem.media.size) {
-            oldLibraryItem.media.size = li.size
-          }
-          if (li.numEpisodesIncomplete) {
-            oldLibraryItem.numEpisodesIncomplete = li.numEpisodesIncomplete
-          }
-          return oldLibraryItem
-        }),
-        count
-      }
+    const { libraryItems, count } = await libraryItemsBookFilters.getFilteredLibraryItems(library.id, user, 'recent', null, 'addedAt', true, false, include, limit, 0)
+    return {
+      libraryItems: libraryItems.map((li) => {
+        const oldLibraryItem = li.toOldJSONMinified()
+        if (li.rssFeed) {
+          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
+        }
+        if (li.size && !oldLibraryItem.media.size) {
+          oldLibraryItem.media.size = li.size
+        }
+        if (li.mediaItemShare) {
+          oldLibraryItem.mediaItemShare = li.mediaItemShare
+        }
+        return oldLibraryItem
+      }),
+      count
     }
   },
 
@@ -216,31 +179,19 @@ module.exports = {
    * @returns {Promise<{ items:oldLibraryItem[], count:number }>}
    */
   async getMediaFinished(library, user, include, limit) {
-    if (library.isBook) {
-      const { libraryItems, count } = await libraryItemsBookFilters.getFilteredLibraryItems(library.id, user, 'progress', 'finished', 'progress', true, false, include, limit, 0)
-      return {
-        items: libraryItems.map((li) => {
-          const oldLibraryItem = li.toOldJSONMinified()
-          if (li.rssFeed) {
-            oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-          }
-          if (li.mediaItemShare) {
-            oldLibraryItem.mediaItemShare = li.mediaItemShare
-          }
-          return oldLibraryItem
-        }),
-        count
-      }
-    } else {
-      const { libraryItems, count } = await libraryItemsPodcastFilters.getFilteredPodcastEpisodes(library.id, user, 'progress', 'finished', 'progress', true, limit, 0)
-      return {
-        count,
-        items: libraryItems.map((li) => {
-          const oldLibraryItem = li.toOldJSONMinified()
-          oldLibraryItem.recentEpisode = li.recentEpisode
-          return oldLibraryItem
-        })
-      }
+    const { libraryItems, count } = await libraryItemsBookFilters.getFilteredLibraryItems(library.id, user, 'progress', 'finished', 'progress', true, false, include, limit, 0)
+    return {
+      items: libraryItems.map((li) => {
+        const oldLibraryItem = li.toOldJSONMinified()
+        if (li.rssFeed) {
+          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
+        }
+        if (li.mediaItemShare) {
+          oldLibraryItem.mediaItemShare = li.mediaItemShare
+        }
+        return oldLibraryItem
+      }),
+      count
     }
   },
 
@@ -439,27 +390,6 @@ module.exports = {
   },
 
   /**
-   * Get podcast episodes most recently added
-   * @param {import('../../models/Library')} library
-   * @param {import('../../models/User')} user
-   * @param {number} limit
-   * @returns {Promise<{libraryItems:oldLibraryItem[], count:number}>}
-   */
-  async getNewestPodcastEpisodes(library, user, limit) {
-    if (library.mediaType !== 'podcast') return { libraryItems: [], count: 0 }
-
-    const { libraryItems, count } = await libraryItemsPodcastFilters.getFilteredPodcastEpisodes(library.id, user, 'recent', null, 'createdAt', true, limit, 0)
-    return {
-      count,
-      libraryItems: libraryItems.map((li) => {
-        const oldLibraryItem = li.toOldJSONMinified()
-        oldLibraryItem.recentEpisode = li.recentEpisode
-        return oldLibraryItem
-      })
-    }
-  },
-
-  /**
    * Get library items for an author, optional use user permissions
    * @param {import('../../models/Author')} author
    * @param {import('../../models/User')} user
@@ -511,89 +441,12 @@ module.exports = {
       bookCount: 0, // How many books returned from database query
       authorCount: 0, // How many authors returned from database query
       seriesCount: 0, // How many series returned from database query
-      podcastCount: 0, // How many podcasts returned from database query
       numIssues: 0
     }
 
     const lastLoadedAt = cachedFilterData ? cachedFilterData.loadedAt : 0
 
-    if (mediaType === 'podcast') {
-      // Check how many podcasts are in library to determine if we need to load all of the data
-      // This is done to handle the edge case of podcasts having been deleted and not having
-      // an updatedAt timestamp to trigger a reload of the filter data
-      const podcastModelCount = process.env.QUERY_PROFILING ? profile(Database.podcastModel.count.bind(Database.podcastModel)) : Database.podcastModel.count.bind(Database.podcastModel)
-      const podcastCountFromDatabase = await podcastModelCount({
-        include: {
-          model: Database.libraryItemModel,
-          attributes: [],
-          where: {
-            libraryId: libraryId
-          }
-        }
-      })
-
-      // To reduce the cold-start load time, first check if any podcasts
-      // have an "updatedAt" timestamp since the last time the filter
-      // data was loaded. If so, we can skip loading all of the data.
-      // Because many items could change, just check the count of items instead
-      // of actually loading the data twice
-      const changedPodcasts = await podcastModelCount({
-        include: {
-          model: Database.libraryItemModel,
-          attributes: [],
-          where: {
-            libraryId: libraryId,
-            updatedAt: {
-              [Sequelize.Op.gt]: new Date(lastLoadedAt)
-            }
-          }
-        },
-        where: {
-          updatedAt: {
-            [Sequelize.Op.gt]: new Date(lastLoadedAt)
-          }
-        },
-        limit: 1
-      })
-
-      if (changedPodcasts === 0) {
-        // If nothing has changed, check if the number of podcasts in
-        // library is still the same as prior check before updating cache creation time
-
-        if (podcastCountFromDatabase === Database.libraryFilterData[libraryId]?.podcastCount) {
-          Logger.debug(`Filter data for ${libraryId} has not changed, returning cached data and updating cache time after ${((Date.now() - start) / 1000).toFixed(2)}s`)
-          Database.libraryFilterData[libraryId].loadedAt = Date.now()
-          return cachedFilterData
-        }
-      }
-
-      // Something has changed in the podcasts table, so reload all of the filter data for library
-      const findAll = process.env.QUERY_PROFILING ? profile(Database.podcastModel.findAll.bind(Database.podcastModel)) : Database.podcastModel.findAll.bind(Database.podcastModel)
-      const podcasts = await findAll({
-        include: {
-          model: Database.libraryItemModel,
-          attributes: [],
-          where: {
-            libraryId: libraryId
-          }
-        },
-        attributes: ['tags', 'genres', 'language']
-      })
-      for (const podcast of podcasts) {
-        if (podcast.tags?.length) {
-          podcast.tags.forEach((tag) => data.tags.add(tag))
-        }
-        if (podcast.genres?.length) {
-          podcast.genres.forEach((genre) => data.genres.add(genre))
-        }
-        if (podcast.language) {
-          data.languages.add(podcast.language)
-        }
-      }
-
-      // Set podcast count for later comparison
-      data.podcastCount = podcastCountFromDatabase
-    } else {
+    {
       const bookCountFromDatabase = await Database.bookModel.count({
         include: {
           model: Database.libraryItemModel,

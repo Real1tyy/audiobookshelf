@@ -17,7 +17,6 @@ const EBookFile = require('../objects/files/EBookFile')
 const AudioFile = require('../objects/files/AudioFile')
 const LibraryFile = require('../objects/files/LibraryFile')
 
-const RssFeedManager = require('../managers/RssFeedManager')
 const CoverManager = require('../managers/CoverManager')
 const transcriptIndexer = require('../utils/transcriptIndexer')
 
@@ -964,9 +963,6 @@ class BookScanner {
           id: bookSeriesToRemove
         }
       })
-      // Close any open feeds for series
-      await RssFeedManager.closeFeedsForEntityIds(bookSeriesToRemove)
-
       bookSeriesToRemove.forEach((seriesId) => {
         Database.removeSeriesFromFilterData(libraryId, seriesId)
         SocketAuthority.emitter('series_removed', { id: seriesId, libraryId })

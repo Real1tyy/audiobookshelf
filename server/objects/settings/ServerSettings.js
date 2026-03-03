@@ -41,9 +41,6 @@ class ServerSettings {
     this.homeBookshelfView = BookshelfView.DETAIL
     this.bookshelfView = BookshelfView.DETAIL
 
-    // Podcasts
-    this.podcastEpisodeSchedule = '0 * * * *' // Every hour
-
     // Sorting
     this.sortingIgnorePrefix = false
     this.sortingPrefixes = ['the', 'a']
@@ -226,7 +223,6 @@ class ServerSettings {
       loggerScannerLogsToKeep: this.loggerScannerLogsToKeep,
       homeBookshelfView: this.homeBookshelfView,
       bookshelfView: this.bookshelfView,
-      podcastEpisodeSchedule: this.podcastEpisodeSchedule,
       sortingIgnorePrefix: this.sortingIgnorePrefix,
       sortingPrefixes: [...this.sortingPrefixes],
       chromecastEnabled: this.chromecastEnabled,

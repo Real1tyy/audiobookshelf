@@ -13,8 +13,7 @@
         </div>
         <div class="text-gray-400 flex items-center w-1/2 sm:w-4/5 lg:w-2/5">
           <span class="material-symbols text-sm">person</span>
-          <div v-if="podcastAuthor" class="pl-1 sm:pl-1.5 text-xs sm:text-base truncate">{{ podcastAuthor }}</div>
-          <div v-else-if="authors.length" class="pl-1 sm:pl-1.5 text-xs sm:text-base truncate">
+          <div v-if="authors.length" class="pl-1 sm:pl-1.5 text-xs sm:text-base truncate">
             <nuxt-link v-for="(author, index) in authors" :key="index" :to="`/author/${author.id}`" class="hover:underline">{{ author.name }}<span v-if="index < authors.length - 1">,&nbsp;</span></nuxt-link>
           </div>
           <div v-else class="text-xs sm:text-base cursor-pointer pl-1 sm:pl-1.5">{{ $strings.LabelUnknown }}</div>
@@ -127,11 +126,6 @@ export default {
     streamLibraryItem() {
       return this.$store.state.streamLibraryItem
     },
-    streamEpisode() {
-      if (!this.$store.state.streamEpisodeId) return null
-      const episodes = this.streamLibraryItem.media.episodes || []
-      return episodes.find((ep) => ep.id === this.$store.state.streamEpisodeId)
-    },
     libraryItemId() {
       return this.streamLibraryItem?.id || null
     },
@@ -139,7 +133,7 @@ export default {
       return this.streamLibraryItem?.media || {}
     },
     isPodcast() {
-      return this.streamLibraryItem?.mediaType === 'podcast'
+      return false
     },
     isExplicit() {
       return !!this.mediaMetadata.explicit
@@ -148,7 +142,6 @@ export default {
       return this.media.metadata || {}
     },
     chapters() {
-      if (this.streamEpisode) return this.streamEpisode.chapters || []
       return this.media.chapters || []
     },
     currentChapter() {
@@ -168,17 +161,12 @@ export default {
       // Adjusted by playback rate
       return this.$secondsToTimestamp(this.totalDuration / this.currentPlaybackRate)
     },
-    podcastAuthor() {
-      if (!this.isPodcast) return null
-      return this.mediaMetadata.author || this.$strings.LabelUnknown
-    },
     hasNextItemInQueue() {
       return this.currentPlayerQueueIndex < this.playerQueueItems.length - 1
     },
     currentPlayerQueueIndex() {
       if (!this.libraryItemId) return -1
       return this.playerQueueItems.findIndex((i) => {
-        if (this.streamEpisode?.id) return i.episodeId === this.streamEpisode.id
         return i.libraryItemId === this.libraryItemId
       })
     },

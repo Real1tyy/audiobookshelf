@@ -1,17 +1,12 @@
 export const state = () => ({
   bookProviders: [],
-  podcastProviders: [],
   bookCoverProviders: [],
-  podcastCoverProviders: [],
   providersLoaded: false
 })
 
 export const getters = {
   checkBookProviderExists: (state) => (providerValue) => {
     return state.bookProviders.some((p) => p.value === providerValue)
-  },
-  checkPodcastProviderExists: (state) => (providerValue) => {
-    return state.podcastProviders.some((p) => p.value === providerValue)
   },
   areProvidersLoaded: (state) => state.providersLoaded
 }
@@ -52,9 +47,7 @@ export const actions = {
 export const mutations = {
   setAllProviders(state, providers) {
     state.bookProviders = providers.books || []
-    state.podcastProviders = providers.podcasts || []
     state.bookCoverProviders = providers.booksCovers || []
-    state.podcastCoverProviders = providers.podcasts || [] // Use same as bookCovers since podcasts use iTunes only
     state.providersLoaded = true
   }
 }

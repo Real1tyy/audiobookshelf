@@ -80,8 +80,6 @@ export default {
         return 'done'
       }
       switch (this.action) {
-        case 'download-podcast-episode':
-          return 'cloud_download'
         case 'encode-m4b':
           return 'sync'
         default:

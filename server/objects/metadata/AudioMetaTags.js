@@ -25,7 +25,6 @@ class AudioMetaTags {
     this.tagLanguage = null
     this.tagASIN = null
     this.tagItunesId = null
-    this.tagPodcastType = null
     this.tagEpisodeType = null
     this.tagOverdriveMediaMarker = null
     this.tagOriginalYear = null
@@ -133,7 +132,6 @@ class AudioMetaTags {
     this.tagLanguage = metadata.tagLanguage || null
     this.tagASIN = metadata.tagASIN || null
     this.tagItunesId = metadata.tagItunesId || null
-    this.tagPodcastType = metadata.tagPodcastType || null
     this.tagEpisodeType = metadata.tagEpisodeType || null
     this.tagOverdriveMediaMarker = metadata.tagOverdriveMediaMarker || null
     this.tagOriginalYear = metadata.tagOriginalYear || null
@@ -174,7 +172,6 @@ class AudioMetaTags {
     this.tagLanguage = payload.file_tag_language || null
     this.tagASIN = payload.file_tag_asin || null
     this.tagItunesId = payload.file_tag_itunesid || null
-    this.tagPodcastType = payload.file_tag_podcasttype || null
     this.tagEpisodeType = payload.file_tag_episodetype || null
     this.tagOverdriveMediaMarker = payload.file_tag_overdrive_media_marker || null
     this.tagOriginalYear = payload.file_tag_originalyear || null
@@ -215,7 +212,6 @@ class AudioMetaTags {
       tagLanguage: payload.file_tag_language || null,
       tagASIN: payload.file_tag_asin || null,
       tagItunesId: payload.file_tag_itunesid || null,
-      tagPodcastType: payload.file_tag_podcasttype || null,
       tagEpisodeType: payload.file_tag_episodetype || null,
       tagOverdriveMediaMarker: payload.file_tag_overdrive_media_marker || null,
       tagOriginalYear: payload.file_tag_originalyear || null,

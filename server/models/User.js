@@ -66,7 +66,6 @@ const { DataTypes, Model } = sequelize
 /**
  * @typedef ProgressUpdatePayload
  * @property {string} libraryItemId
- * @property {string} [episodeId]
  * @property {number} [duration]
  * @property {number} [progress]
  * @property {number} [currentTime]
@@ -711,12 +710,10 @@ class User extends Model {
    * TODO: Update to new model
    *
    * @param {string} libraryItemId
-   * @param {string} [episodeId]
    * @returns
    */
-  getOldMediaProgress(libraryItemId, episodeId = null) {
+  getOldMediaProgress(libraryItemId) {
     const mediaProgress = this.mediaProgresses?.find((mp) => {
-      if (episodeId && mp.mediaItemId !== episodeId) return false
       return mp.extraData?.libraryItemId === libraryItemId
     })
     return mediaProgress?.getOldMediaProgress() || null
@@ -732,60 +729,29 @@ class User extends Model {
     /** @type {import('./MediaProgress')|null} */
     let mediaProgress = null
     let mediaItemId = null
-    let podcastId = null
-    if (progressPayload.episodeId) {
-      const podcastEpisode = await this.sequelize.models.podcastEpisode.findByPk(progressPayload.episodeId, {
-        attributes: ['id', 'podcastId'],
-        include: [
-          {
-            model: this.sequelize.models.mediaProgress,
-            where: { userId: this.id },
-            required: false
-          },
-          {
-            model: this.sequelize.models.podcast,
-            attributes: ['id', 'title'],
-            include: {
-              model: this.sequelize.models.libraryItem,
-              attributes: ['id']
-            }
-          }
-        ]
-      })
-      if (!podcastEpisode) {
-        Logger.error(`[User] createUpdateMediaProgress: episode ${progressPayload.episodeId} not found`)
-        return {
-          error: 'Episode not found',
-          statusCode: 404
-        }
-      }
-      mediaItemId = podcastEpisode.id
-      mediaProgress = podcastEpisode.mediaProgresses?.[0]
-      podcastId = podcastEpisode.podcastId
-    } else {
-      const libraryItem = await this.sequelize.models.libraryItem.findByPk(progressPayload.libraryItemId, {
-        attributes: ['id', 'mediaId', 'mediaType'],
+
+    const libraryItem = await this.sequelize.models.libraryItem.findByPk(progressPayload.libraryItemId, {
+      attributes: ['id', 'mediaId', 'mediaType'],
+      include: {
+        model: this.sequelize.models.book,
+        attributes: ['id', 'title'],
+        required: false,
         include: {
-          model: this.sequelize.models.book,
-          attributes: ['id', 'title'],
-          required: false,
-          include: {
-            model: this.sequelize.models.mediaProgress,
-            where: { userId: this.id },
-            required: false
-          }
-        }
-      })
-      if (!libraryItem) {
-        Logger.error(`[User] createUpdateMediaProgress: library item ${progressPayload.libraryItemId} not found`)
-        return {
-          error: 'Library item not found',
-          statusCode: 404
+          model: this.sequelize.models.mediaProgress,
+          where: { userId: this.id },
+          required: false
         }
       }
-      mediaItemId = libraryItem.media.id
-      mediaProgress = libraryItem.media.mediaProgresses?.[0]
+    })
+    if (!libraryItem) {
+      Logger.error(`[User] createUpdateMediaProgress: library item ${progressPayload.libraryItemId} not found`)
+      return {
+        error: 'Library item not found',
+        statusCode: 404
+      }
     }
+    mediaItemId = libraryItem.media.id
+    mediaProgress = libraryItem.media.mediaProgresses?.[0]
 
     if (mediaProgress) {
       mediaProgress = await mediaProgress.applyProgressUpdate(progressPayload)
@@ -794,8 +760,7 @@ class User extends Model {
       const newMediaProgressPayload = {
         userId: this.id,
         mediaItemId,
-        podcastId,
-        mediaItemType: progressPayload.episodeId ? 'podcastEpisode' : 'book',
+        mediaItemType: 'book',
         duration: isNullOrNaN(progressPayload.duration) ? 0 : Number(progressPayload.duration),
         currentTime: isNullOrNaN(progressPayload.currentTime) ? 0 : Number(progressPayload.currentTime),
         isFinished: !!progressPayload.isFinished,
@@ -826,7 +791,7 @@ class User extends Model {
 
   /**
    * Find bookmark
-   * TODO: Bookmarks should use mediaItemId instead of libraryItemId to support podcast episodes
+   * TODO: Bookmarks should use mediaItemId instead of libraryItemId
    *
    * @param {string} libraryItemId
    * @param {number} time

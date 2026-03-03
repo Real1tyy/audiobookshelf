@@ -61,7 +61,7 @@ export default {
   },
   computed: {
     supportedShelves() {
-      return this.shelves.filter((shelf) => ['book', 'podcast', 'episode', 'series', 'authors', 'narrators'].includes(shelf.type))
+      return this.shelves.filter((shelf) => ['book', 'series', 'authors'].includes(shelf.type))
     },
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
@@ -164,7 +164,7 @@ export default {
         const mediaItem = {
           id: entity.id,
           mediaType: entity.mediaType,
-          hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
+          hasTracks: entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
         }
         this.$store.commit('globals/toggleMediaItemSelected', mediaItem)
       }
@@ -224,26 +224,6 @@ export default {
         })
       }
 
-      if (this.results.podcasts?.length) {
-        shelves.push({
-          id: 'podcasts',
-          label: 'Podcasts',
-          labelStringKey: 'LabelPodcasts',
-          type: 'podcast',
-          entities: this.results.podcasts.map((res) => res.libraryItem)
-        })
-      }
-
-      if (this.results.episodes?.length) {
-        shelves.push({
-          id: 'episodes',
-          label: 'Episodes',
-          labelStringKey: 'LabelEpisodes',
-          type: 'episode',
-          entities: this.results.episodes.map((res) => res.libraryItem)
-        })
-      }
-
       if (this.results.series?.length) {
         shelves.push({
           id: 'series',
@@ -288,20 +268,6 @@ export default {
           })
         })
       }
-      if (this.results.narrators?.length) {
-        shelves.push({
-          id: 'narrators',
-          label: 'Narrators',
-          labelStringKey: 'LabelNarrators',
-          type: 'narrators',
-          entities: this.results.narrators.map((n) => {
-            return {
-              ...n,
-              type: 'narrator'
-            }
-          })
-        })
-      }
       this.shelves = shelves
       this.transcriptResults = this.results.transcripts || []
     },
@@ -337,7 +303,7 @@ export default {
     libraryItemUpdated(libraryItem) {
       console.log('libraryItem updated', libraryItem)
       this.shelves.forEach((shelf) => {
-        if (shelf.type == 'book' || shelf.type == 'podcast') {
+        if (shelf.type == 'book') {
           shelf.entities = shelf.entities.map((ent) => {
             if (ent.id === libraryItem.id) {
               return libraryItem
@@ -356,7 +322,7 @@ export default {
     },
     removeBookFromShelf(libraryItem) {
       this.shelves.forEach((shelf) => {
-        if (shelf.type == 'book' || shelf.type == 'podcast') {
+        if (shelf.type == 'book') {
           shelf.entities = shelf.entities.filter((ent) => {
             return ent.id !== libraryItem.id
           })
@@ -398,12 +364,6 @@ export default {
         this.libraryItemUpdated(li)
       })
     },
-    episodeAdded(episodeWithLibraryItem) {
-      const isThisLibrary = episodeWithLibraryItem.libraryItem?.libraryId === this.currentLibraryId
-      if (!this.search && isThisLibrary) {
-        this.fetchCategories()
-      }
-    },
     removeAllSeriesFromContinueSeries(seriesIds) {
       this.shelves.forEach((shelf) => {
         if (shelf.type == 'book' && shelf.id == 'continue-series') {
@@ -421,12 +381,6 @@ export default {
         if (continueListeningShelf.type === 'book') {
           continueListeningShelf.entities = continueListeningShelf.entities.filter((ent) => {
             if (mediaProgressItems.some((mp) => mp.libraryItemId === ent.id)) return false
-            return true
-          })
-        } else if (continueListeningShelf.type === 'episode') {
-          continueListeningShelf.entities = continueListeningShelf.entities.filter((ent) => {
-            if (!ent.recentEpisode) return true // Should always have this here
-            if (mediaProgressItems.some((mp) => mp.libraryItemId === ent.id && mp.episodeId === ent.recentEpisode.id)) return false
             return true
           })
         }
@@ -499,7 +453,7 @@ export default {
             const mediaItem = {
               id: entity.id,
               mediaType: entity.mediaType,
-              hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
+              hasTracks: entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
             }
             this.$store.commit('globals/setMediaItemSelected', { item: mediaItem, selected: true })
           }
@@ -519,7 +473,6 @@ export default {
         this.$root.socket.on('item_removed', this.libraryItemRemoved)
         this.$root.socket.on('items_updated', this.libraryItemsUpdated)
         this.$root.socket.on('items_added', this.libraryItemsAdded)
-        this.$root.socket.on('episode_added', this.episodeAdded)
         this.$root.socket.on('share_open', this.shareOpen)
         this.$root.socket.on('share_closed', this.shareClosed)
       } else {
@@ -539,7 +492,6 @@ export default {
         this.$root.socket.off('item_removed', this.libraryItemRemoved)
         this.$root.socket.off('items_updated', this.libraryItemsUpdated)
         this.$root.socket.off('items_added', this.libraryItemsAdded)
-        this.$root.socket.off('episode_added', this.episodeAdded)
         this.$root.socket.off('share_open', this.shareOpen)
         this.$root.socket.off('share_closed', this.shareClosed)
       } else {

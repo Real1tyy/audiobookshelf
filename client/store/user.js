@@ -112,28 +112,11 @@ export const actions = {
   // When changing libraries make sure sort and filter is still valid
   checkUpdateLibrarySortFilter({ state, dispatch, commit }, mediaType) {
     const settingsUpdate = {}
-    if (mediaType == 'podcast') {
-      if (state.settings.orderBy == 'media.metadata.authorName' || state.settings.orderBy == 'media.metadata.authorNameLF') {
-        settingsUpdate.orderBy = 'media.metadata.author'
-      }
-      if (state.settings.orderBy == 'media.duration') {
-        settingsUpdate.orderBy = 'media.numTracks'
-      }
-      if (state.settings.orderBy == 'media.metadata.publishedYear' || state.settings.orderBy == 'progress') {
-        settingsUpdate.orderBy = 'media.metadata.title'
-      }
-      const invalidFilters = ['series', 'authors', 'narrators', 'publishers', 'publishedDecades', 'languages', 'progress', 'issues', 'ebooks', 'abridged']
-      const filterByFirstPart = (state.settings.filterBy || '').split('.').shift()
-      if (invalidFilters.includes(filterByFirstPart)) {
-        settingsUpdate.filterBy = 'all'
-      }
-    } else {
-      if (state.settings.orderBy == 'media.metadata.author') {
-        settingsUpdate.orderBy = 'media.metadata.authorName'
-      }
-      if (state.settings.orderBy == 'media.numTracks') {
-        settingsUpdate.orderBy = 'media.duration'
-      }
+    if (state.settings.orderBy == 'media.metadata.author') {
+      settingsUpdate.orderBy = 'media.metadata.authorName'
+    }
+    if (state.settings.orderBy == 'media.numTracks') {
+      settingsUpdate.orderBy = 'media.duration'
     }
     if (Object.keys(settingsUpdate).length) {
       dispatch('updateUserSettings', settingsUpdate)

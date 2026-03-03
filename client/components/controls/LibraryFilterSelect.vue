@@ -94,12 +94,6 @@ export default {
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
     },
-    libraryMediaType() {
-      return this.$store.getters['libraries/getCurrentLibraryMediaType']
-    },
-    isPodcast() {
-      return this.libraryMediaType === 'podcast'
-    },
     seriesItems() {
       return [
         {
@@ -204,55 +198,8 @@ export default {
       }
       return items
     },
-    podcastItems() {
-      const items = [
-        {
-          text: this.$strings.LabelAll,
-          value: 'all'
-        },
-        {
-          text: this.$strings.LabelGenre,
-          textPlural: this.$strings.LabelGenres,
-          value: 'genres',
-          sublist: true
-        },
-        {
-          text: this.$strings.LabelTag,
-          textPlural: this.$strings.LabelTags,
-          value: 'tags',
-          sublist: true
-        },
-        {
-          text: this.$strings.LabelLanguage,
-          textPlural: this.$strings.LabelLanguages,
-          value: 'languages',
-          sublist: true
-        },
-        {
-          text: this.$strings.ButtonIssues,
-          value: 'issues',
-          sublist: false
-        },
-        {
-          text: this.$strings.LabelRSSFeedOpen,
-          value: 'feed-open',
-          sublist: false
-        }
-      ]
-
-      if (this.userCanAccessExplicitContent) {
-        items.push({
-          text: this.$strings.LabelExplicit,
-          value: 'explicit',
-          sublist: false
-        })
-      }
-
-      return items
-    },
     selectItems() {
       if (this.isSeries) return this.seriesItems
-      if (this.isPodcast) return this.podcastItems
       return this.bookItems
     },
     selectedItemSublist() {

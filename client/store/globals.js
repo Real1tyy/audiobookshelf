@@ -2,28 +2,15 @@ export const state = () => ({
   isMobile: false,
   isMobileLandscape: false,
   isMobilePortrait: false,
-  showBatchCollectionModal: false,
   showBatchSeriesModal: false,
   showBatchTagsModal: false,
   showBatchGenresModal: false,
-  showCollectionsModal: false,
-  showEditCollectionModal: false,
-  showPlaylistsModal: false,
-  showEditPlaylistModal: false,
-  showEditPodcastEpisode: false,
-  showViewPodcastEpisodeModal: false,
-  showRSSFeedOpenCloseModal: false,
   showShareModal: false,
   showConfirmPrompt: false,
   showRawCoverPreviewModal: false,
   confirmPromptOptions: null,
   showEditAuthorModal: false,
   showEditSeriesModal: false,
-  rssFeedEntity: null,
-  selectedEpisode: null,
-  selectedPlaylistItems: null,
-  selectedPlaylist: null,
-  selectedCollection: null,
   selectedAuthor: null,
   selectedSeries: null,
   selectedMediaItems: [],
@@ -76,16 +63,7 @@ export const state = () => ({
       value: 'HH:mm'
     }
   ],
-  podcastTypes: [
-    { text: 'Episodic', value: 'episodic', descriptionKey: 'LabelEpisodic' },
-    { text: 'Serial', value: 'serial', descriptionKey: 'LabelSerial' }
-  ],
-  episodeTypes: [
-    { text: 'Full', value: 'full', descriptionKey: 'LabelFull' },
-    { text: 'Trailer', value: 'trailer', descriptionKey: 'LabelTrailer' },
-    { text: 'Bonus', value: 'bonus', descriptionKey: 'LabelBonus' }
-  ],
-  libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart']
+  libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart']
 })
 
 export const getters = {
@@ -128,36 +106,6 @@ export const mutations = {
     state.isMobileLandscape = state.isMobile && height < width
     state.isMobilePortrait = state.isMobile && height >= width
   },
-  setShowCollectionsModal(state, val) {
-    state.showBatchCollectionModal = false
-    state.showCollectionsModal = val
-  },
-  setShowBatchCollectionsModal(state, val) {
-    state.showBatchCollectionModal = true
-    state.showCollectionsModal = val
-  },
-  setShowEditCollectionModal(state, val) {
-    state.showEditCollectionModal = val
-  },
-  setShowPlaylistsModal(state, val) {
-    state.showPlaylistsModal = val
-  },
-  setShowEditPlaylistModal(state, val) {
-    state.showEditPlaylistModal = val
-  },
-  setShowEditPodcastEpisodeModal(state, val) {
-    state.showEditPodcastEpisode = val
-  },
-  setShowViewPodcastEpisodeModal(state, val) {
-    state.showViewPodcastEpisodeModal = val
-  },
-  setShowRSSFeedOpenCloseModal(state, val) {
-    state.showRSSFeedOpenCloseModal = val
-  },
-  setRSSFeedOpenCloseModal(state, entity) {
-    state.rssFeedEntity = entity
-    state.showRSSFeedOpenCloseModal = true
-  },
   setShowShareModal(state, val) {
     state.showShareModal = val
   },
@@ -178,20 +126,6 @@ export const mutations = {
   setRawCoverPreviewModal(state, rawCoverUrl) {
     state.selectedRawCoverUrl = rawCoverUrl
     state.showRawCoverPreviewModal = true
-  },
-  setEditCollection(state, collection) {
-    state.selectedCollection = collection
-    state.showEditCollectionModal = true
-  },
-  setEditPlaylist(state, playlist) {
-    state.selectedPlaylist = playlist
-    state.showEditPlaylistModal = true
-  },
-  setSelectedEpisode(state, episode) {
-    state.selectedEpisode = episode
-  },
-  setSelectedPlaylistItems(state, items) {
-    state.selectedPlaylistItems = items
   },
   showEditAuthorModal(state, author) {
     state.selectedAuthor = author

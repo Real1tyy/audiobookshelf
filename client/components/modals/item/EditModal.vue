@@ -96,12 +96,6 @@ export default {
           mediaType: 'book'
         },
         {
-          id: 'episodes',
-          title: this.$strings.HeaderEpisodes,
-          component: 'modals-item-tabs-episodes',
-          mediaType: 'podcast'
-        },
-        {
           id: 'files',
           title: this.$strings.HeaderFiles,
           component: 'modals-item-tabs-files'
@@ -118,13 +112,6 @@ export default {
           mediaType: 'book',
           admin: true
         },
-        {
-          id: 'schedule',
-          title: this.$strings.HeaderSchedule,
-          component: 'modals-item-tabs-schedule',
-          mediaType: 'podcast',
-          admin: true
-        }
       ]
     },
     userCanUpdate() {

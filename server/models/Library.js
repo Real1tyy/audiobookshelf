@@ -54,30 +54,19 @@ class Library extends Model {
    * @returns
    */
   static getDefaultLibrarySettingsForMediaType(mediaType) {
-    if (mediaType === 'podcast') {
-      return {
-        coverAspectRatio: 1, // Square
-        disableWatcher: false,
-        autoScanCronExpression: null,
-        podcastSearchRegion: 'us',
-        markAsFinishedPercentComplete: null,
-        markAsFinishedTimeRemaining: 10
-      }
-    } else {
-      return {
-        coverAspectRatio: 1, // Square
-        disableWatcher: false,
-        autoScanCronExpression: null,
-        skipMatchingMediaWithAsin: false,
-        skipMatchingMediaWithIsbn: false,
-        audiobooksOnly: false,
-        epubsAllowScriptedContent: false,
-        hideSingleBookSeries: false,
-        onlyShowLaterBooksInContinueSeries: false,
-        metadataPrecedence: this.defaultMetadataPrecedence,
-        markAsFinishedPercentComplete: null,
-        markAsFinishedTimeRemaining: 10
-      }
+    return {
+      coverAspectRatio: 1, // Square
+      disableWatcher: false,
+      autoScanCronExpression: null,
+      skipMatchingMediaWithAsin: false,
+      skipMatchingMediaWithIsbn: false,
+      audiobooksOnly: false,
+      epubsAllowScriptedContent: false,
+      hideSingleBookSeries: false,
+      onlyShowLaterBooksInContinueSeries: false,
+      metadataPrecedence: this.defaultMetadataPrecedence,
+      markAsFinishedPercentComplete: null,
+      markAsFinishedTimeRemaining: 10
     }
   }
 
@@ -176,9 +165,6 @@ class Library extends Model {
     )
   }
 
-  get isPodcast() {
-    return this.mediaType === 'podcast'
-  }
   get isBook() {
     return this.mediaType === 'book'
   }

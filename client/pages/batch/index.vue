@@ -20,20 +20,20 @@
       <div class="overflow-hidden">
         <transition name="slide">
           <div v-if="openMapOptions" class="flex flex-wrap">
-            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+            <div v-if="!isMapAppend" class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.subtitle" />
               <ui-text-input-with-label ref="subtitleInput" v-model="batchDetails.subtitle" :disabled="!selectedBatchUsage.subtitle" :label="$strings.LabelSubtitle" trim-whitespace class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary" class="flex items-center px-4 h-18 w-1/2">
+            <div class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.authors" />
               <!-- Authors filter only contains authors in this library, uses filter data -->
               <ui-multi-select-query-input ref="authorsSelect" v-model="batchDetails.authors" :disabled="!selectedBatchUsage.authors" :label="$strings.LabelAuthors" filter-key="authors" class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+            <div v-if="!isMapAppend" class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.publishedYear" />
               <ui-text-input-with-label ref="publishedYearInput" v-model="batchDetails.publishedYear" :disabled="!selectedBatchUsage.publishedYear" :label="$strings.LabelPublishYear" trim-whitespace class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary" class="flex items-center px-4 h-18 w-1/2">
+            <div class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.series" />
               <ui-multi-select ref="seriesSelect" v-model="batchDetails.series" :disabled="!selectedBatchUsage.series" :label="$strings.LabelSeries" :items="existingSeriesNames" @newItem="newSeriesItem" @removedItem="removedSeriesItem" class="mb-5 ml-4" />
             </div>
@@ -45,11 +45,11 @@
               <ui-checkbox v-model="selectedBatchUsage.tags" />
               <ui-multi-select ref="tagsSelect" v-model="batchDetails.tags" :label="$strings.LabelTags" :disabled="!selectedBatchUsage.tags" :items="tagItems" @newItem="newTagItem" @removedItem="removedTagItem" class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary" class="flex items-center px-4 h-18 w-1/2">
+            <div class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.narrators" />
               <ui-multi-select ref="narratorsSelect" v-model="batchDetails.narrators" :disabled="!selectedBatchUsage.narrators" :label="$strings.LabelNarrators" :items="narratorItems" @newItem="newNarratorItem" @removedItem="removedNarratorItem" class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+            <div v-if="!isMapAppend" class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.publisher" />
               <ui-text-input-with-label ref="publisherInput" v-model="batchDetails.publisher" :disabled="!selectedBatchUsage.publisher" :label="$strings.LabelPublisher" trim-whitespace class="mb-5 ml-4" />
             </div>
@@ -71,7 +71,7 @@
                 />
               </div>
             </div>
-            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+            <div v-if="!isMapAppend" class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.abridged" />
               <div class="ml-4">
                 <ui-checkbox
@@ -85,29 +85,29 @@
                 />
               </div>
             </div>
-            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+            <div v-if="!isMapAppend" class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.rating" />
               <ui-text-input-with-label ref="ratingInput" v-model="batchDetails.rating" :disabled="!selectedBatchUsage.rating" label="Rating" type="number" :step="0.1" :min="0" :max="10" trim-whitespace class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+            <div v-if="!isMapAppend" class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.isbn" />
               <ui-text-input-with-label ref="isbnInput" v-model="batchDetails.isbn" :disabled="!selectedBatchUsage.isbn" label="ISBN" trim-whitespace class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-center px-4 h-18 w-1/2">
+            <div v-if="!isMapAppend" class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.asin" />
               <ui-text-input-with-label ref="asinInput" v-model="batchDetails.asin" :disabled="!selectedBatchUsage.asin" label="ASIN" trim-whitespace class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary" class="flex items-center px-4 h-18 w-1/2">
+            <div class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.url" />
               <ui-multi-select ref="urlSelect" v-model="batchDetails.url" :disabled="!selectedBatchUsage.url" label="URLs" :items="[]" class="mb-5 ml-4" />
             </div>
-            <div v-if="!isPodcastLibrary" class="flex items-center px-4 min-h-18 w-1/2">
+            <div class="flex items-center px-4 min-h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.relatedBooks" />
               <div class="mb-5 ml-4 grow">
                 <widgets-related-books-widget ref="relatedBooksWidget" v-model="batchDetails.relatedBooks" :disabled="!selectedBatchUsage.relatedBooks" :library-id="currentLibraryId" />
               </div>
             </div>
-            <div v-if="!isPodcastLibrary && !isMapAppend" class="flex items-start px-4 py-2 w-full">
+            <div v-if="!isMapAppend" class="flex items-start px-4 py-2 w-full">
               <ui-checkbox v-model="selectedBatchUsage.description" class="mt-1" />
               <div class="mb-5 ml-4 grow">
                 <ui-rich-text-editor ref="descriptionInput" v-model="batchDetails.description" :disabled="!selectedBatchUsage.description" :label="$strings.LabelDescription" />
@@ -135,8 +135,7 @@
               <ui-btn small :disabled="!hasSelectedBatchUsage" @click="populateFromExisting(libraryItem.id)">{{ $strings.ButtonBatchEditPopulateMapDetails }}</ui-btn>
             </ui-tooltip>
           </div>
-          <widgets-book-details-edit v-if="libraryItem.mediaType === 'book'" :ref="`itemForm-${libraryItem.id}`" :library-item="libraryItem" @change="handleItemChange" />
-          <widgets-podcast-details-edit v-else :ref="`itemForm-${libraryItem.id}`" :library-item="libraryItem" @change="handleItemChange" />
+          <widgets-book-details-edit :ref="`itemForm-${libraryItem.id}`" :library-item="libraryItem" @change="handleItemChange" />
         </div>
       </template>
     </div>
@@ -230,9 +229,6 @@ export default {
     },
     isMapAppend() {
       return this.mapDetailsType === 'append'
-    },
-    isPodcastLibrary() {
-      return this.mediaType === 'podcast'
     },
     streamLibraryItem() {
       return this.$store.state.streamLibraryItem

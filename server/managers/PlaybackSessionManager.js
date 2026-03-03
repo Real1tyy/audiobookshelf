@@ -127,8 +127,7 @@ class PlaybackSessionManager {
   async syncLocalSession(user, sessionJson, deviceInfo) {
     // TODO: Combine libraryItem query with library query
     const libraryItem = await Database.libraryItemModel.getExpandedById(sessionJson.libraryItemId)
-    const episode = sessionJson.episodeId && libraryItem && libraryItem.isPodcast ? libraryItem.media.podcastEpisodes.find((pe) => pe.id === sessionJson.episodeId) : null
-    if (!libraryItem || (libraryItem.isPodcast && !episode)) {
+    if (!libraryItem) {
       Logger.error(`[PlaybackSessionManager] syncLocalSession: Media item not found for session "${sessionJson.displayTitle}" (${sessionJson.id})`)
       return {
         id: sessionJson.id,
@@ -150,7 +149,7 @@ class PlaybackSessionManager {
     sessionJson.userId = user.id
     sessionJson.serverVersion = serverVersion
 
-    // TODO: Temp update local playback session id to uuidv4 & library item/book/episode ids
+    // TODO: Temp update local playback session id to uuidv4 & library item/book ids
     if (sessionJson.id?.startsWith('play_local_')) {
       if (!this.oldPlaybackSessionMap[sessionJson.id]) {
         const newSessionId = uuidv4()
@@ -163,14 +162,10 @@ class PlaybackSessionManager {
     if (sessionJson.libraryItemId !== libraryItem.id) {
       Logger.info(`[PlaybackSessionManager] Mapped old libraryItemId "${sessionJson.libraryItemId}" to ${libraryItem.id}`)
       sessionJson.libraryItemId = libraryItem.id
-      sessionJson.bookId = episode ? null : libraryItem.media.id
-    }
-    if (!sessionJson.bookId && !episode) {
       sessionJson.bookId = libraryItem.media.id
     }
-    if (episode && sessionJson.episodeId !== episode.id) {
-      Logger.info(`[PlaybackSessionManager] Mapped old episodeId "${sessionJson.episodeId}" to ${episode.id}`)
-      sessionJson.episodeId = episode.id
+    if (!sessionJson.bookId) {
+      sessionJson.bookId = libraryItem.media.id
     }
     if (sessionJson.libraryId !== libraryItem.libraryId) {
       sessionJson.libraryId = libraryItem.libraryId

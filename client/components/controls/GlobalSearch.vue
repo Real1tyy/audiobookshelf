@@ -47,24 +47,6 @@
             </li>
           </template>
 
-          <p v-if="podcastResults.length" class="uppercase text-xs text-gray-400 my-1 px-1 font-semibold">{{ $strings.LabelPodcasts }}</p>
-          <template v-for="item in podcastResults">
-            <li :key="item.libraryItem.id" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-1" role="option" @click="clickOption">
-              <nuxt-link :to="`/item/${item.libraryItem.id}`">
-                <cards-item-search-card :library-item="item.libraryItem" />
-              </nuxt-link>
-            </li>
-          </template>
-
-          <p v-if="episodeResults.length" class="uppercase text-xs text-gray-400 my-1 px-1 font-semibold">{{ $strings.LabelEpisodes }}</p>
-          <template v-for="item in episodeResults">
-            <li :key="item.libraryItem.recentEpisode.id" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-1" role="option" @click="clickOption">
-              <nuxt-link :to="`/item/${item.libraryItem.id}`">
-                <cards-episode-search-card :episode="item.libraryItem.recentEpisode" :library-item="item.libraryItem" />
-              </nuxt-link>
-            </li>
-          </template>
-
           <p v-if="authorResults.length" class="uppercase text-xs text-gray-400 mb-1 mt-3 px-1 font-semibold">{{ $strings.LabelAuthors }}</p>
           <template v-for="item in authorResults">
             <li :key="item.id" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-1" role="option" @click="clickOption">
@@ -126,8 +108,6 @@ export default {
       isFetching: false,
       search: null,
       searchMode: 'title',
-      podcastResults: [],
-      episodeResults: [],
       bookResults: [],
       authorResults: [],
       seriesResults: [],
@@ -150,7 +130,7 @@ export default {
       if (this.searchMode === 'transcript') {
         return this.transcriptResults.length
       }
-      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.tagResults.length + this.genreResults.length + this.podcastResults.length + this.narratorResults.length + this.episodeResults.length
+      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.tagResults.length + this.genreResults.length + this.narratorResults.length
     }
   },
   watch: {
@@ -174,8 +154,6 @@ export default {
     clearResults() {
       this.search = null
       this.lastSearch = null
-      this.podcastResults = []
-      this.episodeResults = []
       this.bookResults = []
       this.authorResults = []
       this.seriesResults = []
@@ -219,8 +197,6 @@ export default {
         if (!this.isFetching) return
         this.transcriptResults = results.transcripts || []
         this.bookResults = []
-        this.podcastResults = []
-        this.episodeResults = []
         this.authorResults = []
         this.seriesResults = []
         this.tagResults = []
@@ -232,8 +208,6 @@ export default {
           return []
         })
         if (!this.isFetching) return
-        this.podcastResults = searchResults.podcast || []
-        this.episodeResults = searchResults.episodes || []
         this.bookResults = searchResults.book || []
         this.authorResults = searchResults.authors || []
         this.seriesResults = searchResults.series || []

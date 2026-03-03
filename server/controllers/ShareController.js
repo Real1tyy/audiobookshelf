@@ -385,7 +385,7 @@ class ShareController {
     if (expiresAt === null || isNaN(expiresAt) || expiresAt < 0) {
       return res.status(400).send('Invalid expiration date')
     }
-    if (!['book', 'podcastEpisode'].includes(mediaItemType)) {
+    if (mediaItemType !== 'book') {
       return res.status(400).send('Invalid media item type')
     }
 
@@ -405,8 +405,7 @@ class ShareController {
       }
 
       // Check that media item exists
-      const mediaItemModel = mediaItemType === 'book' ? Database.bookModel : Database.podcastEpisodeModel
-      const mediaItem = await mediaItemModel.findByPk(mediaItemId)
+      const mediaItem = await Database.bookModel.findByPk(mediaItemId)
       if (!mediaItem) {
         return res.status(404).send('Media item not found')
       }

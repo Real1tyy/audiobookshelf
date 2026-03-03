@@ -1,7 +1,6 @@
 const { setMaxListeners } = require('events')
 const Logger = require('../Logger')
 const BookFinder = require('../finders/BookFinder')
-const PodcastFinder = require('../finders/PodcastFinder')
 
 /**
  * Manager for handling streaming cover search across multiple providers
@@ -26,7 +25,6 @@ class CoverSearchManager {
    * @param {string} searchParams.title - Title to search for
    * @param {string} searchParams.author - Author to search for (optional)
    * @param {string} searchParams.provider - Provider to search (or 'all')
-   * @param {boolean} searchParams.podcast - Whether this is a podcast search
    * @param {Function} onResult - Callback for each result chunk
    * @param {Function} onComplete - Callback when search completes
    * @param {Function} onError - Callback for errors
@@ -48,13 +46,9 @@ class CoverSearchManager {
     Logger.info(`[CoverSearchManager] Starting search ${requestId} with params:`, searchParams)
 
     try {
-      const { title, author, provider, podcast } = searchParams
+      const { title, author, provider } = searchParams
 
-      if (podcast) {
-        await this.searchPodcastCovers(requestId, title, abortController.signal, onResult, onError)
-      } else {
-        await this.searchBookCovers(requestId, provider, title, author, abortController.signal, onResult, onError)
-      }
+      await this.searchBookCovers(requestId, provider, title, author, abortController.signal, onResult, onError)
 
       if (!abortController.signal.aborted) {
         onComplete()
@@ -84,31 +78,6 @@ class CoverSearchManager {
       return true
     }
     return false
-  }
-
-  /**
-   * Search for podcast covers
-   */
-  async searchPodcastCovers(requestId, title, signal, onResult, onError) {
-    try {
-      const results = await this.executeWithTimeout(() => PodcastFinder.findCovers(title), this.providerTimeout, signal)
-
-      if (signal.aborted) return
-
-      const covers = this.extractCoversFromResults(results)
-      if (covers.length > 0) {
-        onResult({
-          provider: 'itunes',
-          covers,
-          total: covers.length
-        })
-      }
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        Logger.error(`[CoverSearchManager] Podcast search failed:`, error)
-        onError('itunes', error.message)
-      }
-    }
   }
 
   /**

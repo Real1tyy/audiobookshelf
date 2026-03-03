@@ -6,7 +6,6 @@ const libraryFilters = require('../utils/queries/libraryFilters')
 const { filePathToPOSIX, getFileTimestampsWithIno } = require('../utils/fileUtils')
 const LibraryFile = require('../objects/files/LibraryFile')
 const Book = require('./Book')
-const Podcast = require('./Podcast')
 const transcriptIndexer = require('../utils/transcriptIndexer')
 
 /**
@@ -20,7 +19,7 @@ const transcriptIndexer = require('../utils/transcriptIndexer')
 
 /**
  * @typedef LibraryItemExpandedProperties
- * @property {Book.BookExpanded|Podcast.PodcastExpanded} media
+ * @property {Book.BookExpanded} media
  *
  * @typedef {LibraryItem & LibraryItemExpandedProperties} LibraryItemExpanded
  */
@@ -72,7 +71,7 @@ class LibraryItem extends Model {
     /** @type {Date} */
     this.updatedAt
 
-    /** @type {Book.BookExpanded|Podcast.PodcastExpanded} - only set when expanded */
+    /** @type {Book.BookExpanded} - only set when expanded */
     this.media
     /** @type {string} */
     this.title // Only used for sorting
@@ -85,7 +84,7 @@ class LibraryItem extends Model {
   }
 
   /**
-   * Gets library items partially expanded, not including podcast episodes
+   * Gets library items partially expanded
    * @todo temporary solution
    *
    * @param {number} offset
@@ -112,9 +111,6 @@ class LibraryItem extends Model {
               }
             }
           ]
-        },
-        {
-          model: this.sequelize.models.podcast
         }
       ],
       order: [
@@ -169,12 +165,6 @@ class LibraryItem extends Model {
             }
           ]
         },
-        {
-          model: this.sequelize.models.podcast,
-          include: {
-            model: this.sequelize.models.podcastEpisode
-          }
-        }
       ],
       order: [
         // Ensure author & series stay in the same order
@@ -198,36 +188,26 @@ class LibraryItem extends Model {
       return null
     }
 
-    if (libraryItem.mediaType === 'podcast') {
-      libraryItem.media = await libraryItem.getMedia({
-        include: [
-          {
-            model: this.sequelize.models.podcastEpisode
+    libraryItem.media = await libraryItem.getMedia({
+      include: [
+        {
+          model: this.sequelize.models.author,
+          through: {
+            attributes: []
           }
-        ]
-      })
-    } else {
-      libraryItem.media = await libraryItem.getMedia({
-        include: [
-          {
-            model: this.sequelize.models.author,
-            through: {
-              attributes: []
-            }
-          },
-          {
-            model: this.sequelize.models.series,
-            through: {
-              attributes: ['id', 'sequence']
-            }
+        },
+        {
+          model: this.sequelize.models.series,
+          through: {
+            attributes: ['id', 'sequence']
           }
-        ],
-        order: [
-          [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
-          [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
-        ]
-      })
-    }
+        }
+      ],
+      order: [
+        [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
+        [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
+      ]
+    })
 
     if (!libraryItem.media) return null
     return libraryItem
@@ -250,36 +230,26 @@ class LibraryItem extends Model {
       return null
     }
 
-    if (libraryItem.mediaType === 'podcast') {
-      libraryItem.media = await libraryItem.getMedia({
-        include: [
-          {
-            model: this.sequelize.models.podcastEpisode
+    libraryItem.media = await libraryItem.getMedia({
+      include: [
+        {
+          model: this.sequelize.models.author,
+          through: {
+            attributes: []
           }
-        ]
-      })
-    } else {
-      libraryItem.media = await libraryItem.getMedia({
-        include: [
-          {
-            model: this.sequelize.models.author,
-            through: {
-              attributes: []
-            }
-          },
-          {
-            model: this.sequelize.models.series,
-            through: {
-              attributes: ['id', 'sequence']
-            }
+        },
+        {
+          model: this.sequelize.models.series,
+          through: {
+            attributes: ['id', 'sequence']
           }
-        ],
-        order: [
-          [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
-          [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
-        ]
-      })
-    }
+        }
+      ],
+      order: [
+        [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
+        [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
+      ]
+    })
 
     if (!libraryItem.media) return null
     return libraryItem
@@ -306,17 +276,8 @@ class LibraryItem extends Model {
         if (li.series) {
           oldLibraryItem.media.metadata.series = li.series
         }
-        if (li.rssFeed) {
-          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-        }
-        if (li.media.numEpisodes) {
-          oldLibraryItem.media.numEpisodes = li.media.numEpisodes
-        }
         if (li.size && !oldLibraryItem.media.size) {
           oldLibraryItem.media.size = li.size
-        }
-        if (li.numEpisodesIncomplete) {
-          oldLibraryItem.numEpisodesIncomplete = li.numEpisodesIncomplete
         }
         if (li.mediaItemShare) {
           oldLibraryItem.mediaItemShare = li.mediaItemShare
@@ -345,14 +306,14 @@ class LibraryItem extends Model {
     const itemsInProgressPayload = await libraryFilters.getMediaItemsInProgress(library, user, include, limit, false)
     if (itemsInProgressPayload.items.length) {
       const ebookOnlyItemsInProgress = itemsInProgressPayload.items.filter((li) => li.media.ebookFormat && !li.media.numTracks)
-      const audioItemsInProgress = itemsInProgressPayload.items.filter((li) => li.media.numTracks || li.mediaType === 'podcast')
+      const audioItemsInProgress = itemsInProgressPayload.items.filter((li) => li.media.numTracks)
 
       if (audioItemsInProgress.length) {
         shelves.push({
           id: 'continue-listening',
           label: 'Continue Listening',
           labelStringKey: 'LabelContinueListening',
-          type: library.isPodcast ? 'episode' : 'book',
+          type: 'book',
           entities: audioItemsInProgress,
           total: itemsInProgressPayload.count
         })
@@ -388,20 +349,6 @@ class LibraryItem extends Model {
         })
       }
       Logger.debug(`Loaded ${continueSeriesPayload.libraryItems.length} of ${continueSeriesPayload.count} items for "Continue Series" in ${((Date.now() - start) / 1000).toFixed(2)}s`)
-    } else if (library.isPodcast) {
-      // "Newest Episodes" shelf
-      const newestEpisodesPayload = await libraryFilters.getNewestPodcastEpisodes(library, user, limit)
-      if (newestEpisodesPayload.libraryItems.length) {
-        shelves.push({
-          id: 'newest-episodes',
-          label: 'Newest Episodes',
-          labelStringKey: 'LabelNewestEpisodes',
-          type: 'episode',
-          entities: newestEpisodesPayload.libraryItems,
-          total: newestEpisodesPayload.count
-        })
-      }
-      Logger.debug(`Loaded ${newestEpisodesPayload.libraryItems.length} of ${newestEpisodesPayload.count} episodes for "Newest Episodes" in ${((Date.now() - start) / 1000).toFixed(2)}s`)
     }
 
     start = Date.now()
@@ -456,14 +403,14 @@ class LibraryItem extends Model {
     const mediaFinishedPayload = await libraryFilters.getMediaFinished(library, user, include, limit)
     if (mediaFinishedPayload.items.length) {
       const ebookOnlyItemsInProgress = mediaFinishedPayload.items.filter((li) => li.media.ebookFormat && !li.media.numTracks)
-      const audioItemsInProgress = mediaFinishedPayload.items.filter((li) => li.media.numTracks || li.mediaType === 'podcast')
+      const audioItemsInProgress = mediaFinishedPayload.items.filter((li) => li.media.numTracks)
 
       if (audioItemsInProgress.length) {
         shelves.push({
           id: 'listen-again',
           label: 'Listen Again',
           labelStringKey: 'LabelListenAgain',
-          type: library.isPodcast ? 'episode' : 'book',
+          type: 'book',
           entities: audioItemsInProgress,
           total: mediaFinishedPayload.count
         })
@@ -537,10 +484,6 @@ class LibraryItem extends Model {
         {
           model: this.sequelize.models.book,
           attributes: ['id', 'coverPath']
-        },
-        {
-          model: this.sequelize.models.podcast,
-          attributes: ['id', 'coverPath']
         }
       ]
     })
@@ -571,86 +514,55 @@ class LibraryItem extends Model {
 
     // Ensure media is loaded with authors and series for books
     let mediaExpanded = this.media
-    if (!mediaExpanded || (this.mediaType === 'book' && (!mediaExpanded.authors || !mediaExpanded.series))) {
+    if (!mediaExpanded || !mediaExpanded.authors || !mediaExpanded.series) {
       // Reload media with all required associations
-      if (this.mediaType === 'podcast') {
-        mediaExpanded = await this.getMedia({
-          include: [
-            {
-              model: this.sequelize.models.podcastEpisode
+      mediaExpanded = await this.getMedia({
+        include: [
+          {
+            model: this.sequelize.models.author,
+            through: {
+              attributes: []
             }
-          ]
-        })
-      } else {
-        mediaExpanded = await this.getMedia({
-          include: [
-            {
-              model: this.sequelize.models.author,
-              through: {
-                attributes: []
-              }
-            },
-            {
-              model: this.sequelize.models.series,
-              through: {
-                attributes: ['id', 'sequence']
-              }
+          },
+          {
+            model: this.sequelize.models.series,
+            through: {
+              attributes: ['id', 'sequence']
             }
-          ],
-          order: [
-            [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
-            [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
-          ]
-        })
-      }
+          }
+        ],
+        order: [
+          [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
+          [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
+        ]
+      })
     }
 
-    let jsonObject = {}
-    if (this.mediaType === 'book') {
-      jsonObject = {
-        tags: mediaExpanded.tags || [],
-        chapters: mediaExpanded.chapters?.map((c) => ({ ...c })) || [],
-        title: mediaExpanded.title,
-        subtitle: mediaExpanded.subtitle,
-        authors: mediaExpanded.authors.map((a) => a.name),
-        narrators: mediaExpanded.narrators,
-        series: mediaExpanded.series.map((se) => {
-          const sequence = se.bookSeries?.sequence || ''
-          if (!sequence) return se.name
-          return `${se.name} #${sequence}`
-        }),
-        genres: mediaExpanded.genres || [],
-        publishedYear: mediaExpanded.publishedYear,
-        publishedDate: mediaExpanded.publishedDate,
-        publisher: mediaExpanded.publisher,
-        description: mediaExpanded.description,
-        isbn: mediaExpanded.isbn,
-        asin: mediaExpanded.asin,
-        language: mediaExpanded.language,
-        explicit: !!mediaExpanded.explicit,
-        abridged: !!mediaExpanded.abridged,
-        rating: mediaExpanded.rating,
-        url: mediaExpanded.url,
-        relatedBooks: mediaExpanded.relatedBooks || []
-      }
-    } else {
-      jsonObject = {
-        tags: mediaExpanded.tags || [],
-        title: mediaExpanded.title,
-        author: mediaExpanded.author,
-        description: mediaExpanded.description,
-        releaseDate: mediaExpanded.releaseDate,
-        genres: mediaExpanded.genres || [],
-        feedURL: mediaExpanded.feedURL,
-        imageURL: mediaExpanded.imageURL,
-        itunesPageURL: mediaExpanded.itunesPageURL,
-        itunesId: mediaExpanded.itunesId,
-        itunesArtistId: mediaExpanded.itunesArtistId,
-        asin: mediaExpanded.asin,
-        language: mediaExpanded.language,
-        explicit: !!mediaExpanded.explicit,
-        podcastType: mediaExpanded.podcastType
-      }
+    const jsonObject = {
+      tags: mediaExpanded.tags || [],
+      chapters: mediaExpanded.chapters?.map((c) => ({ ...c })) || [],
+      title: mediaExpanded.title,
+      subtitle: mediaExpanded.subtitle,
+      authors: mediaExpanded.authors.map((a) => a.name),
+      narrators: mediaExpanded.narrators,
+      series: mediaExpanded.series.map((se) => {
+        const sequence = se.bookSeries?.sequence || ''
+        if (!sequence) return se.name
+        return `${se.name} #${sequence}`
+      }),
+      genres: mediaExpanded.genres || [],
+      publishedYear: mediaExpanded.publishedYear,
+      publishedDate: mediaExpanded.publishedDate,
+      publisher: mediaExpanded.publisher,
+      description: mediaExpanded.description,
+      isbn: mediaExpanded.isbn,
+      asin: mediaExpanded.asin,
+      language: mediaExpanded.language,
+      explicit: !!mediaExpanded.explicit,
+      abridged: !!mediaExpanded.abridged,
+      rating: mediaExpanded.rating,
+      url: mediaExpanded.url,
+      relatedBooks: mediaExpanded.relatedBooks || []
     }
 
     return fsExtra
@@ -771,7 +683,7 @@ class LibraryItem extends Model {
       }
     )
 
-    const { library, libraryFolder, book, podcast } = sequelize.models
+    const { library, libraryFolder, book } = sequelize.models
     library.hasMany(LibraryItem)
     LibraryItem.belongsTo(library)
 
@@ -787,32 +699,18 @@ class LibraryItem extends Model {
     })
     LibraryItem.belongsTo(book, { foreignKey: 'mediaId', constraints: false })
 
-    podcast.hasOne(LibraryItem, {
-      foreignKey: 'mediaId',
-      constraints: false,
-      scope: {
-        mediaType: 'podcast'
-      }
-    })
-    LibraryItem.belongsTo(podcast, { foreignKey: 'mediaId', constraints: false })
-
     LibraryItem.addHook('afterFind', (findResult) => {
       if (!findResult) return
 
       if (!Array.isArray(findResult)) findResult = [findResult]
       for (const instance of findResult) {
-        if (instance.mediaType === 'book' && instance.book !== undefined) {
+        if (instance.book !== undefined) {
           instance.media = instance.book
           instance.dataValues.media = instance.dataValues.book
-        } else if (instance.mediaType === 'podcast' && instance.podcast !== undefined) {
-          instance.media = instance.podcast
-          instance.dataValues.media = instance.dataValues.podcast
         }
         // To prevent mistakes:
         delete instance.book
         delete instance.dataValues.book
-        delete instance.podcast
-        delete instance.dataValues.podcast
       }
     })
 
@@ -832,9 +730,6 @@ class LibraryItem extends Model {
   get isBook() {
     return this.mediaType === 'book'
   }
-  get isPodcast() {
-    return this.mediaType === 'podcast'
-  }
   get hasAudioTracks() {
     return this.media.hasAudioTracks()
   }
@@ -842,7 +737,7 @@ class LibraryItem extends Model {
   /**
    *
    * @param {import('sequelize').FindOptions} options
-   * @returns {Promise<Book|Podcast>}
+   * @returns {Promise<Book>}
    */
   getMedia(options) {
     if (!this.mediaType) return Promise.resolve(null)
@@ -852,43 +747,33 @@ class LibraryItem extends Model {
 
   /**
    *
-   * @returns {Promise<Book|Podcast>}
+   * @returns {Promise<Book>}
    */
   getMediaExpanded() {
-    if (this.mediaType === 'podcast') {
-      return this.getMedia({
-        include: [
-          {
-            model: this.sequelize.models.podcastEpisode
+    return this.getMedia({
+      include: [
+        {
+          model: this.sequelize.models.author,
+          through: {
+            attributes: []
           }
-        ]
-      })
-    } else {
-      return this.getMedia({
-        include: [
-          {
-            model: this.sequelize.models.author,
-            through: {
-              attributes: []
-            }
-          },
-          {
-            model: this.sequelize.models.series,
-            through: {
-              attributes: ['sequence']
-            }
+        },
+        {
+          model: this.sequelize.models.series,
+          through: {
+            attributes: ['sequence']
           }
-        ],
-        order: [
-          [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
-          [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
-        ]
-      })
-    }
+        }
+      ],
+      order: [
+        [this.sequelize.models.author, this.sequelize.models.bookAuthor, 'createdAt', 'ASC'],
+        [this.sequelize.models.series, 'bookSeries', 'createdAt', 'ASC']
+      ]
+    })
   }
 
   /**
-   * Check if book or podcast library item has audio tracks
+   * Check if book library item has audio tracks
    * Requires expanded library item
    *
    * @returns {boolean}
@@ -898,11 +783,7 @@ class LibraryItem extends Model {
       Logger.error(`[LibraryItem] hasAudioTracks: Library item "${this.id}" does not have media`)
       return false
     }
-    if (this.isBook) {
-      return this.media.audioFiles?.length > 0
-    } else {
-      return this.media.podcastEpisodes?.length > 0
-    }
+    return this.media.audioFiles?.length > 0
   }
 
   /**
@@ -915,17 +796,12 @@ class LibraryItem extends Model {
       Logger.error(`[LibraryItem] getAudioFileWithIno: Library item "${this.id}" does not have media`)
       return null
     }
-    if (this.isBook) {
-      return this.media.audioFiles.find((af) => af.ino === ino)
-    } else {
-      return this.media.podcastEpisodes.find((pe) => pe.audioFile?.ino === ino)?.audioFile
-    }
+    return this.media.audioFiles.find((af) => af.ino === ino)
   }
 
   /**
    * Get the track list to be used in client audio players
    * AudioTrack is the AudioFile with startOffset and contentUrl
-   * Podcasts must have an episodeId to get the track list
    *
    * @param {string} [episodeId]
    * @returns {import('./Book').AudioTrack[]}

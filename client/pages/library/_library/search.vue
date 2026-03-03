@@ -25,13 +25,10 @@ export default {
         return {}
       })
       results = {
-        podcasts: [],
-        episodes: [],
         books: [],
         authors: [],
         series: [],
         tags: [],
-        narrators: [],
         transcripts: transcriptResponse.transcripts || []
       }
     } else {
@@ -40,13 +37,10 @@ export default {
         return null
       })
       results = {
-        podcasts: raw?.podcast || [],
-        episodes: raw?.episodes || [],
         books: raw?.book || [],
         authors: raw?.authors || [],
         series: raw?.series || [],
         tags: raw?.tags || [],
-        narrators: raw?.narrators || [],
         transcripts: raw?.transcripts || []
       }
     }
@@ -86,13 +80,10 @@ export default {
           return {}
         })
         this.results = {
-          podcasts: [],
-          episodes: [],
           books: [],
           authors: [],
           series: [],
           tags: [],
-          narrators: [],
           transcripts: transcriptResponse.transcripts || []
         }
       } else {
@@ -101,13 +92,10 @@ export default {
           return null
         })
         this.results = {
-          podcasts: results?.podcast || [],
-          episodes: results?.episodes || [],
           books: results?.book || [],
           authors: results?.authors || [],
           series: results?.series || [],
           tags: results?.tags || [],
-          narrators: results?.narrators || [],
           transcripts: results?.transcripts || []
         }
       }

@@ -27,14 +27,6 @@
         <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=publishers.${$encode(publisher)}`" class="hover:underline">{{ publisher }}</nuxt-link>
       </div>
     </div>
-    <div v-if="podcastType" role="paragraph" class="flex py-0.5">
-      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
-        <span class="text-white/60 uppercase text-sm">{{ $strings.LabelPodcastType }}</span>
-      </div>
-      <div class="capitalize">
-        {{ podcastType }}
-      </div>
-    </div>
     <div class="flex py-0.5" v-if="genres.length">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelGenres }}</span>
@@ -57,7 +49,7 @@
         </template>
       </div>
     </div>
-    <div v-if="!isPodcast && rating !== null && rating !== undefined" role="paragraph" class="flex py-0.5">
+    <div v-if="rating !== null && rating !== undefined" role="paragraph" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">Rating</span>
       </div>
@@ -86,7 +78,7 @@
         </template>
       </div>
     </div>
-    <div v-if="!isPodcast && viewedCount > 0" role="paragraph" class="flex py-0.5">
+    <div v-if="viewedCount > 0" role="paragraph" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">Times Completed</span>
       </div>
@@ -95,7 +87,7 @@
         <span>{{ viewedCount }} {{ viewedCount === 1 ? 'time' : 'times' }}</span>
       </div>
     </div>
-    <div v-if="!isPodcast && totalListeningTime > 0" role="paragraph" class="flex py-0.5">
+    <div v-if="totalListeningTime > 0" role="paragraph" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">Total Listening Time</span>
       </div>
@@ -112,7 +104,7 @@
         <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=languages.${$encode(language)}`" class="hover:underline">{{ language }}</nuxt-link>
       </div>
     </div>
-    <div v-if="tracks.length || (isPodcast && totalPodcastDuration)" role="paragraph" class="flex py-0.5">
+    <div v-if="tracks.length" role="paragraph" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelDuration }}</span>
       </div>
@@ -148,17 +140,11 @@ export default {
     libraryId() {
       return this.libraryItem.libraryId
     },
-    isPodcast() {
-      return this.libraryItem.mediaType === 'podcast'
-    },
     media() {
       return this.libraryItem.media || {}
     },
     tracks() {
       return this.media.tracks || []
-    },
-    podcastEpisodes() {
-      return this.media.episodes || []
     },
     mediaMetadata() {
       return this.media.metadata || {}
@@ -171,9 +157,6 @@ export default {
     },
     tags() {
       return this.media.tags || []
-    },
-    podcastAuthor() {
-      return this.mediaMetadata.author || ''
     },
     authors() {
       return this.mediaMetadata.authors || []
@@ -234,8 +217,6 @@ export default {
       return `${minutes}m`
     },
     durationPretty() {
-      if (this.isPodcast) return this.$elapsedPrettyExtended(this.totalPodcastDuration)
-
       if (!this.tracks.length && !this.audioFile) return 'N/A'
       if (this.audioFile) return this.$elapsedPrettyExtended(this.duration)
       return this.$elapsedPretty(this.duration)
@@ -244,18 +225,9 @@ export default {
       if (!this.tracks.length && !this.audioFile) return 0
       return this.media.duration
     },
-    totalPodcastDuration() {
-      if (!this.podcastEpisodes.length) return 0
-      let totalDuration = 0
-      this.podcastEpisodes.forEach((ep) => (totalDuration += ep.duration || 0))
-      return totalDuration
-    },
     sizePretty() {
       return this.$bytesPretty(this.media.size)
     },
-    podcastType() {
-      return this.mediaMetadata.type
-    }
   },
   watch: {
     libraryItem: {

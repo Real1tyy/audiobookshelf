@@ -73,7 +73,6 @@ module.exports = {
     const bookProgressesFinished = await this.getBookMediaProgressFinishedForYear(userId, year)
 
     let totalBookListeningTime = 0
-    let totalPodcastListeningTime = 0
     let totalListeningTime = 0
 
     let authorListeningMap = {}
@@ -145,14 +144,11 @@ module.exports = {
           if (!genreListeningMap[genre]) genreListeningMap[genre] = 0
           genreListeningMap[genre] += listeningSessionListeningTime
         })
-      } else {
-        totalPodcastListeningTime += listeningSessionListeningTime
       }
     }
 
     totalListeningTime = Math.round(totalListeningTime)
     totalBookListeningTime = Math.round(totalBookListeningTime)
-    totalPodcastListeningTime = Math.round(totalPodcastListeningTime)
 
     let topAuthors = null
     topAuthors = Object.keys(authorListeningMap)
@@ -196,7 +192,6 @@ module.exports = {
       totalListeningSessions: listeningSessions.length,
       totalListeningTime,
       totalBookListeningTime,
-      totalPodcastListeningTime,
       topAuthors,
       topGenres,
       mostListenedNarrator,

@@ -10,12 +10,9 @@ const fs = require('../libs/fsExtra')
 const date = require('../libs/dateAndTime')
 
 const CacheManager = require('../managers/CacheManager')
-const RssFeedManager = require('../managers/RssFeedManager')
 
 const LibraryController = require('../controllers/LibraryController')
 const UserController = require('../controllers/UserController')
-const CollectionController = require('../controllers/CollectionController')
-const PlaylistController = require('../controllers/PlaylistController')
 const MeController = require('../controllers/MeController')
 const BackupController = require('../controllers/BackupController')
 const LibraryItemController = require('../controllers/LibraryItemController')
@@ -23,13 +20,11 @@ const SeriesController = require('../controllers/SeriesController')
 const FileSystemController = require('../controllers/FileSystemController')
 const AuthorController = require('../controllers/AuthorController')
 const SessionController = require('../controllers/SessionController')
-const PodcastController = require('../controllers/PodcastController')
 const NotificationController = require('../controllers/NotificationController')
 const EmailController = require('../controllers/EmailController')
 const SearchController = require('../controllers/SearchController')
 const CacheController = require('../controllers/CacheController')
 const ToolsController = require('../controllers/ToolsController')
-const RSSFeedController = require('../controllers/RSSFeedController')
 const CustomMetadataProviderController = require('../controllers/CustomMetadataProviderController')
 const MiscController = require('../controllers/MiscController')
 const ShareController = require('../controllers/ShareController')
@@ -46,8 +41,6 @@ class ApiRouter {
     this.abMergeManager = Server.abMergeManager
     /** @type {import('../managers/BackupManager')} */
     this.backupManager = Server.backupManager
-    /** @type {import('../managers/PodcastManager')} */
-    this.podcastManager = Server.podcastManager
     /** @type {import('../managers/AudioMetadataManager')} */
     this.audioMetadataManager = Server.audioMetadataManager
     /** @type {import('../managers/AudioTrimManager')} */
@@ -78,11 +71,8 @@ class ApiRouter {
 
     this.router.get('/libraries/:id/items', LibraryController.middleware.bind(this), LibraryController.getLibraryItems.bind(this))
     this.router.delete('/libraries/:id/issues', LibraryController.middleware.bind(this), LibraryController.removeLibraryItemsWithIssues.bind(this))
-    this.router.get('/libraries/:id/episode-downloads', LibraryController.middleware.bind(this), LibraryController.getEpisodeDownloadQueue.bind(this))
     this.router.get('/libraries/:id/series', LibraryController.middleware.bind(this), LibraryController.getAllSeriesForLibrary.bind(this))
     this.router.get('/libraries/:id/series/:seriesId', LibraryController.middleware.bind(this), LibraryController.getSeriesForLibrary.bind(this))
-    this.router.get('/libraries/:id/collections', LibraryController.middleware.bind(this), LibraryController.getCollectionsForLibrary.bind(this))
-    this.router.get('/libraries/:id/playlists', LibraryController.middleware.bind(this), LibraryController.getUserPlaylistsForLibrary.bind(this))
     this.router.get('/libraries/:id/personalized', LibraryController.middleware.bind(this), LibraryController.getUserPersonalizedShelves.bind(this))
     this.router.get('/libraries/:id/filterdata', LibraryController.middleware.bind(this), LibraryController.getLibraryFilterData.bind(this))
     this.router.get('/libraries/:id/search', LibraryController.middleware.bind(this), LibraryController.search.bind(this))
@@ -98,11 +88,8 @@ class ApiRouter {
     this.router.delete('/libraries/:id/tags/:tagId', LibraryController.middleware.bind(this), LibraryController.removeTag.bind(this))
     this.router.get('/libraries/:id/matchall', LibraryController.middleware.bind(this), LibraryController.matchAll.bind(this))
     this.router.post('/libraries/:id/scan', LibraryController.middleware.bind(this), LibraryController.scan.bind(this))
-    this.router.get('/libraries/:id/recent-episodes', LibraryController.middleware.bind(this), LibraryController.getRecentEpisodes.bind(this))
-    this.router.get('/libraries/:id/opml', LibraryController.middleware.bind(this), LibraryController.getOPMLFile.bind(this))
     this.router.post('/libraries/order', LibraryController.reorder.bind(this))
     this.router.post('/libraries/:id/remove-metadata', LibraryController.middleware.bind(this), LibraryController.removeAllMetadataFiles.bind(this))
-    this.router.get('/libraries/:id/podcast-titles', LibraryController.middleware.bind(this), LibraryController.getPodcastTitles.bind(this))
     this.router.get('/libraries/:id/download', LibraryController.middleware.bind(this), LibraryController.downloadMultiple.bind(this))
 
     //
@@ -130,7 +117,6 @@ class ApiRouter {
     this.router.delete('/items/:id/cover', LibraryItemController.middleware.bind(this), LibraryItemController.removeCover.bind(this))
     this.router.post('/items/:id/match', LibraryItemController.middleware.bind(this), LibraryItemController.match.bind(this))
     this.router.post('/items/:id/play', LibraryItemController.middleware.bind(this), LibraryItemController.startPlaybackSession.bind(this))
-    this.router.post('/items/:id/play/:episodeId', LibraryItemController.middleware.bind(this), LibraryItemController.startEpisodePlaybackSession.bind(this))
     this.router.patch('/items/:id/tracks', LibraryItemController.middleware.bind(this), LibraryItemController.updateTracks.bind(this))
     this.router.post('/items/:id/scan', LibraryItemController.middleware.bind(this), LibraryItemController.scan.bind(this))
     this.router.get('/items/:id/metadata-object', LibraryItemController.middleware.bind(this), LibraryItemController.getMetadataObject.bind(this))
@@ -154,33 +140,6 @@ class ApiRouter {
     this.router.patch('/users/:id/openid-unlink', UserController.middleware.bind(this), UserController.unlinkFromOpenID.bind(this))
     this.router.get('/users/:id/listening-sessions', UserController.middleware.bind(this), UserController.getListeningSessions.bind(this))
     this.router.get('/users/:id/listening-stats', UserController.middleware.bind(this), UserController.getListeningStats.bind(this))
-
-    //
-    // Collection Routes
-    //
-    this.router.post('/collections', CollectionController.middleware.bind(this), CollectionController.create.bind(this))
-    this.router.get('/collections', CollectionController.findAll.bind(this))
-    this.router.get('/collections/:id', CollectionController.middleware.bind(this), CollectionController.findOne.bind(this))
-    this.router.patch('/collections/:id', CollectionController.middleware.bind(this), CollectionController.update.bind(this))
-    this.router.delete('/collections/:id', CollectionController.middleware.bind(this), CollectionController.delete.bind(this))
-    this.router.post('/collections/:id/book', CollectionController.middleware.bind(this), CollectionController.addBook.bind(this))
-    this.router.delete('/collections/:id/book/:bookId', CollectionController.middleware.bind(this), CollectionController.removeBook.bind(this))
-    this.router.post('/collections/:id/batch/add', CollectionController.middleware.bind(this), CollectionController.addBatch.bind(this))
-    this.router.post('/collections/:id/batch/remove', CollectionController.middleware.bind(this), CollectionController.removeBatch.bind(this))
-
-    //
-    // Playlist Routes
-    //
-    this.router.post('/playlists', PlaylistController.create.bind(this))
-    this.router.get('/playlists', PlaylistController.findAllForUser.bind(this))
-    this.router.get('/playlists/:id', PlaylistController.middleware.bind(this), PlaylistController.findOne.bind(this))
-    this.router.patch('/playlists/:id', PlaylistController.middleware.bind(this), PlaylistController.update.bind(this))
-    this.router.delete('/playlists/:id', PlaylistController.middleware.bind(this), PlaylistController.delete.bind(this))
-    this.router.post('/playlists/:id/item', PlaylistController.middleware.bind(this), PlaylistController.addItem.bind(this))
-    this.router.delete('/playlists/:id/item/:libraryItemId/:episodeId?', PlaylistController.middleware.bind(this), PlaylistController.removeItem.bind(this))
-    this.router.post('/playlists/:id/batch/add', PlaylistController.middleware.bind(this), PlaylistController.addBatch.bind(this))
-    this.router.post('/playlists/:id/batch/remove', PlaylistController.middleware.bind(this), PlaylistController.removeBatch.bind(this))
-    this.router.post('/playlists/collection/:collectionId', PlaylistController.createFromCollection.bind(this))
 
     //
     // Current User Routes (Me)
@@ -266,23 +225,6 @@ class ApiRouter {
     this.router.post('/session/:id/close', SessionController.openSessionMiddleware.bind(this), SessionController.close.bind(this))
 
     //
-    // Podcast Routes
-    //
-    this.router.post('/podcasts', PodcastController.create.bind(this))
-    this.router.post('/podcasts/feed', PodcastController.getPodcastFeed.bind(this))
-    this.router.post('/podcasts/opml/parse', PodcastController.getFeedsFromOPMLText.bind(this))
-    this.router.post('/podcasts/opml/create', PodcastController.bulkCreatePodcastsFromOpmlFeedUrls.bind(this))
-    this.router.get('/podcasts/:id/checknew', PodcastController.middleware.bind(this), PodcastController.checkNewEpisodes.bind(this))
-    this.router.get('/podcasts/:id/downloads', PodcastController.middleware.bind(this), PodcastController.getEpisodeDownloads.bind(this))
-    this.router.get('/podcasts/:id/clear-queue', PodcastController.middleware.bind(this), PodcastController.clearEpisodeDownloadQueue.bind(this))
-    this.router.get('/podcasts/:id/search-episode', PodcastController.middleware.bind(this), PodcastController.findEpisode.bind(this))
-    this.router.post('/podcasts/:id/download-episodes', PodcastController.middleware.bind(this), PodcastController.downloadEpisodes.bind(this))
-    this.router.post('/podcasts/:id/match-episodes', PodcastController.middleware.bind(this), PodcastController.quickMatchEpisodes.bind(this))
-    this.router.get('/podcasts/:id/episode/:episodeId', PodcastController.middleware.bind(this), PodcastController.getEpisode.bind(this))
-    this.router.patch('/podcasts/:id/episode/:episodeId', PodcastController.middleware.bind(this), PodcastController.updateEpisode.bind(this))
-    this.router.delete('/podcasts/:id/episode/:episodeId', PodcastController.middleware.bind(this), PodcastController.removeEpisode.bind(this))
-
-    //
     // Notification Routes (Admin and up)
     //
     this.router.get('/notifications', NotificationController.middleware.bind(this), NotificationController.get.bind(this))
@@ -308,7 +250,6 @@ class ApiRouter {
     //
     this.router.get('/search/covers', SearchController.findCovers.bind(this))
     this.router.get('/search/books', SearchController.findBooks.bind(this))
-    this.router.get('/search/podcast', SearchController.findPodcasts.bind(this))
     this.router.get('/search/authors', SearchController.findAuthor.bind(this))
     this.router.get('/search/chapters', SearchController.findChapters.bind(this))
     this.router.get('/search/providers', SearchController.getAllProviders.bind(this))
@@ -328,15 +269,6 @@ class ApiRouter {
     this.router.post('/tools/batch/embed-metadata', ToolsController.middleware.bind(this), ToolsController.batchEmbedMetadata.bind(this))
     this.router.post('/tools/item/:id/trim-audio', ToolsController.middleware.bind(this), ToolsController.trimAudio.bind(this))
     this.router.post('/tools/item/:id/extract-highlight', ToolsController.middleware.bind(this), ToolsController.extractHighlight.bind(this))
-
-    //
-    // RSS Feed Routes (Admin and up)
-    //
-    this.router.get('/feeds', RSSFeedController.middleware.bind(this), RSSFeedController.getAll.bind(this))
-    this.router.post('/feeds/item/:itemId/open', RSSFeedController.middleware.bind(this), RSSFeedController.openRSSFeedForItem.bind(this))
-    this.router.post('/feeds/collection/:collectionId/open', RSSFeedController.middleware.bind(this), RSSFeedController.openRSSFeedForCollection.bind(this))
-    this.router.post('/feeds/series/:seriesId/open', RSSFeedController.middleware.bind(this), RSSFeedController.openRSSFeedForSeries.bind(this))
-    this.router.post('/feeds/:id/close', RSSFeedController.middleware.bind(this), RSSFeedController.closeRSSFeed.bind(this))
 
     //
     // Custom Metadata Provider routes
@@ -393,7 +325,7 @@ class ApiRouter {
   /**
    * Remove library item and associated entities
    * @param {string} libraryItemId
-   * @param {string[]} mediaItemIds array of bookId or podcastEpisodeId
+   * @param {string[]} mediaItemIds array of bookId
    */
   async handleDeleteLibraryItem(libraryItemId, mediaItemIds) {
     const numProgressRemoved = await Database.mediaProgressModel.destroy({
@@ -404,12 +336,6 @@ class ApiRouter {
     if (numProgressRemoved > 0) {
       Logger.info(`[ApiRouter] Removed ${numProgressRemoved} media progress entries for library item "${libraryItemId}"`)
     }
-
-    // remove item from playlists
-    await Database.playlistModel.removeMediaItemsFromPlaylists(mediaItemIds)
-
-    // Close rss feed - remove from db and emit socket event
-    await RssFeedManager.closeFeedForEntityId(libraryItemId)
 
     // purge cover cache
     await CacheManager.purgeCoverCache(libraryItemId)
@@ -476,10 +402,6 @@ class ApiRouter {
         Database.removeSeriesFromFilterData(libraryId, id)
         SocketAuthority.emitter('series_removed', { id: id, libraryId: libraryId })
       })
-      // Close rss feeds - remove from db and emit socket event
-      if (seriesToRemove.length) {
-        await RssFeedManager.closeFeedsForEntityIds(seriesToRemove.map((s) => s.id))
-      }
     } catch (error) {
       await transaction.rollback()
       Logger.error(`[ApiRouter] Error removing empty series: ${error.message}`)

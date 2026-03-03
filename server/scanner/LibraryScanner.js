@@ -181,22 +181,17 @@ class LibraryScanner {
       }
 
       if (!libraryItemData) {
-        // Podcast folder can have no episodes and still be valid
-        if (libraryScan.libraryMediaType === 'podcast' && (await fs.pathExists(existingLibraryItem.path))) {
-          libraryScan.addLog(LogLevel.INFO, `Library item "${existingLibraryItem.relPath}" folder exists but has no episodes`)
-        } else {
-          libraryScan.addLog(LogLevel.WARN, `Library Item "${existingLibraryItem.path}" (inode: ${existingLibraryItem.ino}) is missing`)
-          libraryScan.resultsMissing++
-          if (!existingLibraryItem.isMissing) {
-            libraryItemIdsMissing.push(existingLibraryItem.id)
+        libraryScan.addLog(LogLevel.WARN, `Library Item "${existingLibraryItem.path}" (inode: ${existingLibraryItem.ino}) is missing`)
+        libraryScan.resultsMissing++
+        if (!existingLibraryItem.isMissing) {
+          libraryItemIdsMissing.push(existingLibraryItem.id)
 
-            // TODO: Temporary while using old model to socket emit
-            const libraryItem = await Database.libraryItemModel.getExpandedById(existingLibraryItem.id)
-            if (libraryItem) {
-              libraryItem.isMissing = true
-              await libraryItem.save()
-              libraryItemsUpdated.push(libraryItem)
-            }
+          // TODO: Temporary while using old model to socket emit
+          const libraryItem = await Database.libraryItemModel.getExpandedById(existingLibraryItem.id)
+          if (libraryItem) {
+            libraryItem.isMissing = true
+            await libraryItem.save()
+            libraryItemsUpdated.push(libraryItem)
           }
         }
       } else {

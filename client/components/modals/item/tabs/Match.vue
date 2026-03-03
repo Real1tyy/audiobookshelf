@@ -8,7 +8,7 @@
         <div class="grow md:w-72 px-1">
           <ui-text-input-with-label v-model="searchTitle" :label="searchTitleLabel" :placeholder="$strings.PlaceholderSearch" />
         </div>
-        <div v-show="provider != 'itunes'" class="w-60 md:w-72 px-1">
+        <div class="w-60 md:w-72 px-1">
           <ui-text-input-with-label v-model="searchAuthor" :label="$strings.LabelAuthor" />
         </div>
         <ui-btn class="mt-5 ml-1" type="submit">{{ $strings.ButtonSearch }}</ui-btn>
@@ -22,7 +22,7 @@
     </div>
     <div v-show="!processing" class="w-full max-h-full overflow-y-auto overflow-x-hidden matchListWrapper mt-4">
       <template v-for="(res, index) in searchResults">
-        <cards-book-match-card :key="index" :book="res" :current-book-duration="currentBookDuration" :is-podcast="isPodcast" :book-cover-aspect-ratio="bookCoverAspectRatio" @select="selectMatch" />
+        <cards-book-match-card :key="index" :book="res" :current-book-duration="currentBookDuration" :book-cover-aspect-ratio="bookCoverAspectRatio" @select="selectMatch" />
       </template>
     </div>
     <div v-if="selectedMatchOrig" class="absolute top-0 left-0 w-full bg-bg h-full px-2 py-6 md:p-8 max-h-full overflow-y-auto overflow-x-hidden">
@@ -77,8 +77,8 @@
           <ui-checkbox v-model="selectedMatchUsage.author" checkbox-bg="bg" @input="checkboxToggled" />
           <div class="grow ml-4">
             <ui-text-input-with-label v-model="selectedMatch.author" :disabled="!selectedMatchUsage.author" :label="$strings.LabelAuthor" />
-            <p v-if="mediaMetadata.authorName || (isPodcast && mediaMetadata.author)" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('author', isPodcast ? mediaMetadata.author : mediaMetadata.authorName)">{{ isPodcast ? mediaMetadata.author : mediaMetadata.authorName }}</a>
+            <p v-if="mediaMetadata.authorName" class="text-xs ml-1 text-white/60">
+              {{ $strings.LabelCurrently }} <a title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('author', mediaMetadata.authorName)">{{ mediaMetadata.authorName }}</a>
             </p>
           </div>
         </div>
@@ -174,33 +174,6 @@
           </div>
         </div>
 
-        <div v-if="selectedMatchOrig.itunesId" class="flex items-center py-2">
-          <ui-checkbox v-model="selectedMatchUsage.itunesId" checkbox-bg="bg" @input="checkboxToggled" />
-          <div class="grow ml-4">
-            <ui-text-input-with-label v-model="selectedMatch.itunesId" type="number" :disabled="!selectedMatchUsage.itunesId" label="iTunes ID" />
-            <p v-if="mediaMetadata.itunesId" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a :title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('itunesId', mediaMetadata.itunesId)">{{ mediaMetadata.itunesId }}</a>
-            </p>
-          </div>
-        </div>
-        <div v-if="selectedMatchOrig.feedUrl" class="flex items-center py-2">
-          <ui-checkbox v-model="selectedMatchUsage.feedUrl" checkbox-bg="bg" @input="checkboxToggled" />
-          <div class="grow ml-4">
-            <ui-text-input-with-label v-model="selectedMatch.feedUrl" :disabled="!selectedMatchUsage.feedUrl" label="RSS Feed URL" />
-            <p v-if="mediaMetadata.feedUrl" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a :title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('feedUrl', mediaMetadata.feedUrl)">{{ mediaMetadata.feedUrl }}</a>
-            </p>
-          </div>
-        </div>
-        <div v-if="selectedMatchOrig.itunesPageUrl" class="flex items-center py-2">
-          <ui-checkbox v-model="selectedMatchUsage.itunesPageUrl" checkbox-bg="bg" @input="checkboxToggled" />
-          <div class="grow ml-4">
-            <ui-text-input-with-label v-model="selectedMatch.itunesPageUrl" :disabled="!selectedMatchUsage.itunesPageUrl" label="iTunes Page URL" />
-            <p v-if="mediaMetadata.itunesPageUrl" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a :title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('itunesPageUrl', mediaMetadata.itunesPageUrl)">{{ mediaMetadata.itunesPageUrl }}</a>
-            </p>
-          </div>
-        </div>
         <div v-if="selectedMatchOrig.releaseDate" class="flex items-center py-2">
           <ui-checkbox v-model="selectedMatchUsage.releaseDate" checkbox-bg="bg" @input="checkboxToggled" />
           <div class="grow ml-4">
@@ -271,10 +244,6 @@ export default {
         asin: true,
         isbn: true,
         abridged: true,
-        // Podcast specific
-        itunesPageUrl: true,
-        itunesId: true,
-        feedUrl: true,
         releaseDate: true
       },
       selectAll: true
@@ -329,12 +298,10 @@ export default {
       return this.$store.state.libraries.filterData || {}
     },
     providers() {
-      if (this.isPodcast) return this.$store.state.scanners.podcastProviders
       return this.$store.state.scanners.bookProviders
     },
     searchTitleLabel() {
       if (this.provider.startsWith('audible')) return this.$strings.LabelSearchTitleOrASIN
-      else if (this.provider == 'itunes') return this.$strings.LabelSearchTerm
       return this.$strings.LabelSearchTitle
     },
     media() {
@@ -344,14 +311,10 @@ export default {
       return this.media.metadata || {}
     },
     currentBookDuration() {
-      if (this.isPodcast) return 0
       return this.media.duration || 0
     },
     mediaType() {
       return this.libraryItem?.mediaType || null
-    },
-    isPodcast() {
-      return this.mediaType == 'podcast'
     },
     narrators() {
       return this.filterData.narrators || []
@@ -400,7 +363,6 @@ export default {
       return provider
     },
     getSearchQuery() {
-      if (this.isPodcast) return `term=${encodeURIComponent(this.searchTitle)}`
       var searchQuery = `provider=${this.provider}&fallbackTitleOnly=1&title=${encodeURIComponent(this.searchTitle)}`
       if (this.searchAuthor) searchQuery += `&author=${encodeURIComponent(this.searchAuthor)}`
       if (this.libraryItemId) searchQuery += `&id=${this.libraryItemId}`
@@ -411,9 +373,7 @@ export default {
         this.$toast.warning(this.$strings.ToastTitleRequired)
         return
       }
-      if (!this.isPodcast) {
-        this.persistProvider()
-      }
+      this.persistProvider()
       this.runSearch()
     },
     async runSearch() {
@@ -422,8 +382,7 @@ export default {
       this.searchResults = []
       this.isProcessing = true
       this.lastSearch = searchQuery
-      const searchEntity = this.isPodcast ? 'podcast' : 'books'
-      let results = await this.$axios.$get(`/api/search/${searchEntity}?${searchQuery}`, { timeout: 20000 }).catch((error) => {
+      let results = await this.$axios.$get(`/api/search/books?${searchQuery}`, { timeout: 20000 }).catch((error) => {
         console.error('Failed', error)
         return []
       })
@@ -431,17 +390,6 @@ export default {
       results = (results || []).filter((res) => {
         return !!res.title
       })
-
-      if (this.isPodcast) {
-        // Map to match PodcastMetadata keys
-        results = results.map((res) => {
-          res.itunesPageUrl = res.pageUrl || null
-          res.itunesId = res.id || null
-          res.author = res.artistName || null
-          res.explicit = res.explicit || false
-          return res
-        })
-      }
 
       this.searchResults = results || []
       this.isProcessing = false
@@ -465,10 +413,6 @@ export default {
         asin: true,
         isbn: true,
         abridged: true,
-        // Podcast specific
-        itunesPageUrl: true,
-        itunesId: true,
-        feedUrl: true,
         releaseDate: true
       }
 
@@ -490,12 +434,7 @@ export default {
       this.checkboxToggled()
     },
     initProviderAndSearch() {
-      // Set provider based on media type
-      if (this.isPodcast) {
-        this.provider = 'itunes'
-      } else {
-        this.provider = this.getDefaultBookProvider()
-      }
+      this.provider = this.getDefaultBookProvider()
 
       // Prefer using ASIN if set and using audible provider
       if (this.provider.startsWith('audible') && this.libraryItem.media.metadata.asin) {
@@ -526,7 +465,7 @@ export default {
       this.searchAuthor = this.libraryItem.media.metadata.authorName || ''
 
       // Wait for providers to be loaded before setting provider and searching
-      if (this.providersLoaded || this.isPodcast) {
+      if (this.providersLoaded) {
         this.waitingForProviders = false
         this.initProviderAndSearch()
       } else {
@@ -585,7 +524,7 @@ export default {
               )
               updatePayload.metadata.series = seriesPayload
             }
-          } else if (key === 'author' && !this.isPodcast) {
+          } else if (key === 'author') {
             var authors = this.selectedMatch[key]
             if (!Array.isArray(authors)) {
               authors = authors
@@ -607,8 +546,6 @@ export default {
             updatePayload.metadata.genres = [...this.selectedMatch[key]]
           } else if (key === 'tags') {
             updatePayload.tags = this.selectedMatch[key]
-          } else if (key === 'itunesId') {
-            updatePayload.metadata.itunesId = Number(this.selectedMatch[key])
           } else {
             updatePayload.metadata[key] = this.selectedMatch[key]
           }

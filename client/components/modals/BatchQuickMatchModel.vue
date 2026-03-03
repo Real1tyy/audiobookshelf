@@ -87,7 +87,6 @@ export default {
       return this.$store.state.libraries.currentLibraryId
     },
     providers() {
-      if (this.isPodcast) return this.$store.state.scanners.podcastProviders
       return this.$store.state.scanners.bookProviders
     },
     libraryProvider() {

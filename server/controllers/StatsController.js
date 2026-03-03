@@ -30,10 +30,6 @@ class StatsController {
         ...totalSize.books,
         numAudioFiles: numAudioFiles.numBookAudioFiles
       },
-      podcasts: {
-        ...totalSize.podcasts,
-        numAudioFiles: numAudioFiles.numPodcastAudioFiles
-      },
       total: {
         ...totalSize.total,
         numAudioFiles: numAudioFiles.numAudioFiles

@@ -3,11 +3,7 @@ const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
 const { getTitleIgnorePrefix } = require('../utils/index')
 
-// Utils
-const { findMatchingEpisodesInFeed, getPodcastFeed } = require('../utils/podcastUtils')
-
 const BookFinder = require('../finders/BookFinder')
-const PodcastFinder = require('../finders/PodcastFinder')
 const LibraryScan = require('./LibraryScan')
 const LibraryScanner = require('./LibraryScanner')
 const CoverManager = require('../managers/CoverManager')
@@ -78,30 +74,6 @@ class Scanner {
       if (bookBuildUpdateData.hasSeriesUpdates || bookBuildUpdateData.hasAuthorUpdates) {
         hasUpdated = true
       }
-    } else if (libraryItem.isPodcast) {
-      // Podcast quick match
-      const results = await PodcastFinder.search(searchTitle)
-      if (!results.length) {
-        return {
-          warning: `No ${provider} match found`
-        }
-      }
-      const matchData = results[0]
-
-      // Update cover if not set OR overrideCover flag
-      if (matchData.cover && (!libraryItem.media.coverPath || options.overrideCover)) {
-        Logger.debug(`[Scanner] Updating cover "${matchData.cover}"`)
-        const coverResult = await CoverManager.downloadCoverFromUrlNew(matchData.cover, libraryItem.id, libraryItem.path)
-        if (coverResult.error) {
-          Logger.warn(`[Scanner] Match cover "${matchData.cover}" failed to use: ${coverResult.error}`)
-        } else {
-          libraryItem.media.coverPath = coverResult.cover
-          libraryItem.media.changed('coverPath', true) // Cover path may be the same but this forces the update
-          hasUpdated = true
-        }
-      }
-
-      updatePayload = this.quickMatchPodcastBuildUpdatePayload(libraryItem, matchData, options)
     }
 
     if (Object.keys(updatePayload).length) {
@@ -114,11 +86,6 @@ class Scanner {
     }
 
     if (hasUpdated) {
-      if (libraryItem.isPodcast && libraryItem.media.feedURL) {
-        // Quick match all unmatched podcast episodes
-        await this.quickMatchPodcastEpisodes(libraryItem, options)
-      }
-
       await libraryItem.media.save()
 
       libraryItem.changed('updatedAt', true)
@@ -133,54 +100,6 @@ class Scanner {
       updated: hasUpdated,
       libraryItem: libraryItem.toOldJSONExpanded()
     }
-  }
-
-  /**
-   *
-   * @param {import('../models/LibraryItem')} libraryItem
-   * @param {*} matchData
-   * @param {QuickMatchOptions} options
-   * @returns {Map<string, any>} - Update payload
-   */
-  quickMatchPodcastBuildUpdatePayload(libraryItem, matchData, options) {
-    const updatePayload = {}
-
-    const matchDataTransformed = {
-      title: matchData.title || null,
-      author: matchData.artistName || null,
-      genres: matchData.genres || [],
-      itunesId: matchData.id || null,
-      itunesPageUrl: matchData.pageUrl || null,
-      itunesArtistId: matchData.artistId || null,
-      releaseDate: matchData.releaseDate || null,
-      imageUrl: matchData.cover || null,
-      feedUrl: matchData.feedUrl || null,
-      description: matchData.descriptionPlain || null
-    }
-
-    for (const key in matchDataTransformed) {
-      if (matchDataTransformed[key]) {
-        if (key === 'genres') {
-          if (!libraryItem.media.genres.length || options.overrideDetails) {
-            var genresArray = []
-            if (Array.isArray(matchDataTransformed[key])) genresArray = [...matchDataTransformed[key]]
-            else {
-              // Genres should always be passed in as an array but just incase handle a string
-              Logger.warn(`[Scanner] quickMatch genres is not an array ${matchDataTransformed[key]}`)
-              genresArray = matchDataTransformed[key]
-                .split(',')
-                .map((v) => v.trim())
-                .filter((v) => !!v)
-            }
-            updatePayload[key] = genresArray
-          }
-        } else if (libraryItem.media[key] !== matchDataTransformed[key] && (!libraryItem.media[key] || options.overrideDetails)) {
-          updatePayload[key] = matchDataTransformed[key]
-        }
-      }
-    }
-
-    return updatePayload
   }
 
   /**
@@ -351,79 +270,6 @@ class Scanner {
   }
 
   /**
-   *
-   * @param {import('../models/LibraryItem')} libraryItem
-   * @param {QuickMatchOptions} options
-   * @returns {Promise<number>} - Number of episodes updated
-   */
-  async quickMatchPodcastEpisodes(libraryItem, options = {}) {
-    /** @type {import('../models/PodcastEpisode')[]} */
-    const episodesToQuickMatch = libraryItem.media.podcastEpisodes.filter((ep) => !ep.enclosureURL) // Only quick match episodes that are not already matched
-    if (!episodesToQuickMatch.length) return 0
-
-    const feed = await getPodcastFeed(libraryItem.media.feedURL)
-    if (!feed) {
-      Logger.error(`[Scanner] quickMatchPodcastEpisodes: Unable to quick match episodes feed not found for "${libraryItem.media.feedURL}"`)
-      return 0
-    }
-
-    let numEpisodesUpdated = 0
-    for (const episode of episodesToQuickMatch) {
-      const episodeMatches = findMatchingEpisodesInFeed(feed, episode.title, 0.1)
-      if (episodeMatches?.length) {
-        const wasUpdated = await this.updateEpisodeWithMatch(episode, episodeMatches[0].episode, options)
-        if (wasUpdated) numEpisodesUpdated++
-      }
-    }
-    if (numEpisodesUpdated) {
-      Logger.info(`[Scanner] quickMatchPodcastEpisodes: Updated ${numEpisodesUpdated} episodes for "${libraryItem.media.title}"`)
-    }
-    return numEpisodesUpdated
-  }
-
-  /**
-   *
-   * @param {import('../models/PodcastEpisode')} episode
-   * @param {import('../utils/podcastUtils').RssPodcastEpisode} episodeToMatch
-   * @param {QuickMatchOptions} options
-   * @returns {Promise<boolean>} - true if episode was updated
-   */
-  async updateEpisodeWithMatch(episode, episodeToMatch, options = {}) {
-    Logger.debug(`[Scanner] quickMatchPodcastEpisodes: Found episode match for "${episode.title}" => ${episodeToMatch.title}`)
-    const matchDataTransformed = {
-      title: episodeToMatch.title || '',
-      subtitle: episodeToMatch.subtitle || '',
-      description: episodeToMatch.description || '',
-      enclosureURL: episodeToMatch.enclosure?.url || null,
-      enclosureSize: episodeToMatch.enclosure?.length || null,
-      enclosureType: episodeToMatch.enclosure?.type || null,
-      episode: episodeToMatch.episode || '',
-      episodeType: episodeToMatch.episodeType || 'full',
-      season: episodeToMatch.season || '',
-      pubDate: episodeToMatch.pubDate || '',
-      publishedAt: episodeToMatch.publishedAt
-    }
-    const updatePayload = {}
-    for (const key in matchDataTransformed) {
-      if (matchDataTransformed[key]) {
-        if (episode[key] !== matchDataTransformed[key] && (!episode[key] || options.overrideDetails)) {
-          updatePayload[key] = matchDataTransformed[key]
-        }
-      }
-    }
-
-    if (Object.keys(updatePayload).length) {
-      episode.set(updatePayload)
-      if (episode.changed()) {
-        Logger.debug(`[Scanner] quickMatchPodcastEpisodes: Updating episode "${episode.title}" keys`, episode.changed())
-        await episode.save()
-        return true
-      }
-    }
-    return false
-  }
-
-  /**
    * Quick match library items
    *
    * @param {import('../routers/ApiRouter')} apiRouterCtx
@@ -470,11 +316,6 @@ class Scanner {
    * @param {import('../models/Library')} library
    */
   async matchLibraryItems(apiRouterCtx, library) {
-    if (library.mediaType === 'podcast') {
-      Logger.error(`[Scanner] matchLibraryItems: Match all not supported for podcasts yet`)
-      return
-    }
-
     if (LibraryScanner.isLibraryScanning(library.id)) {
       Logger.error(`[Scanner] Library "${library.name}" is already scanning`)
       return

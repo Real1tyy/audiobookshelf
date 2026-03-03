@@ -83,8 +83,6 @@ export default {
     },
     actionLink(task) {
       switch (task.action) {
-        case 'download-podcast-episode':
-          return `/library/${task.data.libraryId}/podcast/download-queue`
         case 'encode-m4b':
           return `/audiobook/${task.data.libraryItemId}/manage?tool=m4b`
         case 'embed-metadata':

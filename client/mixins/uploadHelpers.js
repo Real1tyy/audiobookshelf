@@ -178,26 +178,7 @@ export default {
       }
       return audiobook
     },
-    cleanPodcast(item, index) {
-      var podcast = {
-        index,
-        title: '',
-        ...item
-      }
-      var firstAudioFile = podcast.itemFiles[0]
-      if (!firstAudioFile.filepath) return podcast // No path
-      var firstPath = Path.dirname(firstAudioFile.filepath)
-      var dirs = firstPath.split('/').filter((d) => !!d && d !== '.')
-      if (dirs.length) {
-        podcast.title = dirs.length > 1 ? dirs[1] : dirs[0]
-      } else {
-        podcast.title = Path.basename(firstAudioFile.name, Path.extname(firstAudioFile.name))
-      }
-
-      return podcast
-    },
     cleanItem(item, mediaType, index) {
-      if (mediaType === 'podcast') return this.cleanPodcast(item, index)
       return this.cleanBook(item, index)
     },
     async getItemsFromDataTransferItems(dataTransferItems, mediaType) {

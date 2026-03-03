@@ -88,59 +88,14 @@ class Database {
     return this.models.bookAuthor
   }
 
-  /** @type {typeof import('./models/Podcast')} */
-  get podcastModel() {
-    return this.models.podcast
-  }
-
-  /** @type {typeof import('./models/PodcastEpisode')} */
-  get podcastEpisodeModel() {
-    return this.models.podcastEpisode
-  }
-
   /** @type {typeof import('./models/LibraryItem')} */
   get libraryItemModel() {
     return this.models.libraryItem
   }
 
-  /** @type {typeof import('./models/PodcastEpisode')} */
-  get podcastEpisodeModel() {
-    return this.models.podcastEpisode
-  }
-
   /** @type {typeof import('./models/MediaProgress')} */
   get mediaProgressModel() {
     return this.models.mediaProgress
-  }
-
-  /** @type {typeof import('./models/Collection')} */
-  get collectionModel() {
-    return this.models.collection
-  }
-
-  /** @type {typeof import('./models/CollectionBook')} */
-  get collectionBookModel() {
-    return this.models.collectionBook
-  }
-
-  /** @type {typeof import('./models/Playlist')} */
-  get playlistModel() {
-    return this.models.playlist
-  }
-
-  /** @type {typeof import('./models/PlaylistMediaItem')} */
-  get playlistMediaItemModel() {
-    return this.models.playlistMediaItem
-  }
-
-  /** @type {typeof import('./models/Feed')} */
-  get feedModel() {
-    return this.models.feed
-  }
-
-  /** @type {typeof import('./models/FeedEpisode')} */
-  get feedEpisodeModel() {
-    return this.models.feedEpisode
   }
 
   /** @type {typeof import('./models/PlaybackSession')} */
@@ -335,8 +290,6 @@ class Database {
     require('./models/Library').init(this.sequelize)
     require('./models/LibraryFolder').init(this.sequelize)
     require('./models/Book').init(this.sequelize)
-    require('./models/Podcast').init(this.sequelize)
-    require('./models/PodcastEpisode').init(this.sequelize)
     require('./models/LibraryItem').init(this.sequelize)
     require('./models/MediaProgress').init(this.sequelize)
     require('./models/Series').init(this.sequelize)
@@ -344,14 +297,8 @@ class Database {
     require('./models/SeriesProgress').init(this.sequelize)
     require('./models/Author').init(this.sequelize)
     require('./models/BookAuthor').init(this.sequelize)
-    require('./models/Collection').init(this.sequelize)
-    require('./models/CollectionBook').init(this.sequelize)
-    require('./models/Playlist').init(this.sequelize)
-    require('./models/PlaylistMediaItem').init(this.sequelize)
     require('./models/Device').init(this.sequelize)
     require('./models/PlaybackSession').init(this.sequelize)
-    require('./models/Feed').init(this.sequelize)
-    require('./models/FeedEpisode').init(this.sequelize)
     require('./models/Setting').init(this.sequelize)
     require('./models/CustomMetadataProvider').init(this.sequelize)
     require('./models/MediaItemShare').init(this.sequelize)
@@ -642,26 +589,13 @@ class Database {
   /**
    * Clean invalid records in database
    * Series should have atleast one Book
-   * Book and Podcast must have an associated LibraryItem (and vice versa)
+   * Book must have an associated LibraryItem (and vice versa)
    * Remove playback sessions that are 3 seconds or less
    * Remove duplicate mediaProgresses
    * Remove expired auth sessions
    * Deactivate expired api keys
    */
   async cleanDatabase() {
-    // Remove invalid Podcast records
-    const podcastsWithNoLibraryItem = await this.podcastModel.findAll({
-      include: {
-        model: this.libraryItemModel,
-        required: false
-      },
-      where: { '$libraryItem.id$': null }
-    })
-    for (const podcast of podcastsWithNoLibraryItem) {
-      Logger.warn(`Found podcast "${podcast.title}" with no libraryItem - removing it`)
-      await podcast.destroy()
-    }
-
     // Remove invalid Book records
     const booksWithNoLibraryItem = await this.bookModel.findAll({
       include: {
@@ -681,55 +615,15 @@ class Database {
         {
           model: this.bookModel,
           attributes: ['id']
-        },
-        {
-          model: this.podcastModel,
-          attributes: ['id']
         }
       ],
       where: {
-        '$book.id$': null,
-        '$podcast.id$': null
+        '$book.id$': null
       }
     })
     for (const libraryItem of libraryItemsWithNoMedia) {
       Logger.warn(`Found libraryItem "${libraryItem.id}" with no media - removing it`)
       await libraryItem.destroy()
-    }
-
-    // Remove invalid PlaylistMediaItem records
-    const playlistMediaItemsWithNoMediaItem = await this.playlistMediaItemModel.findAll({
-      include: [
-        {
-          model: this.bookModel,
-          attributes: ['id']
-        },
-        {
-          model: this.podcastEpisodeModel,
-          attributes: ['id']
-        }
-      ],
-      where: {
-        '$book.id$': null,
-        '$podcastEpisode.id$': null
-      }
-    })
-    for (const playlistMediaItem of playlistMediaItemsWithNoMediaItem) {
-      Logger.warn(`Found playlistMediaItem with no book or podcastEpisode - removing it`)
-      await playlistMediaItem.destroy()
-    }
-
-    // Remove invalid CollectionBook records
-    const collectionBooksWithNoBook = await this.collectionBookModel.findAll({
-      include: {
-        model: this.bookModel,
-        required: false
-      },
-      where: { '$book.id$': null }
-    })
-    for (const collectionBook of collectionBooksWithNoBook) {
-      Logger.warn(`Found collectionBook with no book - removing it`)
-      await collectionBook.destroy()
     }
 
     // Remove empty series
@@ -820,13 +714,11 @@ WHERE EXISTS (
 
   /**
    * This is used to create necessary triggers for new databases.
-   * It adds triggers to update libraryItems.title[IgnorePrefix] when (books|podcasts).title[IgnorePrefix] is updated
+   * It adds triggers to update libraryItems.title[IgnorePrefix] when books.title[IgnorePrefix] is updated
    */
   async addTriggers() {
     await this.addTriggerIfNotExists('books', 'title', 'id', 'libraryItems', 'title', 'mediaId')
     await this.addTriggerIfNotExists('books', 'titleIgnorePrefix', 'id', 'libraryItems', 'titleIgnorePrefix', 'mediaId')
-    await this.addTriggerIfNotExists('podcasts', 'title', 'id', 'libraryItems', 'title', 'mediaId')
-    await this.addTriggerIfNotExists('podcasts', 'titleIgnorePrefix', 'id', 'libraryItems', 'titleIgnorePrefix', 'mediaId')
     await this.addAuthorNamesTriggersIfNotExist()
   }
 

@@ -47,39 +47,5 @@ class AbsMetadataFileScanner {
     }
   }
 
-  /**
-   * Check for metadata.json file and set podcast metadata
-   *
-   * @param {import('./LibraryScan')} libraryScan
-   * @param {import('./LibraryItemScanData')} libraryItemData
-   * @param {Object} podcastMetadata
-   * @param {string} [existingLibraryItemId]
-   */
-  async scanPodcastMetadataFile(libraryScan, libraryItemData, podcastMetadata, existingLibraryItemId = null) {
-    const metadataLibraryFile = libraryItemData.metadataJsonLibraryFile
-    let metadataText = metadataLibraryFile ? await readTextFile(metadataLibraryFile.metadata.path) : null
-    let metadataFilePath = metadataLibraryFile?.metadata.path
-
-    // When metadata file is not stored with library item then check in the /metadata/items folder for it
-    if (!metadataText && existingLibraryItemId) {
-      let metadataPath = Path.join(global.MetadataPath, 'items', existingLibraryItemId)
-
-      metadataFilePath = Path.join(metadataPath, 'metadata.json')
-      if (await fsExtra.pathExists(metadataFilePath)) {
-        metadataText = await readTextFile(metadataFilePath)
-      }
-    }
-
-    if (metadataText) {
-      libraryScan.addLog(LogLevel.INFO, `Found metadata file "${metadataFilePath}"`)
-      const abMetadata = abmetadataGenerator.parseJson(metadataText) || {}
-      for (const key in abMetadata) {
-        if (abMetadata[key] === undefined || abMetadata[key] === null) continue
-        if (key === 'tags' && !abMetadata.tags?.length) continue
-
-        podcastMetadata[key] = abMetadata[key]
-      }
-    }
-  }
 }
 module.exports = new AbsMetadataFileScanner()

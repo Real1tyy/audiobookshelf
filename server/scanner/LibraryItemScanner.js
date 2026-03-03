@@ -10,7 +10,6 @@ const Watcher = require('../Watcher')
 const LibraryScan = require('./LibraryScan')
 const LibraryItemScanData = require('./LibraryItemScanData')
 const BookScanner = require('./BookScanner')
-const PodcastScanner = require('./PodcastScanner')
 const ScanLogger = require('./ScanLogger')
 const LibraryItem = require('../models/LibraryItem')
 const LibraryFile = require('../objects/files/LibraryFile')
@@ -168,11 +167,7 @@ class LibraryItemScanner {
    * @returns {Promise<{libraryItem:LibraryItem, wasUpdated:boolean}>}
    */
   rescanLibraryItemMedia(existingLibraryItem, libraryItemData, librarySettings, libraryScan) {
-    if (existingLibraryItem.mediaType === 'book') {
-      return BookScanner.rescanExistingBookLibraryItem(existingLibraryItem, libraryItemData, librarySettings, libraryScan)
-    } else {
-      return PodcastScanner.rescanExistingPodcastLibraryItem(existingLibraryItem, libraryItemData, librarySettings, libraryScan)
-    }
+    return BookScanner.rescanExistingBookLibraryItem(existingLibraryItem, libraryItemData, librarySettings, libraryScan)
   }
 
   /**
@@ -184,11 +179,7 @@ class LibraryItemScanner {
    */
   async scanNewLibraryItem(libraryItemData, librarySettings, libraryScan) {
     let newLibraryItem = null
-    if (libraryItemData.mediaType === 'book') {
-      newLibraryItem = await BookScanner.scanNewBookLibraryItem(libraryItemData, librarySettings, libraryScan)
-    } else {
-      newLibraryItem = await PodcastScanner.scanNewPodcastLibraryItem(libraryItemData, librarySettings, libraryScan)
-    }
+    newLibraryItem = await BookScanner.scanNewBookLibraryItem(libraryItemData, librarySettings, libraryScan)
     if (newLibraryItem) {
       libraryScan.addLog(LogLevel.INFO, `Created new library item "${newLibraryItem.relPath}" with id "${newLibraryItem.id}"`)
     }

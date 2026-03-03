@@ -5,7 +5,6 @@ const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
 
-const RssFeedManager = require('../managers/RssFeedManager')
 const CacheManager = require('../managers/CacheManager')
 const CoverManager = require('../managers/CoverManager')
 
@@ -169,11 +168,6 @@ class SeriesController {
         libraryItemIdsFinished: libraryItemsFinished.map((li) => li.id),
         isFinished: libraryItemsFinished.length === libraryItemsInSeries.length
       }
-    }
-
-    if (include.includes('rssfeed')) {
-      const feedObj = await RssFeedManager.findFeedForEntityId(seriesJson.id)
-      seriesJson.rssFeed = feedObj?.toOldJSONMinified() || null
     }
 
     res.json(seriesJson)
@@ -491,9 +485,6 @@ class SeriesController {
         Logger.error(`[SeriesController] Failed to remove cover file at "${series.coverPath}"`, error)
       })
     }
-
-    // Close RSS feed if open
-    await RssFeedManager.closeFeedForEntityId(series.id)
 
     // Remove the series
     await series.destroy()

@@ -34,9 +34,6 @@ export default {
     mediaType() {
       return this.libraryItem ? this.libraryItem.mediaType : null
     },
-    isPodcast() {
-      return this.mediaType == 'podcast'
-    },
     mediaMetadata() {
       return this.media.metadata || {}
     },
@@ -47,7 +44,6 @@ export default {
       return this.mediaMetadata.subtitle || ''
     },
     authorName() {
-      if (this.isPodcast) return this.mediaMetadata.author || 'Unknown'
       return this.mediaMetadata.authorName || 'Unknown'
     }
   },

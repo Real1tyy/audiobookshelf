@@ -9,9 +9,6 @@ export const state = () => ({
   issues: 0,
   folderLastUpdate: 0,
   filterData: null,
-  numUserPlaylists: 0,
-  collections: [],
-  userPlaylists: [],
   series: [],
   ereaderDevices: []
 })
@@ -63,12 +60,6 @@ export const getters = {
   },
   getLibraryEpubsAllowScriptedContent: (state, getters) => {
     return !!getters.getCurrentLibrarySettings?.epubsAllowScriptedContent
-  },
-  getCollection: (state) => (id) => {
-    return state.collections.find((c) => c.id === id)
-  },
-  getPlaylist: (state) => (id) => {
-    return state.userPlaylists.find((p) => p.id === id)
   }
 }
 
@@ -111,26 +102,18 @@ export const actions = {
       return false
     }
 
-    const libraryChanging = state.currentLibraryId !== libraryId
     return this.$axios
       .$get(`/api/libraries/${libraryId}?include=filterdata`)
       .then((data) => {
         const library = data.library
         const filterData = data.filterdata
         const issues = data.issues || 0
-        const numUserPlaylists = data.numUserPlaylists
 
         dispatch('user/checkUpdateLibrarySortFilter', library.mediaType, { root: true })
-
-        if (libraryChanging) {
-          commit('setCollections', [])
-          commit('setUserPlaylists', [])
-        }
 
         commit('addUpdate', library)
         commit('setLibraryIssues', issues)
         commit('setLibraryFilterData', filterData)
-        commit('setNumUserPlaylists', numUserPlaylists)
         commit('setCurrentLibrary', { id: libraryId })
         return data
       })
@@ -218,9 +201,6 @@ export const mutations = {
   },
   setLibraryFilterData(state, filterData) {
     state.filterData = filterData
-  },
-  setNumUserPlaylists(state, numUserPlaylists) {
-    state.numUserPlaylists = numUserPlaylists
   },
   removeSeriesFromFilterData(state, seriesId) {
     if (!seriesId || !state.filterData) return
@@ -321,37 +301,6 @@ export const mutations = {
       state.filterData.languages.push(mediaMetadata.language)
       state.filterData.languages.sort((a, b) => a.localeCompare(b))
     }
-  },
-  setCollections(state, collections) {
-    state.collections = collections
-  },
-  addUpdateCollection(state, collection) {
-    var index = state.collections.findIndex((c) => c.id === collection.id)
-    if (index >= 0) {
-      state.collections.splice(index, 1, collection)
-    } else {
-      state.collections.push(collection)
-    }
-  },
-  removeCollection(state, collection) {
-    state.collections = state.collections.filter((c) => c.id !== collection.id)
-  },
-  setUserPlaylists(state, playlists) {
-    state.userPlaylists = playlists
-    state.numUserPlaylists = playlists.length
-  },
-  addUpdateUserPlaylist(state, playlist) {
-    const index = state.userPlaylists.findIndex((p) => p.id === playlist.id)
-    if (index >= 0) {
-      state.userPlaylists.splice(index, 1, playlist)
-    } else {
-      state.userPlaylists.push(playlist)
-      state.numUserPlaylists++
-    }
-  },
-  removeUserPlaylist(state, playlist) {
-    state.userPlaylists = state.userPlaylists.filter((p) => p.id !== playlist.id)
-    state.numUserPlaylists = state.userPlaylists.length
   },
   setEReaderDevices(state, ereaderDevices) {
     state.ereaderDevices = ereaderDevices

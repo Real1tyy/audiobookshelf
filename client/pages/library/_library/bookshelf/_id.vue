@@ -47,12 +47,6 @@ export default {
       store.dispatch('user/updateUserSettings', settingsUpdate)
     }
 
-    // Redirect podcast libraries
-    const library = libraryData.library
-    if (library.mediaType === 'podcast' && (params.id === 'collections' || params.id === 'series' || params.id === 'authors')) {
-      return redirect(`/library/${libraryId}`)
-    }
-
     return {
       id: params.id || '',
       libraryId

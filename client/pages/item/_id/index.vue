@@ -7,7 +7,7 @@
             <covers-book-cover class="relative group-hover:brightness-75 transition cursor-pointer" expand-on-click :library-item="libraryItem" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
 
             <!-- Item Progress Bar -->
-            <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1.5 shadow-xs z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 208 * progressPercent + 'px' }"></div>
+            <div class="absolute bottom-0 left-0 h-1.5 shadow-xs z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 208 * progressPercent + 'px' }"></div>
 
             <!-- Item Cover Overlay -->
             <div class="absolute top-0 left-0 w-full h-full z-10 opacity-0 group-hover:opacity-100 pointer-events-none">
@@ -39,8 +39,7 @@
                 ><span v-if="index < seriesList.length - 1">, </span>
               </span>
 
-              <p v-if="isPodcast" class="mb-2 mt-0.5 text-gray-200 text-lg md:text-xl">{{ $getString('LabelByAuthor', [podcastAuthor]) }}</p>
-              <p v-else-if="authors.length" class="mb-2 mt-0.5 text-gray-200 text-lg md:text-xl max-w-[calc(100vw-2rem)] overflow-hidden text-ellipsis">
+              <p v-if="authors.length" class="mb-2 mt-0.5 text-gray-200 text-lg md:text-xl max-w-[calc(100vw-2rem)] overflow-hidden text-ellipsis">
                 {{ $getString('LabelByAuthor', ['']) }}<nuxt-link v-for="(author, index) in authors" :key="index" :to="`/author/${author.id}`" class="hover:underline">{{ author.name }}<span v-if="index < authors.length - 1">,&nbsp;</span></nuxt-link>
               </p>
               <p v-else class="mb-2 mt-0.5 text-gray-200 text-xl">by Unknown</p>
@@ -50,25 +49,8 @@
             <div class="hidden md:block grow" />
           </div>
 
-          <!-- Podcast episode downloads queue -->
-          <div v-if="episodeDownloadsQueued.length" class="px-4 py-2 mt-4 bg-info/40 text-sm font-semibold rounded-md text-gray-100 relative max-w-max mx-auto md:mx-0">
-            <div class="flex items-center">
-              <p class="text-sm py-1">{{ $getString('MessageEpisodesQueuedForDownload', [episodeDownloadsQueued.length]) }}</p>
-
-              <span v-if="userIsAdminOrUp" class="material-symbols hover:text-error text-xl ml-3 cursor-pointer" @click="clearDownloadQueue">close</span>
-            </div>
-          </div>
-
-          <!-- Podcast episodes currently downloading -->
-          <div v-if="episodesDownloading.length" class="px-4 py-2 mt-4 bg-success/20 text-sm font-semibold rounded-md text-gray-100 relative max-w-max mx-auto md:mx-0">
-            <div v-for="episode in episodesDownloading" :key="episode.id" class="flex items-center">
-              <widgets-loading-spinner />
-              <p class="text-sm py-1 pl-4">{{ $strings.MessageDownloadingEpisode }} "{{ episode.episodeDisplayTitle }}"</p>
-            </div>
-          </div>
-
           <!-- Progress -->
-          <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 mt-4 bg-primary text-sm font-semibold rounded-md text-gray-100 relative max-w-max mx-auto md:mx-0" :class="resettingProgress ? 'opacity-25' : ''">
+          <div v-if="progressPercent > 0" class="px-4 py-2 mt-4 bg-primary text-sm font-semibold rounded-md text-gray-100 relative max-w-max mx-auto md:mx-0" :class="resettingProgress ? 'opacity-25' : ''">
             <p v-if="progressPercent < 1" class="leading-6">{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
             <p v-else class="text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt, dateFormat) }}</p>
             <p v-if="progressPercent < 1 && !useEBookProgress" class="text-gray-200 text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
@@ -104,7 +86,7 @@
               <ui-icon-btn icon="&#xe3c9;" outlined class="mx-0.5" :aria-label="$strings.LabelEdit" @click="editClick" />
             </ui-tooltip>
 
-            <ui-tooltip v-if="!isPodcast" :text="userIsFinished ? $strings.MessageMarkAsNotFinished : $strings.MessageMarkAsFinished" direction="top">
+            <ui-tooltip :text="userIsFinished ? $strings.MessageMarkAsNotFinished : $strings.MessageMarkAsFinished" direction="top">
               <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="mx-0.5" @click="toggleFinished" />
             </ui-tooltip>
 
@@ -116,11 +98,6 @@
             <!-- Create Highlight Button -->
             <ui-tooltip v-if="isBook && tracks.length && userIsRoot" text="Create Highlight" direction="top">
               <ui-icon-btn icon="auto_awesome" outlined class="mx-0.5" @click="showHighlightPopover = true" />
-            </ui-tooltip>
-
-            <!-- Only admin or root user can download new episodes -->
-            <ui-tooltip v-if="isPodcast && userIsAdminOrUp" :text="$strings.LabelFindEpisodes" direction="top">
-              <ui-icon-btn icon="search" class="mx-0.5" :aria-label="$strings.LabelFindEpisodes" :loading="fetchingRSSFeed" outlined @click="findEpisodesClick" />
             </ui-tooltip>
 
             <ui-context-menu-dropdown v-if="contextMenuItems.length" :items="contextMenuItems" :menu-width="148" @action="contextMenuAction">
@@ -141,8 +118,6 @@
           <tables-chapters-table v-if="chapters.length" :library-item="libraryItem" class="mt-6" />
 
           <tables-tracks-table v-if="tracks.length" :title="$strings.LabelStatsAudioTracks" :tracks="tracksWithAudioFile" :is-file="isFile" :library-item-id="libraryItemId" class="mt-6" />
-
-          <tables-podcast-lazy-episodes-table ref="episodesTable" v-if="isPodcast" :library-item="libraryItem" />
 
           <tables-ebook-files-table v-if="ebookFiles.length" :library-item="libraryItem" class="mt-6" />
 
@@ -178,7 +153,6 @@
       </div>
     </div>
 
-    <modals-podcast-episode-feed v-model="showPodcastEpisodeFeed" :library-item="libraryItem" :episodes="podcastFeedEpisodes" :download-queue="episodeDownloadsQueued" :episodes-downloading="episodesDownloading" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :playback-rate="1" :library-item-id="libraryItemId" hide-create @select="selectBookmark" />
 
     <!-- Audio Trim Modal -->
@@ -266,8 +240,7 @@ export default {
       return redirect(`/login?redirect=${route.path}`)
     }
 
-    // Include episode downloads for podcasts
-    var item = await app.$axios.$get(`/api/items/${params.id}?expanded=1&include=downloads,rssfeed,share,relatedbooks`).catch((error) => {
+    var item = await app.$axios.$get(`/api/items/${params.id}?expanded=1&include=rssfeed,share,relatedbooks`).catch((error) => {
       console.error('Failed', error)
       return false
     })
@@ -288,11 +261,6 @@ export default {
     return {
       resettingProgress: false,
       isProcessingReadUpdate: false,
-      fetchingRSSFeed: false,
-      showPodcastEpisodeFeed: false,
-      podcastFeedEpisodes: [],
-      episodesDownloading: [],
-      episodeDownloadsQueued: [],
       showBookmarksModal: false,
       isDescriptionClamped: false,
       showFullDescription: false,
@@ -343,9 +311,6 @@ export default {
     isBook() {
       return this.libraryItem.mediaType === 'book'
     },
-    isPodcast() {
-      return this.libraryItem.mediaType === 'podcast'
-    },
     isVirtual() {
       return !!this.libraryItem?.extraData?.virtual
     },
@@ -365,7 +330,6 @@ export default {
     },
     showPlayButton() {
       if (this.isMissing || this.isInvalid) return false
-      if (this.isPodcast) return this.podcastEpisodes.length
       return this.tracks.length
     },
     showReadButton() {
@@ -387,7 +351,6 @@ export default {
       return this.media.chapters || []
     },
     bookmarks() {
-      if (this.isPodcast) return []
       return this.$store.getters['user/getUserBookmarksForItem'](this.libraryItemId)
     },
     tracks() {
@@ -399,18 +362,11 @@ export default {
         return track
       })
     },
-    podcastEpisodes() {
-      return this.media.episodes || []
-    },
     title() {
       return this.mediaMetadata.title || 'No Title'
     },
     bookSubtitle() {
-      if (this.isPodcast) return null
       return this.mediaMetadata.subtitle
-    },
-    podcastAuthor() {
-      return this.mediaMetadata.author || 'Unknown'
     },
     authors() {
       return this.mediaMetadata.authors || []
@@ -551,7 +507,7 @@ export default {
       return this.$store.getters['user/getUserCanDownload']
     },
     showRssFeedBtn() {
-      if (!this.rssFeed && !this.podcastEpisodes.length && !this.tracks.length) return false // Cannot open RSS feed with no episodes/tracks
+      if (!this.rssFeed && !this.tracks.length) return false // Cannot open RSS feed with no tracks
 
       // If rss feed is open then show feed url to users otherwise just show to admins
       return this.userIsAdminOrUp || this.rssFeed
@@ -597,7 +553,7 @@ export default {
         })
       }
 
-      if (this.userIsAdminOrUp && !this.isPodcast && this.tracks.length) {
+      if (this.userIsAdminOrUp && this.tracks.length) {
         items.push({
           text: this.$strings.LabelShare,
           action: 'share'
@@ -665,43 +621,6 @@ export default {
       }
       this.showBookmarksModal = false
     },
-    clearDownloadQueue() {
-      if (confirm('Are you sure you want to clear episode download queue?')) {
-        this.$axios
-          .$get(`/api/podcasts/${this.libraryItemId}/clear-queue`)
-          .then(() => {
-            this.$toast.success(this.$strings.ToastEpisodeDownloadQueueClearSuccess)
-            this.episodeDownloadQueued = []
-          })
-          .catch((error) => {
-            console.error('Failed to clear queue', error)
-            this.$toast.error(this.$strings.ToastEpisodeDownloadQueueClearFailed)
-          })
-      }
-    },
-    async findEpisodesClick() {
-      if (!this.mediaMetadata.feedUrl) {
-        return this.$toast.error(this.$strings.ToastNoRSSFeed)
-      }
-      this.fetchingRSSFeed = true
-      var payload = await this.$axios.$post(`/api/podcasts/feed`, { rssFeed: this.mediaMetadata.feedUrl }).catch((error) => {
-        console.error('Failed to get feed', error)
-        this.$toast.error(this.$strings.ToastPodcastGetFeedFailed)
-        return null
-      })
-      this.fetchingRSSFeed = false
-      if (!payload) return
-
-      console.log('Podcast feed', payload)
-      const podcastfeed = payload.podcast
-      if (!podcastfeed.episodes || !podcastfeed.episodes.length) {
-        this.$toast.info(this.$strings.ToastPodcastNoEpisodesInFeed)
-        return
-      }
-
-      this.podcastFeedEpisodes = podcastfeed.episodes
-      this.showPodcastEpisodeFeed = true
-    },
     showEditCover() {
       this.$store.commit('setBookshelfBookIds', [])
       this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'cover' })
@@ -740,55 +659,22 @@ export default {
         })
     },
     playItem(startTime = null) {
-      let episodeId = null
       const queueItems = []
-      if (this.isPodcast) {
-        // Uses the sorting and filtering from the episode table component
-        const episodesInListeningOrder = this.$refs.episodesTable?.episodesList || []
-
-        // Find the first unplayed episode from the table
-        let episodeIndex = episodesInListeningOrder.findIndex((ep) => {
-          const podcastProgress = this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, ep.id)
-          return !podcastProgress || !podcastProgress.isFinished
-        })
-        // If all episodes are played, use the first episode
-        if (episodeIndex < 0) episodeIndex = 0
-
-        episodeId = episodesInListeningOrder[episodeIndex].id
-
-        for (let i = episodeIndex; i < episodesInListeningOrder.length; i++) {
-          const episode = episodesInListeningOrder[i]
-          const podcastProgress = this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, episode.id)
-          if (!podcastProgress || !podcastProgress.isFinished) {
-            queueItems.push({
-              libraryItemId: this.libraryItemId,
-              libraryId: this.libraryId,
-              episodeId: episode.id,
-              title: episode.title,
-              subtitle: this.title,
-              caption: episode.publishedAt ? this.$getString('LabelPublishedDate', [this.$formatDate(episode.publishedAt, this.dateFormat)]) : this.$strings.LabelUnknownPublishDate,
-              duration: episode.audioFile.duration || null,
-              coverPath: this.libraryItem.media.coverPath || null
-            })
-          }
-        }
-      } else {
-        const queueItem = {
-          libraryItemId: this.libraryItemId,
-          libraryId: this.libraryId,
-          episodeId: null,
-          title: this.title,
-          subtitle: this.authors.map((au) => au.name).join(', '),
-          caption: '',
-          duration: this.duration || null,
-          coverPath: this.media.coverPath || null
-        }
-        queueItems.push(queueItem)
+      const queueItem = {
+        libraryItemId: this.libraryItemId,
+        libraryId: this.libraryId,
+        episodeId: null,
+        title: this.title,
+        subtitle: this.authors.map((au) => au.name).join(', '),
+        caption: '',
+        duration: this.duration || null,
+        coverPath: this.media.coverPath || null
       }
+      queueItems.push(queueItem)
 
       this.$eventBus.$emit('play-item', {
         libraryItemId: this.libraryItem.id,
-        episodeId,
+        episodeId: null,
         startTime,
         queueItems
       })
@@ -850,31 +736,8 @@ export default {
         id: this.libraryItemId,
         name: this.title,
         type: 'item',
-        feed: this.rssFeed,
-        hasEpisodesWithoutPubDate: this.podcastEpisodes.some((ep) => !ep.pubDate)
+        feed: this.rssFeed
       })
-    },
-    episodeDownloadQueued(episodeDownload) {
-      if (episodeDownload.libraryItemId === this.libraryItemId) {
-        this.episodeDownloadsQueued.push(episodeDownload)
-      }
-    },
-    episodeDownloadStarted(episodeDownload) {
-      if (episodeDownload.libraryItemId === this.libraryItemId) {
-        this.episodeDownloadsQueued = this.episodeDownloadsQueued.filter((d) => d.id !== episodeDownload.id)
-        this.episodesDownloading.push(episodeDownload)
-      }
-    },
-    episodeDownloadFinished(episodeDownload) {
-      if (episodeDownload.libraryItemId === this.libraryItemId) {
-        this.episodeDownloadsQueued = this.episodeDownloadsQueued.filter((d) => d.id !== episodeDownload.id)
-        this.episodesDownloading = this.episodesDownloading.filter((d) => d.id !== episodeDownload.id)
-      }
-    },
-    episodeDownloadQueueCleared(libraryItemId) {
-      if (libraryItemId === this.libraryItemId) {
-        this.episodeDownloadsQueued = []
-      }
     },
     rssFeedOpen(data) {
       if (data.entityId === this.libraryItemId) {
@@ -1132,19 +995,12 @@ export default {
   mounted() {
     this.checkDescriptionClamped()
 
-    this.episodeDownloadsQueued = this.libraryItem.episodeDownloadsQueued || []
-    this.episodesDownloading = this.libraryItem.episodesDownloading || []
-
     this.$eventBus.$on(`${this.libraryItem.id}_updated`, this.libraryItemUpdated)
     this.$root.socket.on('item_updated', this.libraryItemUpdated)
     this.$root.socket.on('rss_feed_open', this.rssFeedOpen)
     this.$root.socket.on('rss_feed_closed', this.rssFeedClosed)
     this.$root.socket.on('share_open', this.shareOpen)
     this.$root.socket.on('share_closed', this.shareClosed)
-    this.$root.socket.on('episode_download_queued', this.episodeDownloadQueued)
-    this.$root.socket.on('episode_download_started', this.episodeDownloadStarted)
-    this.$root.socket.on('episode_download_finished', this.episodeDownloadFinished)
-    this.$root.socket.on('episode_download_queue_cleared', this.episodeDownloadQueueCleared)
   },
   beforeDestroy() {
     this.$eventBus.$off(`${this.libraryItem.id}_updated`, this.libraryItemUpdated)
@@ -1153,10 +1009,6 @@ export default {
     this.$root.socket.off('rss_feed_closed', this.rssFeedClosed)
     this.$root.socket.off('share_open', this.shareOpen)
     this.$root.socket.off('share_closed', this.shareClosed)
-    this.$root.socket.off('episode_download_queued', this.episodeDownloadQueued)
-    this.$root.socket.off('episode_download_started', this.episodeDownloadStarted)
-    this.$root.socket.off('episode_download_finished', this.episodeDownloadFinished)
-    this.$root.socket.off('episode_download_queue_cleared', this.episodeDownloadQueueCleared)
   }
 }
 </script>

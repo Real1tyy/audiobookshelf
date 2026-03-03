@@ -31,11 +31,9 @@ const AbMergeManager = require('./managers/AbMergeManager')
 const CacheManager = require('./managers/CacheManager')
 const BackupManager = require('./managers/BackupManager')
 const PlaybackSessionManager = require('./managers/PlaybackSessionManager')
-const PodcastManager = require('./managers/PodcastManager')
 const AudioMetadataMangaer = require('./managers/AudioMetadataManager')
 const AudioTrimManager = require('./managers/AudioTrimManager')
 const AudioExtractManager = require('./managers/AudioExtractManager')
-const RssFeedManager = require('./managers/RssFeedManager')
 const CronManager = require('./managers/CronManager')
 const ApiCacheManager = require('./managers/ApiCacheManager')
 const BinaryManager = require('./managers/BinaryManager')
@@ -88,9 +86,6 @@ class Server {
         global.DisableSsrfRequestFilter = (url) => whitelistedUrls.includes(new URL(url).hostname)
       }
     }
-    global.PodcastDownloadTimeout = toNumber(process.env.PODCAST_DOWNLOAD_TIMEOUT, 30000)
-    global.MaxFailedEpisodeChecks = toNumber(process.env.MAX_FAILED_EPISODE_CHECKS, 24)
-
     if (!fs.pathExistsSync(global.ConfigPath)) {
       fs.mkdirSync(global.ConfigPath)
     }
@@ -105,11 +100,10 @@ class Server {
     this.backupManager = new BackupManager()
     this.abMergeManager = new AbMergeManager()
     this.playbackSessionManager = new PlaybackSessionManager()
-    this.podcastManager = new PodcastManager()
     this.audioMetadataManager = new AudioMetadataMangaer()
     this.audioTrimManager = new AudioTrimManager()
     this.audioExtractManager = new AudioExtractManager()
-    this.cronManager = new CronManager(this.podcastManager, this.playbackSessionManager)
+    this.cronManager = new CronManager(this.playbackSessionManager)
     this.apiCacheManager = new ApiCacheManager()
     this.binaryManager = new BinaryManager()
 
@@ -171,7 +165,6 @@ class Server {
 
     await ShareManager.init()
     await this.backupManager.init()
-    await RssFeedManager.init()
 
     const libraries = await Database.libraryModel.getAllWithFolders()
     await this.cronManager.init(libraries)
@@ -326,19 +319,6 @@ class Server {
     // Static folder
     router.use(express.static(Path.join(global.appRoot, 'static')))
 
-    // RSS Feed temp route
-    router.get('/feed/:slug', (req, res) => {
-      Logger.info(`[Server] Requesting rss feed ${req.params.slug}`)
-      RssFeedManager.getFeed(req, res)
-    })
-    router.get('/feed/:slug/cover*', (req, res) => {
-      RssFeedManager.getFeedCover(req, res)
-    })
-    router.get('/feed/:slug/item/:episodeId/*', (req, res) => {
-      Logger.debug(`[Server] Requesting rss feed episode ${req.params.slug}/${req.params.episodeId}`)
-      RssFeedManager.getFeedItem(req, res)
-    })
-
     // Auth routes
     await this.auth.initAuthRoutes(router)
 
@@ -392,14 +372,9 @@ class Server {
         '/library/:library/narrators',
         '/library/:library/stats',
         '/library/:library/series/:id?',
-        '/library/:library/podcast/search',
-        '/library/:library/podcast/latest',
-        '/library/:library/podcast/download-queue',
         '/config/users/:id',
         '/config/users/:id/sessions',
         '/config/item-metadata-utils/:id',
-        '/collection/:id',
-        '/playlist/:id',
         '/share/:slug'
       ]
       dynamicRoutes.forEach((route) => router.get(route, (req, res) => res.sendFile(Path.join(distPath, 'index.html'))))
@@ -450,17 +425,12 @@ class Server {
     // Get all media progress without an associated media item
     const mediaProgressToRemove = await Database.mediaProgressModel.findAll({
       where: {
-        '$podcastEpisode.id$': null,
         '$book.id$': null
       },
       attributes: ['id'],
       include: [
         {
           model: Database.bookModel,
-          attributes: ['id']
-        },
-        {
-          model: Database.podcastEpisodeModel,
           attributes: ['id']
         }
       ]

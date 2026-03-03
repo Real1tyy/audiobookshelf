@@ -70,8 +70,7 @@ class MiscController {
       return res.status(404).send('Folder not found')
     }
 
-    // Podcasts should only be one folder deep
-    const outputDirectoryParts = library.isPodcast ? [title] : [author, series, title]
+    const outputDirectoryParts = [author, series, title]
     // `.filter(Boolean)` to strip out all the potentially missing details (eg: `author`)
     // before sanitizing all the directory parts to remove illegal chars and finally prepending
     // the base folder path
@@ -207,28 +206,6 @@ class MiscController {
       })
     }
 
-    // Update titleIgnorePrefix column on podcasts
-    const podcasts = await Database.podcastModel.findAll({
-      attributes: ['id', 'title', 'titleIgnorePrefix']
-    })
-    const bulkUpdatePodcasts = []
-    podcasts.forEach((podcast) => {
-      const titleIgnorePrefix = getTitleIgnorePrefix(podcast.title)
-      if (titleIgnorePrefix !== podcast.titleIgnorePrefix) {
-        bulkUpdatePodcasts.push({
-          id: podcast.id,
-          titleIgnorePrefix
-        })
-      }
-    })
-    if (bulkUpdatePodcasts.length) {
-      Logger.info(`[MiscController] Updating titleIgnorePrefix on ${bulkUpdatePodcasts.length} podcasts`)
-      rowsUpdated += bulkUpdatePodcasts.length
-      await Database.podcastModel.bulkCreate(bulkUpdatePodcasts, {
-        updateOnDuplicate: ['titleIgnorePrefix']
-      })
-    }
-
     // Update nameIgnorePrefix column on series
     const allSeries = await Database.seriesModel.findAll({
       attributes: ['id', 'name', 'nameIgnorePrefix', 'libraryId']
@@ -295,18 +272,6 @@ class MiscController {
     })
     for (const book of books) {
       for (const tag of book.tags) {
-        if (!tags.includes(tag)) tags.push(tag)
-      }
-    }
-
-    const podcasts = await Database.podcastModel.findAll({
-      attributes: ['tags'],
-      where: Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col('tags')), {
-        [Sequelize.Op.gt]: 0
-      })
-    })
-    for (const podcast of podcasts) {
-      for (const tag of podcast.tags) {
         if (!tags.includes(tag)) tags.push(tag)
       }
     }
@@ -433,18 +398,6 @@ class MiscController {
     })
     for (const book of books) {
       for (const tag of book.genres) {
-        if (!genres.includes(tag)) genres.push(tag)
-      }
-    }
-
-    const podcasts = await Database.podcastModel.findAll({
-      attributes: ['genres'],
-      where: Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col('genres')), {
-        [Sequelize.Op.gt]: 0
-      })
-    })
-    for (const podcast of podcasts) {
-      for (const tag of podcast.genres) {
         if (!genres.includes(tag)) genres.push(tag)
       }
     }

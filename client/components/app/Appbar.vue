@@ -54,11 +54,11 @@
       <div v-show="numMediaItemsSelected" class="absolute top-0 left-0 w-full h-full px-4 bg-primary flex items-center">
         <h1 class="text-lg md:text-2xl px-4">{{ $getString('MessageItemsSelected', [numMediaItemsSelected]) }}</h1>
         <div class="grow" />
-        <ui-btn v-if="!isPodcastLibrary && selectedMediaItemsArePlayable" color="bg-success" :padding-x="4" small class="flex items-center h-9 mr-2" @click="playSelectedItems">
+        <ui-btn v-if="selectedMediaItemsArePlayable" color="bg-success" :padding-x="4" small class="flex items-center h-9 mr-2" @click="playSelectedItems">
           <span class="material-symbols fill text-2xl -ml-2 pr-1 text-white">play_arrow</span>
           {{ $strings.ButtonPlay }}
         </ui-btn>
-        <ui-tooltip v-if="!isPodcastLibrary && selectedMediaItemsArePlayable && showAddToQueueButton" :text="$strings.ButtonQueueAddItem" direction="bottom">
+        <ui-tooltip v-if="selectedMediaItemsArePlayable && showAddToQueueButton" :text="$strings.ButtonQueueAddItem" direction="bottom">
           <ui-icon-btn :disabled="processingBatch" icon="queue_music" class="mx-1.5" @click="addSelectedItemsToQueue" />
         </ui-tooltip>
         <ui-tooltip :text="$strings.LabelSelectAll" direction="bottom">
@@ -108,9 +108,6 @@ export default {
     },
     libraryMediaType() {
       return this.currentLibrary ? this.currentLibrary.mediaType : null
-    },
-    isPodcastLibrary() {
-      return this.libraryMediaType === 'podcast'
     },
     isBookLibrary() {
       return this.libraryMediaType === 'book'
@@ -184,7 +181,7 @@ export default {
         }
       ]
 
-      if (!this.isPodcastLibrary && this.selectedMediaItemsArePlayable) {
+      if (this.selectedMediaItemsArePlayable) {
         options.push({
           text: this.$strings.ButtonQuickEmbedMetadata,
           action: 'quick-embed'

@@ -51,7 +51,7 @@ class UserController {
   /**
    * GET: /api/users/:id
    * Get a single user toJSONForBrowser
-   * Media progress items include: `displayTitle`, `displaySubtitle` (for podcasts), `coverPath` and `mediaUpdatedAt`
+   * Media progress items include: `displayTitle`, `coverPath` and `mediaUpdatedAt`
    *
    * @param {UserControllerRequest} req
    * @param {Response} res
@@ -71,14 +71,6 @@ class UserController {
         {
           model: Database.bookModel,
           attributes: ['id', 'title', 'coverPath', 'updatedAt']
-        },
-        {
-          model: Database.podcastEpisodeModel,
-          attributes: ['id', 'title'],
-          include: {
-            model: Database.podcastModel,
-            attributes: ['id', 'title', 'coverPath', 'updatedAt']
-          }
         }
       ]
     })
@@ -86,11 +78,7 @@ class UserController {
     const oldMediaProgresses = mediaProgresses.map((mp) => {
       const oldMediaProgress = mp.getOldMediaProgress()
       oldMediaProgress.displayTitle = mp.mediaItem?.title
-      if (mp.mediaItem?.podcast) {
-        oldMediaProgress.displaySubtitle = mp.mediaItem.podcast?.title
-        oldMediaProgress.coverPath = mp.mediaItem.podcast?.coverPath
-        oldMediaProgress.mediaUpdatedAt = mp.mediaItem.podcast?.updatedAt
-      } else if (mp.mediaItem) {
+      if (mp.mediaItem) {
         oldMediaProgress.coverPath = mp.mediaItem.coverPath
         oldMediaProgress.mediaUpdatedAt = mp.mediaItem.updatedAt
       }

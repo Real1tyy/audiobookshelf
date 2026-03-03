@@ -10,19 +10,12 @@
     <app-media-player-container ref="mediaPlayerContainer" />
 
     <modals-item-edit-modal />
-    <modals-collections-add-create-modal />
-    <modals-collections-edit-modal />
-    <modals-playlists-add-create-modal />
-    <modals-playlists-edit-modal />
-    <modals-podcast-edit-episode />
-    <modals-podcast-view-episode />
     <modals-authors-edit-modal />
     <modals-series-edit-modal />
     <modals-batch-quick-match-model />
     <modals-series-batch-add-modal />
     <modals-batch-tags-modal />
     <modals-batch-genres-modal />
-    <modals-rssfeed-open-close-modal />
     <modals-raw-cover-preview-modal />
     <modals-share-modal />
     <prompt-confirm />
@@ -213,12 +206,6 @@ export default {
     libraryItemUpdated(libraryItem) {
       if (this.$store.state.selectedLibraryItem?.id === libraryItem.id) {
         this.$store.commit('setSelectedLibraryItem', libraryItem)
-        if (this.$store.state.globals.selectedEpisode && libraryItem.mediaType === 'podcast') {
-          const episode = libraryItem.media.episodes.find((ep) => ep.id === this.$store.state.globals.selectedEpisode.id)
-          if (episode) {
-            this.$store.commit('globals/setSelectedEpisode', episode)
-          }
-        }
       }
       if (this.$store.state.streamLibraryItem?.id === libraryItem.id) {
         this.$store.commit('updateStreamLibraryItem', libraryItem)
@@ -310,44 +297,9 @@ export default {
         }
       }
     },
-    collectionAdded(collection) {
-      if (this.currentLibraryId !== collection.libraryId) return
-      this.$store.commit('libraries/addUpdateCollection', collection)
-    },
-    collectionUpdated(collection) {
-      if (this.currentLibraryId !== collection.libraryId) return
-      this.$store.commit('libraries/addUpdateCollection', collection)
-    },
-    collectionRemoved(collection) {
-      if (this.currentLibraryId !== collection.libraryId) return
-      if (this.$route.name.startsWith('collection')) {
-        if (this.$route.params.id === collection.id) {
-          this.$router.replace(`/library/${this.currentLibraryId}/bookshelf/collections`)
-        }
-      }
-      this.$store.commit('libraries/removeCollection', collection)
-    },
     seriesRemoved({ id, libraryId }) {
       if (this.currentLibraryId !== libraryId) return
       this.$store.commit('libraries/removeSeriesFromFilterData', id)
-    },
-    playlistAdded(playlist) {
-      if (playlist.userId !== this.user.id || this.currentLibraryId !== playlist.libraryId) return
-      this.$store.commit('libraries/addUpdateUserPlaylist', playlist)
-    },
-    playlistUpdated(playlist) {
-      if (playlist.userId !== this.user.id || this.currentLibraryId !== playlist.libraryId) return
-      this.$store.commit('libraries/addUpdateUserPlaylist', playlist)
-    },
-    playlistRemoved(playlist) {
-      if (playlist.userId !== this.user.id || this.currentLibraryId !== playlist.libraryId) return
-
-      if (this.$route.name.startsWith('playlist')) {
-        if (this.$route.params.id === playlist.id) {
-          this.$router.replace(`/library/${this.currentLibraryId}/bookshelf/playlists`)
-        }
-      }
-      this.$store.commit('libraries/removeUserPlaylist', playlist)
     },
     backupApplied() {
       // Force refresh
@@ -461,18 +413,8 @@ export default {
       this.socket.on('user_session_closed', this.userSessionClosed)
       this.socket.on('user_item_progress_updated', this.userMediaProgressUpdate)
 
-      // Collection Listeners
-      this.socket.on('collection_added', this.collectionAdded)
-      this.socket.on('collection_updated', this.collectionUpdated)
-      this.socket.on('collection_removed', this.collectionRemoved)
-
       // Series Listeners
       this.socket.on('series_removed', this.seriesRemoved)
-
-      // User Playlist Listeners
-      this.socket.on('playlist_added', this.playlistAdded)
-      this.socket.on('playlist_updated', this.playlistUpdated)
-      this.socket.on('playlist_removed', this.playlistRemoved)
 
       // Task Listeners
       this.socket.on('task_started', this.taskStarted)

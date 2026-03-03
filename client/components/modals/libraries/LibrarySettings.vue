@@ -72,9 +72,6 @@
           </ui-tooltip>
         </div>
       </div>
-      <div v-if="isPodcastLibrary" class="p-2 w-full md:w-1/2">
-        <ui-dropdown :label="$strings.LabelPodcastSearchRegion" v-model="podcastSearchRegion" :items="$podcastSearchRegionOptions" small class="max-w-72" menu-max-height="200px" @input="formUpdated" />
-      </div>
       <div class="p-2 w-full flex items-center space-x-2 flex-wrap">
         <div>
           <ui-dropdown v-model="markAsFinishedWhen" :items="maskAsFinishedWhenItems" :label="$strings.LabelSettingsLibraryMarkAsFinishedWhen" small class="w-72 min-w-72 text-sm" menu-max-height="200px" @input="markAsFinishedWhenChanged" />
@@ -112,7 +109,6 @@ export default {
       epubsAllowScriptedContent: false,
       hideSingleBookSeries: false,
       onlyShowLaterBooksInContinueSeries: false,
-      podcastSearchRegion: 'us',
       markAsFinishedWhen: 'timeRemaining',
       markAsFinishedValue: 10
     }
@@ -129,9 +125,6 @@ export default {
     },
     isBookLibrary() {
       return this.mediaType === 'book'
-    },
-    isPodcastLibrary() {
-      return this.mediaType === 'podcast'
     },
     maskAsFinishedWhenItems() {
       return [
@@ -170,7 +163,6 @@ export default {
           epubsAllowScriptedContent: !!this.epubsAllowScriptedContent,
           hideSingleBookSeries: !!this.hideSingleBookSeries,
           onlyShowLaterBooksInContinueSeries: !!this.onlyShowLaterBooksInContinueSeries,
-          podcastSearchRegion: this.podcastSearchRegion,
           markAsFinishedTimeRemaining: markAsFinishedTimeRemaining,
           markAsFinishedPercentComplete: markAsFinishedPercentComplete
         }
@@ -188,7 +180,6 @@ export default {
       this.epubsAllowScriptedContent = !!this.librarySettings.epubsAllowScriptedContent
       this.hideSingleBookSeries = !!this.librarySettings.hideSingleBookSeries
       this.onlyShowLaterBooksInContinueSeries = !!this.librarySettings.onlyShowLaterBooksInContinueSeries
-      this.podcastSearchRegion = this.librarySettings.podcastSearchRegion || 'us'
       this.markAsFinishedWhen = this.librarySettings.markAsFinishedTimeRemaining ? 'timeRemaining' : 'percentComplete'
       if (!this.librarySettings.markAsFinishedTimeRemaining && !this.librarySettings.markAsFinishedPercentComplete) {
         this.markAsFinishedWhen = 'timeRemaining'

@@ -55,7 +55,7 @@ class MeController {
   }
 
   /**
-   * GET: /api/me/item/listening-sessions/:libraryItemId/:episodeId
+   * GET: /api/me/item/listening-sessions/:libraryItemId
    *
    * @this import('../routers/ApiRouter')
    *
@@ -64,14 +64,13 @@ class MeController {
    */
   async getItemListeningSessions(req, res) {
     const libraryItem = await Database.libraryItemModel.findByPk(req.params.libraryItemId)
-    const episode = await Database.podcastEpisodeModel.findByPk(req.params.episodeId)
 
-    if (!libraryItem || (libraryItem.isPodcast && !episode)) {
+    if (!libraryItem) {
       Logger.error(`[MeController] Media item not found for library item id "${req.params.libraryItemId}"`)
       return res.sendStatus(404)
     }
 
-    const mediaItemId = episode?.id || libraryItem.mediaId
+    const mediaItemId = libraryItem.mediaId
     let listeningSessions = await this.getUserItemListeningSessionsHelper(req.user.id, mediaItemId)
 
     const itemsPerPage = toNumber(req.query.itemsPerPage, 10) || 10
@@ -105,13 +104,13 @@ class MeController {
   }
 
   /**
-   * GET: /api/me/progress/:id/:episodeId?
+   * GET: /api/me/progress/:id
    *
    * @param {RequestWithUser} req
    * @param {Response} res
    */
   async getMediaProgress(req, res) {
-    const mediaProgress = req.user.getOldMediaProgress(req.params.id, req.params.episodeId || null)
+    const mediaProgress = req.user.getOldMediaProgress(req.params.id)
     if (!mediaProgress) {
       return res.sendStatus(404)
     }
@@ -133,7 +132,7 @@ class MeController {
   }
 
   /**
-   * PATCH: /api/me/progress/:libraryItemId/:episodeId?
+   * PATCH: /api/me/progress/:libraryItemId
    * TODO: Update to use mediaItemId and mediaItemType
    *
    * @param {RequestWithUser} req
@@ -142,8 +141,7 @@ class MeController {
   async createUpdateMediaProgress(req, res) {
     const progressUpdatePayload = {
       ...req.body,
-      libraryItemId: req.params.libraryItemId,
-      episodeId: req.params.episodeId
+      libraryItemId: req.params.libraryItemId
     }
     const mediaProgressResponse = await req.user.createUpdateMediaProgressFromPayload(progressUpdatePayload)
     if (mediaProgressResponse.error) {
@@ -316,22 +314,10 @@ class MeController {
       const oldMediaProgress = mediaProgress.getOldMediaProgress()
       const libraryItem = libraryItems.find((li) => li.id === oldMediaProgress.libraryItemId)
       if (libraryItem) {
-        if (oldMediaProgress.episodeId && libraryItem.isPodcast) {
-          const episode = libraryItem.media.podcastEpisodes.find((ep) => ep.id === oldMediaProgress.episodeId)
-          if (episode) {
-            const libraryItemWithEpisode = {
-              ...libraryItem.toOldJSONMinified(),
-              recentEpisode: episode.toOldJSON(libraryItem.id),
-              progressLastUpdate: oldMediaProgress.lastUpdate
-            }
-            itemsInProgress.push(libraryItemWithEpisode)
-          }
-        } else if (!oldMediaProgress.episodeId) {
-          itemsInProgress.push({
-            ...libraryItem.toOldJSONMinified(),
-            progressLastUpdate: oldMediaProgress.lastUpdate
-          })
-        }
+        itemsInProgress.push({
+          ...libraryItem.toOldJSONMinified(),
+          progressLastUpdate: oldMediaProgress.lastUpdate
+        })
       }
     }
 

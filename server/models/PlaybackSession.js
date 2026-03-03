@@ -77,16 +77,14 @@ class PlaybackSession extends Model {
   }
 
   static getOldPlaybackSession(playbackSessionExpanded) {
-    const isPodcastEpisode = playbackSessionExpanded.mediaItemType === 'podcastEpisode'
-
     return new oldPlaybackSession({
       id: playbackSessionExpanded.id,
       userId: playbackSessionExpanded.userId,
       libraryId: playbackSessionExpanded.libraryId,
       libraryItemId: playbackSessionExpanded.extraData?.libraryItemId || null,
-      bookId: isPodcastEpisode ? null : playbackSessionExpanded.mediaItemId,
-      episodeId: isPodcastEpisode ? playbackSessionExpanded.mediaItemId : null,
-      mediaType: isPodcastEpisode ? 'podcast' : 'book',
+      bookId: playbackSessionExpanded.mediaItemId,
+      episodeId: null,
+      mediaType: 'book',
       mediaMetadata: playbackSessionExpanded.mediaMetadata,
       chapters: null,
       displayTitle: playbackSessionExpanded.displayTitle,
@@ -135,8 +133,8 @@ class PlaybackSession extends Model {
   static getFromOld(oldPlaybackSession) {
     return {
       id: oldPlaybackSession.id,
-      mediaItemId: oldPlaybackSession.episodeId || oldPlaybackSession.bookId,
-      mediaItemType: oldPlaybackSession.episodeId ? 'podcastEpisode' : 'book',
+      mediaItemId: oldPlaybackSession.bookId,
+      mediaItemType: 'book',
       libraryId: oldPlaybackSession.libraryId,
       displayTitle: oldPlaybackSession.displayTitle,
       displayAuthor: oldPlaybackSession.displayAuthor,
@@ -202,7 +200,7 @@ class PlaybackSession extends Model {
       }
     )
 
-    const { book, podcastEpisode, user, device, library } = sequelize.models
+    const { book, user, device, library } = sequelize.models
 
     user.hasMany(PlaybackSession)
     PlaybackSession.belongsTo(user)
@@ -222,33 +220,19 @@ class PlaybackSession extends Model {
     })
     PlaybackSession.belongsTo(book, { foreignKey: 'mediaItemId', constraints: false })
 
-    podcastEpisode.hasOne(PlaybackSession, {
-      foreignKey: 'mediaItemId',
-      constraints: false,
-      scope: {
-        mediaItemType: 'podcastEpisode'
-      }
-    })
-    PlaybackSession.belongsTo(podcastEpisode, { foreignKey: 'mediaItemId', constraints: false })
-
     PlaybackSession.addHook('afterFind', (findResult) => {
       if (!findResult) return
 
       if (!Array.isArray(findResult)) findResult = [findResult]
 
       for (const instance of findResult) {
-        if (instance.mediaItemType === 'book' && instance.book !== undefined) {
+        if (instance.book !== undefined) {
           instance.mediaItem = instance.book
           instance.dataValues.mediaItem = instance.dataValues.book
-        } else if (instance.mediaItemType === 'podcastEpisode' && instance.podcastEpisode !== undefined) {
-          instance.mediaItem = instance.podcastEpisode
-          instance.dataValues.mediaItem = instance.dataValues.podcastEpisode
         }
         // To prevent mistakes:
         delete instance.book
         delete instance.dataValues.book
-        delete instance.podcastEpisode
-        delete instance.dataValues.podcastEpisode
       }
     })
   }

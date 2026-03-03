@@ -19,14 +19,6 @@
     </div>
     <div v-else-if="!totalShelves && initialized" class="w-full py-16">
       <p class="text-xl text-center">{{ emptyMessage }}</p>
-      <div v-if="entityName === 'collections' || entityName === 'playlists'" class="flex justify-center mt-4">
-        {{ emptyMessageHelp }}
-        <ui-tooltip :text="$strings.LabelClickForMoreInfo" class="inline-flex ml-2">
-          <a href="https://www.audiobookshelf.org/guides/collections" target="_blank" class="inline-flex">
-            <span class="material-symbols text-xl w-5 text-gray-200">help_outline</span>
-          </a>
-        </ui-tooltip>
-      </div>
       <!-- Clear filter only available on Library bookshelf -->
       <div v-if="entityName === 'items'" class="flex justify-center mt-2">
         <ui-btn v-if="hasFilter" color="bg-primary" @click="clearFilter">{{ $strings.ButtonClearFilter }}</ui-btn>
@@ -116,26 +108,18 @@ export default {
     libraryMediaType() {
       return this.$store.getters['libraries/getCurrentLibraryMediaType']
     },
-    isPodcast() {
-      return this.libraryMediaType === 'podcast'
-    },
     emptyMessage() {
       if (this.page === 'series') return this.$strings.MessageBookshelfNoSeries
-      if (this.page === 'collections') return this.$strings.MessageBookshelfNoCollections
-      if (this.page === 'playlists') return this.$strings.MessageNoUserPlaylists
       if (this.page === 'authors') return this.$strings.MessageNoAuthors
       if (this.page === 'continue-listening') return 'No items in progress'
       if (this.page === 'recently-added') return 'No recently added items'
       if (this.hasFilter) {
         if (this.filterName === 'Issues') return this.$strings.MessageNoIssues
-        else if (this.filterName === 'Feed-open') return this.$strings.MessageBookshelfNoRSSFeeds
         return this.$getString('MessageBookshelfNoResultsForFilter', [this.filterName, this.filterValue])
       }
       return this.$strings.MessageNoResults
     },
     emptyMessageHelp() {
-      if (this.page === 'collections') return this.$strings.MessageBookshelfNoCollectionsHelp
-      if (this.page === 'playlists') return this.$strings.MessageNoUserPlaylistsHelp
       return ''
     },
     entityName() {
@@ -260,7 +244,6 @@ export default {
       if (this.page === '') return 'libraryCoverSize'
       if (this.page === 'series') return 'seriesCoverSize'
       if (this.page === 'authors') return 'authorsCoverSize'
-      if (this.page === 'playlists') return 'playlistsCoverSize'
       if (this.page === 'continue-listening') return 'continueListeningCoverSize'
       if (this.page === 'recently-added') return 'recentlyAddedCoverSize'
       if (this.seriesId) return 'seriesDetailCoverSize'
@@ -285,10 +268,6 @@ export default {
         const bookIds = this.entities.map((e) => e.id)
         this.$store.commit('setBookshelfBookIds', bookIds)
         this.$store.commit('showEditModalOnTab', { libraryItem: entity, tab: tab || 'details' })
-      } else if (this.entityName === 'collections') {
-        this.$store.commit('globals/setEditCollection', entity)
-      } else if (this.entityName === 'playlists') {
-        this.$store.commit('globals/setEditPlaylist', entity)
       } else if (this.entityName === 'authors') {
         this.$store.commit('globals/showEditAuthorModal', entity)
       }
@@ -324,7 +303,7 @@ export default {
           const mediaItem = {
             id: entity.id,
             mediaType: entity.mediaType,
-            hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
+            hasTracks: entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
           }
           this.$store.commit('globals/setMediaItemSelected', { item: mediaItem, selected: true })
         }
@@ -399,7 +378,7 @@ export default {
           const mediaItem = {
             id: entity.id,
             mediaType: entity.mediaType,
-            hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
+            hasTracks: entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
           }
           this.$store.commit('globals/toggleMediaItemSelected', mediaItem)
         }
@@ -550,7 +529,7 @@ export default {
       this.mountEntities(0, lastBookIndex)
     },
     buildSearchParams() {
-      if (this.page === 'search' || this.page === 'collections') {
+      if (this.page === 'search') {
         return ''
       }
 
@@ -591,7 +570,7 @@ export default {
           searchParams.set('sort', this.orderBy)
           searchParams.set('desc', this.orderDesc ? 1 : 0)
         }
-        if (this.collapseSeries && !this.isPodcast) {
+        if (this.collapseSeries) {
           searchParams.set('collapseseries', 1)
         }
       }
@@ -716,33 +695,6 @@ export default {
       libraryItems.forEach((ab) => {
         this.libraryItemUpdated(ab)
       })
-    },
-    collectionAdded(collection) {
-      if (this.entityName !== 'collections') return
-      console.log(`[LazyBookshelf] collectionAdded ${collection.id}`, collection)
-      this.resetEntities()
-    },
-    collectionUpdated(collection) {
-      if (this.entityName !== 'collections') return
-      console.log(`[LazyBookshelf] collectionUpdated ${collection.id}`, collection)
-      var indexOf = this.entities.findIndex((ent) => ent && ent.id === collection.id)
-      if (indexOf >= 0) {
-        this.entities[indexOf] = collection
-        if (this.entityComponentRefs[indexOf]) {
-          this.entityComponentRefs[indexOf].setEntity(collection)
-        }
-      }
-    },
-    collectionRemoved(collection) {
-      if (this.entityName !== 'collections') return
-      console.log(`[LazyBookshelf] collectionRemoved ${collection.id}`, collection)
-      var indexOf = this.entities.findIndex((ent) => ent && ent.id === collection.id)
-      if (indexOf >= 0) {
-        this.entities = this.entities.filter((ent) => ent.id !== collection.id)
-        this.totalEntities--
-        this.$eventBus.$emit('bookshelf-total-entities', this.totalEntities)
-        this.executeRebuild()
-      }
     },
     playlistAdded(playlist) {
       if (this.entityName !== 'playlists') return
@@ -914,9 +866,6 @@ export default {
         this.$root.socket.on('item_removed', this.libraryItemRemoved)
         this.$root.socket.on('items_updated', this.libraryItemsUpdated)
         this.$root.socket.on('items_added', this.libraryItemsAdded)
-        this.$root.socket.on('collection_added', this.collectionAdded)
-        this.$root.socket.on('collection_updated', this.collectionUpdated)
-        this.$root.socket.on('collection_removed', this.collectionRemoved)
         this.$root.socket.on('playlist_added', this.playlistAdded)
         this.$root.socket.on('playlist_updated', this.playlistUpdated)
         this.$root.socket.on('playlist_removed', this.playlistRemoved)
@@ -946,9 +895,6 @@ export default {
         this.$root.socket.off('item_removed', this.libraryItemRemoved)
         this.$root.socket.off('items_updated', this.libraryItemsUpdated)
         this.$root.socket.off('items_added', this.libraryItemsAdded)
-        this.$root.socket.off('collection_added', this.collectionAdded)
-        this.$root.socket.off('collection_updated', this.collectionUpdated)
-        this.$root.socket.off('collection_removed', this.collectionRemoved)
         this.$root.socket.off('playlist_added', this.playlistAdded)
         this.$root.socket.off('playlist_updated', this.playlistUpdated)
         this.$root.socket.off('playlist_removed', this.playlistRemoved)

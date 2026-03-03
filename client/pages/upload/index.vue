@@ -14,7 +14,7 @@
         </div>
       </div>
 
-      <div v-if="!selectedLibraryIsPodcast" class="flex items-center mb-6 px-2 md:px-0">
+      <div class="flex items-center mb-6 px-2 md:px-0">
         <label class="flex cursor-pointer pt-4">
           <ui-toggle-switch v-model="fetchMetadata.enabled" class="inline-flex" />
           <span class="pl-2 text-base">{{ $strings.LabelAutoFetchMetadata }}</span>
@@ -150,15 +150,11 @@ export default {
     selectedLibraryMediaType() {
       return this.selectedLibrary ? this.selectedLibrary.mediaType : null
     },
-    selectedLibraryIsPodcast() {
-      return this.selectedLibraryMediaType === 'podcast'
-    },
     providers() {
-      if (this.selectedLibraryIsPodcast) return this.$store.state.scanners.podcastProviders
       return this.$store.state.scanners.bookProviders
     },
     canFetchMetadata() {
-      return !this.selectedLibraryIsPodcast && this.fetchMetadata.enabled
+      return this.fetchMetadata.enabled
     },
     selectedFolder() {
       if (!this.selectedLibrary) return null
@@ -309,10 +305,8 @@ export default {
     async uploadItem(item) {
       var form = new FormData()
       form.set('title', item.title)
-      if (!this.selectedLibraryIsPodcast) {
-        form.set('author', item.author || '')
-        form.set('series', item.series || '')
-      }
+      form.set('author', item.author || '')
+      form.set('series', item.series || '')
       form.set('library', this.selectedLibraryId)
       form.set('folder', this.selectedFolderId)
 

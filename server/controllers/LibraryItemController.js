@@ -15,7 +15,6 @@ const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 const AudioFileScanner = require('../scanner/AudioFileScanner')
 const Scanner = require('../scanner/Scanner')
 
-const RssFeedManager = require('../managers/RssFeedManager')
 const CacheManager = require('../managers/CacheManager')
 const CoverManager = require('../managers/CoverManager')
 const ShareManager = require('../managers/ShareManager')
@@ -208,7 +207,7 @@ class LibraryItemController {
   /**
    * GET: /api/items/:id
    * Optional query params:
-   * ?include=progress,rssfeed,downloads,share,relatedbooks
+   * ?include=progress,share,relatedbooks
    * ?expanded=1
    *
    * @param {LibraryItemControllerRequest} req
@@ -225,21 +224,8 @@ class LibraryItemController {
         item.userMediaProgress = req.user.getOldMediaProgress(item.id, episodeId)
       }
 
-      if (includeEntities.includes('rssfeed')) {
-        const feedData = await RssFeedManager.findFeedForEntityId(item.id)
-        item.rssFeed = feedData?.toOldJSONMinified() || null
-      }
-
       if (item.mediaType === 'book' && req.user.isAdminOrUp && includeEntities.includes('share')) {
         item.mediaItemShare = ShareManager.findByMediaItemId(item.media.id)
-      }
-
-      if (item.mediaType === 'podcast' && includeEntities.includes('downloads')) {
-        const downloadsInQueue = this.podcastManager.getEpisodeDownloadsInQueue(req.libraryItem.id)
-        item.episodeDownloadsQueued = downloadsInQueue.map((d) => d.toJSONForClient())
-        if (this.podcastManager.currentDownload?.libraryItemId === req.libraryItem.id) {
-          item.episodesDownloading = [this.podcastManager.currentDownload.toJSONForClient()]
-        }
       }
 
       // Include related books data
@@ -283,19 +269,14 @@ class LibraryItemController {
     const hardDelete = req.query.hard == 1 // Delete from file system
     const libraryItemPath = req.libraryItem.path
 
-    const mediaItemIds = []
+    const mediaItemIds = [req.libraryItem.media.id]
     const authorIds = []
     const seriesIds = []
-    if (req.libraryItem.isPodcast) {
-      mediaItemIds.push(...req.libraryItem.media.podcastEpisodes.map((ep) => ep.id))
-    } else {
-      mediaItemIds.push(req.libraryItem.media.id)
-      if (req.libraryItem.media.authors?.length) {
-        authorIds.push(...req.libraryItem.media.authors.map((au) => au.id))
-      }
-      if (req.libraryItem.media.series?.length) {
-        seriesIds.push(...req.libraryItem.media.series.map((se) => se.id))
-      }
+    if (req.libraryItem.media.authors?.length) {
+      authorIds.push(...req.libraryItem.media.authors.map((au) => au.id))
+    }
+    if (req.libraryItem.media.series?.length) {
+      seriesIds.push(...req.libraryItem.media.series.map((se) => se.id))
     }
 
     await this.handleDeleteLibraryItem(req.libraryItem.id, mediaItemIds)
@@ -384,16 +365,6 @@ class LibraryItemController {
       if (res.writableEnded || res.headersSent) return
     }
 
-    // Podcast specific
-    let isPodcastAutoDownloadUpdated = false
-    if (req.libraryItem.isPodcast) {
-      if (mediaPayload.autoDownloadEpisodes !== undefined && req.libraryItem.media.autoDownloadEpisodes !== mediaPayload.autoDownloadEpisodes) {
-        isPodcastAutoDownloadUpdated = true
-      } else if (mediaPayload.autoDownloadSchedule !== undefined && req.libraryItem.media.autoDownloadSchedule !== mediaPayload.autoDownloadSchedule) {
-        isPodcastAutoDownloadUpdated = true
-      }
-    }
-
     // Store old related books for bidirectional relationship updates
     const oldRelatedBooks = req.libraryItem.isBook ? [...(req.libraryItem.media.relatedBooks || [])] : []
 
@@ -462,10 +433,6 @@ class LibraryItemController {
 
       // Always keep metadata file in sync for edits (series/authors changes may not update Book directly)
       await req.libraryItem.saveMetadataFile()
-
-      if (isPodcastAutoDownloadUpdated) {
-        this.cronManager.checkUpdatePodcastCron(req.libraryItem)
-      }
 
       Logger.debug(`[LibraryItemController] Updated library item media ${req.libraryItem.media.title}`)
       SocketAuthority.libraryItemEmitter('item_updated', req.libraryItem)
@@ -637,29 +604,6 @@ class LibraryItemController {
   }
 
   /**
-   * POST: /api/items/:id/play/:episodeId
-   *
-   * @this {import('../routers/ApiRouter')}
-   *
-   * @param {LibraryItemControllerRequest} req
-   * @param {Response} res
-   */
-  startEpisodePlaybackSession(req, res) {
-    if (!req.libraryItem.isPodcast) {
-      Logger.error(`[LibraryItemController] startEpisodePlaybackSession invalid media type ${req.libraryItem.id}`)
-      return res.sendStatus(400)
-    }
-
-    const episodeId = req.params.episodeId
-    if (!req.libraryItem.media.podcastEpisodes.some((ep) => ep.id === episodeId)) {
-      Logger.error(`[LibraryItemController] startPlaybackSession episode ${episodeId} not found for item ${req.libraryItem.id}`)
-      return res.sendStatus(404)
-    }
-
-    this.playbackSessionManager.startSessionRequest(req, res, episodeId)
-  }
-
-  /**
    * PATCH: /api/items/:id/tracks
    *
    * @param {LibraryItemControllerRequest} req
@@ -766,19 +710,14 @@ class LibraryItemController {
     for (const libraryItem of itemsToDelete) {
       const libraryItemPath = libraryItem.path
       Logger.info(`[LibraryItemController] (${hardDelete ? 'Hard' : 'Soft'}) deleting Library Item "${libraryItem.media.title}" with id "${libraryItem.id}"`)
-      const mediaItemIds = []
+      const mediaItemIds = [libraryItem.media.id]
       const seriesIds = []
       const authorIds = []
-      if (libraryItem.isPodcast) {
-        mediaItemIds.push(...libraryItem.media.podcastEpisodes.map((ep) => ep.id))
-      } else {
-        mediaItemIds.push(libraryItem.media.id)
-        if (libraryItem.media.series?.length) {
-          seriesIds.push(...libraryItem.media.series.map((se) => se.id))
-        }
-        if (libraryItem.media.authors?.length) {
-          authorIds.push(...libraryItem.media.authors.map((au) => au.id))
-        }
+      if (libraryItem.media.series?.length) {
+        seriesIds.push(...libraryItem.media.series.map((se) => se.id))
+      }
+      if (libraryItem.media.authors?.length) {
+        authorIds.push(...libraryItem.media.authors.map((au) => au.id))
       }
       await this.handleDeleteLibraryItem(libraryItem.id, mediaItemIds)
       if (hardDelete) {
@@ -1208,25 +1147,6 @@ class LibraryItemController {
       if (!req.libraryItem.media.hasMediaFiles) {
         req.libraryItem.isMissing = true
       }
-    } else if (req.libraryItem.media.podcastEpisodes.some((ep) => ep.audioFile.ino === req.params.fileid)) {
-      const episodeToRemove = req.libraryItem.media.podcastEpisodes.find((ep) => ep.audioFile.ino === req.params.fileid)
-      // Remove episode from all playlists
-      await Database.playlistModel.removeMediaItemsFromPlaylists([episodeToRemove.id])
-
-      // Remove episode media progress
-      const numProgressRemoved = await Database.mediaProgressModel.destroy({
-        where: {
-          mediaItemId: episodeToRemove.id
-        }
-      })
-      if (numProgressRemoved > 0) {
-        Logger.info(`[LibraryItemController] Removed media progress for episode ${episodeToRemove.id}`)
-      }
-
-      // Remove episode
-      await episodeToRemove.destroy()
-
-      req.libraryItem.media.podcastEpisodes = req.libraryItem.media.podcastEpisodes.filter((ep) => ep.audioFile.ino !== req.params.fileid)
     }
 
     if (req.libraryItem.media.changed()) {

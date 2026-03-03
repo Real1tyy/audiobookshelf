@@ -51,8 +51,7 @@
           <p cy-id="placeholderAuthorText" aria-hidden="true" class="text-center" style="color: rgb(247 223 187); opacity: 0.75" :style="{ fontSize: authorFontSize + 'em' }">{{ authorCleaned }}</p>
         </div>
 
-        <!-- No progress shown for podcasts (unless showing podcast episode) -->
-        <div cy-id="progressBar" v-if="!isPodcast || episodeProgress" class="absolute bottom-0 left-0 h-1e max-w-full z-20 rounded-b box-shadow-progressbar" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * userProgressPercent + 'px' }"></div>
+        <div cy-id="progressBar" class="absolute bottom-0 left-0 h-1e max-w-full z-20 rounded-b box-shadow-progressbar" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * userProgressPercent + 'px' }"></div>
 
         <!-- Overlay is not shown if collapsing series in library -->
         <div cy-id="overlay" v-show="!booksInSeries && libraryItem && (isHovering || isSelectionMode || isMoreMenuOpen) && !processing" class="w-full h-full absolute top-0 left-0 z-10 bg-black rounded-sm md:block" :class="overlayWrapperClasslist">
@@ -125,14 +124,14 @@
 
         <!-- Rating and Tags container -->
         <div
-          v-if="((!isPodcast && rating !== null) || displayTags.length) && !isHovering && !isSelectionMode && !booksInSeries"
+          v-if="(rating !== null || displayTags.length) && !isHovering && !isSelectionMode && !booksInSeries"
           class="absolute left-0 right-0 z-10 flex flex-col items-start"
           :style="{ bottom: userProgressPercent > 0 ? '0.5em' : '0.3em', padding: '0 0.3em', gap: '0.25em' }"
         >
           <!-- Rating display -->
           <div
             cy-id="ratingDisplay"
-            v-if="!isPodcast && rating !== null"
+            v-if="rating !== null"
             class="flex items-center bg-yellow-500/95 text-black font-bold rounded-sm shadow-md"
             :style="{ fontSize: 0.75 + 'em', padding: '0.2em 0.4em' }"
           >
@@ -148,23 +147,6 @@
           </div>
         </div>
 
-        <!-- Podcast Episode # -->
-        <div cy-id="podcastEpisodeNumber" v-if="recentEpisodeNumber !== null && !isHovering && !isSelectionMode && !processing" class="absolute rounded-lg bg-black/90 box-shadow-md z-10" :style="{ top: 0.375 + 'em', right: 0.375 + 'em', padding: `${0.1}em ${0.25}em` }">
-          <p :style="{ fontSize: 0.8 + 'em' }">
-            Episode
-            <span v-if="recentEpisodeNumber">#{{ recentEpisodeNumber }}</span>
-          </p>
-        </div>
-
-        <!-- Podcast Num Episodes -->
-        <div cy-id="numEpisodes" v-else-if="!numEpisodesIncomplete && numEpisodes && !isHovering && !isSelectionMode" class="absolute rounded-full bg-black/90 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 + 'em', right: 0.375 + 'em', width: 1.25 + 'em', height: 1.25 + 'em' }">
-          <p :style="{ fontSize: 0.8 + 'em' }" role="status" :aria-label="$strings.LabelNumberOfEpisodes">{{ numEpisodes }}</p>
-        </div>
-
-        <!-- Podcast Num Episodes -->
-        <div cy-id="numEpisodesIncomplete" v-else-if="numEpisodesIncomplete && !isHovering && !isSelectionMode" class="absolute rounded-full bg-yellow-400 text-black font-semibold box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 + 'em', right: 0.375 + 'em', width: 1.25 + 'em', height: 1.25 + 'em' }">
-          <p :style="{ fontSize: 0.8 + 'em' }">{{ numEpisodesIncomplete }}</p>
-        </div>
       </div>
     </div>
 
@@ -271,7 +253,7 @@ export default {
       return this._libraryItem.mediaType
     },
     isPodcast() {
-      return this.mediaType === 'podcast' || this.store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast'
+      return false
     },
     isExplicit() {
       return this.mediaMetadata.explicit || false
@@ -316,25 +298,8 @@ export default {
       if (this.media.tracks) return this.media.tracks.length
       return this.media.numTracks || 0 // toJSONMinified
     },
-    numEpisodes() {
-      return this.media.numEpisodes || 0
-    },
-    numEpisodesIncomplete() {
-      return this._libraryItem.numEpisodesIncomplete || 0
-    },
     processingBatch() {
       return this.store.state.processingBatch
-    },
-    recentEpisode() {
-      // Only added to item when getting currently listening podcasts
-      return this._libraryItem.recentEpisode
-    },
-    recentEpisodeNumber() {
-      if (!this.recentEpisode) return null
-      if (this.recentEpisode.episode) {
-        return this.recentEpisode.episode.replace(/^#/, '')
-      }
-      return ''
     },
     collapsedSeries() {
       // Only added to item object when collapseSeries is enabled
@@ -364,7 +329,6 @@ export default {
       return Math.max(2, 3 * this.sizeMultiplier)
     },
     author() {
-      if (this.isPodcast) return this.mediaMetadata.author
       return this.mediaMetadata.authorName
     },
     authorLF() {
@@ -375,7 +339,6 @@ export default {
       return artists.join(', ')
     },
     displayTitle() {
-      if (this.recentEpisode) return this.recentEpisode.title
       const ignorePrefix = this.orderBy === 'media.metadata.title' && this.sortingIgnorePrefix
       if (this.collapsedSeries) return ignorePrefix ? this.collapsedSeries.nameIgnorePrefix : this.collapsedSeries.name
       return ignorePrefix ? this.mediaMetadata.titleIgnorePrefix || '\u00A0' : this.title || '\u00A0'
@@ -388,8 +351,6 @@ export default {
       return ''
     },
     displayLineTwo() {
-      if (this.recentEpisode) return this.title
-      if (this.isPodcast) return this.author
       if (this.collapsedSeries) return ''
       if (this.isAuthorBookshelfView) {
         return this.mediaMetadata.publishedYear || ''
@@ -404,7 +365,7 @@ export default {
       if (this.orderBy === 'addedAt') return this.$getString('LabelAddedDate', [this.$formatDate(this._libraryItem.addedAt, this.dateFormat)])
       if (this.orderBy === 'media.duration') return this.$strings.LabelDuration + ': ' + this.$elapsedPrettyExtended(this.media.duration, false)
       if (this.orderBy === 'size') return this.$strings.LabelSize + ': ' + this.$bytesPretty(this._libraryItem.size)
-      if (this.orderBy === 'media.numTracks') return `${this.numEpisodes} ` + this.$strings.LabelEpisodes
+      if (this.orderBy === 'media.numTracks') return `${this.numTracks} ` + this.$strings.LabelTracks
       if (this.orderBy === 'media.metadata.publishedYear') {
         if (this.mediaMetadata.publishedYear) return this.$getString('LabelPublishedDate', [this.mediaMetadata.publishedYear])
         return '\u00A0'
@@ -423,13 +384,7 @@ export default {
       }
       return null
     },
-    episodeProgress() {
-      // Only used on home page currently listening podcast shelf
-      if (!this.recentEpisode) return null
-      return this.store.getters['user/getUserMediaProgress'](this.libraryItemId, this.recentEpisode.id)
-    },
     userProgress() {
-      if (this.episodeProgress) return this.episodeProgress
       return this.store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
     isEBookOnly() {
@@ -476,7 +431,6 @@ export default {
       })
     },
     showError() {
-      if (this.recentEpisode) return false // Dont show podcast error on episode card
       return this.isMissing || this.isInvalid
     },
     libraryItemIdStreaming() {
@@ -486,8 +440,7 @@ export default {
       return this.libraryItemIdStreaming === this.libraryItemId
     },
     isQueued() {
-      const episodeId = this.recentEpisode ? this.recentEpisode.id : null
-      return this.store.getters['getIsMediaQueued'](this.libraryItemId, episodeId)
+      return this.store.getters['getIsMediaQueued'](this.libraryItemId, null)
     },
     isStreamingFromDifferentLibrary() {
       return this.store.getters['getIsStreamingFromDifferentLibrary']
@@ -496,7 +449,7 @@ export default {
       return !this.isSelectionMode && !this.showPlayButton && this.ebookFormat
     },
     showPlayButton() {
-      return !this.isSelectionMode && !this.isMissing && !this.isInvalid && !this.isStreaming && (this.numTracks || this.recentEpisode)
+      return !this.isSelectionMode && !this.isMissing && !this.isInvalid && !this.isStreaming && this.numTracks
     },
     showQuickAddToQueue() {
       // Show quick add to queue button when:
@@ -508,8 +461,7 @@ export default {
       if (!this.libraryItemIdStreaming) return false
       if (this.isStreamingFromDifferentLibrary) return false
       if (this.isQueued) return false
-      if (this.isPodcast && !this.recentEpisode) return false
-      if (!this.numTracks && !this.recentEpisode) return false
+      if (!this.numTracks) return false
       return true
     },
     showSmallEBookIcon() {
@@ -524,7 +476,6 @@ export default {
     errorText() {
       if (this.isMissing) return 'Item directory is missing!'
       else if (this.isInvalid) {
-        if (this.isPodcast) return 'Podcast has no episodes'
         return 'Item has no audio tracks & ebook'
       }
       return 'Unknown Error'
@@ -554,42 +505,7 @@ export default {
       return this.store.getters['user/getIsAdminOrUp']
     },
     moreMenuItems() {
-      if (this.recentEpisode) {
-        const items = [
-          {
-            func: 'editPodcast',
-            text: this.$strings.ButtonEditPodcast
-          },
-          {
-            func: 'toggleFinished',
-            text: this.itemIsFinished ? this.$strings.MessageMarkAsNotFinished : this.$strings.MessageMarkAsFinished
-          }
-        ]
-        if (this.continueListeningShelf) {
-          items.push({
-            func: 'removeFromContinueListening',
-            text: this.$strings.ButtonRemoveFromContinueListening
-          })
-        }
-        if (this.libraryItemIdStreaming && !this.isStreamingFromDifferentLibrary) {
-          if (!this.isQueued) {
-            items.push({
-              func: 'addToQueue',
-              text: this.$strings.ButtonQueueAddItem
-            })
-          } else if (!this.isStreaming) {
-            items.push({
-              func: 'removeFromQueue',
-              text: this.$strings.ButtonQueueRemoveItem
-            })
-          }
-        }
-        return items
-      }
-
-      let items = []
-      if (!this.isPodcast) {
-        items = [
+      let items = [
           {
             func: 'toggleFinished',
             text: this.itemIsFinished ? this.$strings.MessageMarkAsNotFinished : this.$strings.MessageMarkAsFinished
@@ -655,19 +571,17 @@ export default {
           text: this.isEBookOnly ? this.$strings.ButtonRemoveFromContinueReading : this.$strings.ButtonRemoveFromContinueListening
         })
       }
-      if (!this.isPodcast) {
-        if (this.libraryItemIdStreaming && !this.isStreamingFromDifferentLibrary) {
-          if (!this.isQueued) {
-            items.push({
-              func: 'addToQueue',
-              text: this.$strings.ButtonQueueAddItem
-            })
-          } else if (!this.isStreaming) {
-            items.push({
-              func: 'removeFromQueue',
-              text: this.$strings.ButtonQueueRemoveItem
-            })
-          }
+      if (this.libraryItemIdStreaming && !this.isStreamingFromDifferentLibrary) {
+        if (!this.isQueued) {
+          items.push({
+            func: 'addToQueue',
+            text: this.$strings.ButtonQueueAddItem
+          })
+        } else if (!this.isStreaming) {
+          items.push({
+            func: 'removeFromQueue',
+            text: this.$strings.ButtonQueueRemoveItem
+          })
         }
       }
 
@@ -816,9 +730,6 @@ export default {
       }
     },
     editClick() {
-      if (this.recentEpisode) {
-        return this.$emit('edit', { libraryItem: this.libraryItem, episode: this.recentEpisode })
-      }
       this.$emit('edit', this.libraryItem)
     },
     toggleFinished(confirmed = false) {
@@ -842,7 +753,6 @@ export default {
       this.processing = true
 
       var apiEndpoint = `/api/me/progress/${this.libraryItemId}`
-      if (this.recentEpisode) apiEndpoint += `/${this.recentEpisode.id}`
 
       var toast = this.$toast || this.$nuxt.$toast
       var axios = this.$axios || this.$nuxt.$axios
@@ -856,9 +766,6 @@ export default {
           this.processing = false
           toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
         })
-    },
-    editPodcast() {
-      this.$emit('editPodcast', this.libraryItem)
     },
     rescan() {
       if (this.processing) return
@@ -962,37 +869,22 @@ export default {
         })
     },
     addToQueue() {
-      var queueItem = {}
-      if (this.recentEpisode) {
-        queueItem = {
-          libraryItemId: this.libraryItemId,
-          libraryId: this.libraryId,
-          episodeId: this.recentEpisode.id,
-          title: this.recentEpisode.title,
-          subtitle: this.mediaMetadata.title,
-          caption: this.recentEpisode.publishedAt ? this.$getString('LabelPublishedDate', [this.$formatDate(this.recentEpisode.publishedAt, this.dateFormat)]) : this.$strings.LabelUnknownPublishDate,
-          duration: this.recentEpisode.audioFile.duration || null,
-          coverPath: this.media.coverPath || null
-        }
-      } else {
-        queueItem = {
-          libraryItemId: this.libraryItemId,
-          libraryId: this.libraryId,
-          episodeId: null,
-          title: this.title,
-          subtitle: this.author,
-          caption: '',
-          duration: this.media.duration || null,
-          coverPath: this.media.coverPath || null
-        }
+      var queueItem = {
+        libraryItemId: this.libraryItemId,
+        libraryId: this.libraryId,
+        episodeId: null,
+        title: this.title,
+        subtitle: this.author,
+        caption: '',
+        duration: this.media.duration || null,
+        coverPath: this.media.coverPath || null
       }
       this.store.commit('addItemToQueue', queueItem)
       // Sync queue to server
       this.store.dispatch('savePlayerQueue')
     },
     removeFromQueue() {
-      const episodeId = this.recentEpisode ? this.recentEpisode.id : null
-      this.store.commit('removeItemFromQueue', { libraryItemId: this.libraryItemId, episodeId })
+      this.store.commit('removeItemFromQueue', { libraryItemId: this.libraryItemId, episodeId: null })
       // Sync queue to server
       this.store.dispatch('savePlayerQueue')
     },
@@ -1105,59 +997,20 @@ export default {
     async play() {
       var eventBus = this.$eventBus || this.$nuxt.$eventBus
 
-      const queueItems = []
-      // Podcast episode load queue items
-      if (this.recentEpisode) {
-        const axios = this.$axios || this.$nuxt.$axios
-        this.processing = true
-        const fullLibraryItem = await axios.$get(`/api/items/${this.libraryItemId}`).catch((err) => {
-          console.error('Failed to fetch library item', err)
-          return null
-        })
-        this.processing = false
-
-        if (fullLibraryItem && fullLibraryItem.media.episodes) {
-          const episodes = fullLibraryItem.media.episodes || []
-          // Sort from least recent to most recent
-          episodes.sort((a, b) => String(a.publishedAt).localeCompare(String(b.publishedAt), undefined, { numeric: true, sensitivity: 'base' }))
-
-          const episodeIndex = episodes.findIndex((ep) => ep.id === this.recentEpisode.id)
-          if (episodeIndex >= 0) {
-            for (let i = episodeIndex; i < episodes.length; i++) {
-              const episode = episodes[i]
-              const podcastProgress = this.store.getters['user/getUserMediaProgress'](this.libraryItemId, episode.id)
-              if (!podcastProgress || !podcastProgress.isFinished) {
-                queueItems.push({
-                  libraryItemId: this.libraryItemId,
-                  libraryId: this.libraryId,
-                  episodeId: episode.id,
-                  title: episode.title,
-                  subtitle: this.mediaMetadata.title,
-                  caption: episode.publishedAt ? this.$getString('LabelPublishedDate', [this.$formatDate(episode.publishedAt, this.dateFormat)]) : this.$strings.LabelUnknownPublishDate,
-                  duration: episode.audioFile.duration || null,
-                  coverPath: this.media.coverPath || null
-                })
-              }
-            }
-          }
-        }
-      } else {
-        const queueItem = {
-          libraryItemId: this.libraryItemId,
-          libraryId: this.libraryId,
-          episodeId: null,
-          title: this.title,
-          subtitle: this.author,
-          caption: '',
-          duration: this.media.duration || null,
-          coverPath: this.media.coverPath || null
-        }
-        queueItems.push(queueItem)
-      }
+      const queueItems = [{
+        libraryItemId: this.libraryItemId,
+        libraryId: this.libraryId,
+        episodeId: null,
+        title: this.title,
+        subtitle: this.author,
+        caption: '',
+        duration: this.media.duration || null,
+        coverPath: this.media.coverPath || null
+      }]
 
       eventBus.$emit('play-item', {
         libraryItemId: this.libraryItemId,
-        episodeId: this.recentEpisode ? this.recentEpisode.id : null,
+        episodeId: null,
         queueItems
       })
     },
