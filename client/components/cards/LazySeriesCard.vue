@@ -21,7 +21,6 @@
         <p :style="{ fontSize: 1 + 'em' }" class="mt-1">{{ displayTitle }}</p>
       </div>
 
-      <span cy-id="rssFeedMarker" v-if="!isHovering && rssFeed" class="absolute z-10 material-symbols text-success" :style="{ top: 0.5 + 'em', left: 0.5 + 'em', fontSize: 1.5 + 'em' }">rss_feed</span>
     </div>
 
     <div cy-id="standardBottomText" v-if="!isAlternativeBookshelfView" class="categoryPlacard absolute z-10 left-0 right-0 mx-auto -bottom-6e h-6e rounded-md text-center" :style="{ width: Math.min(200, cardWidth) + 'px' }">
@@ -165,9 +164,6 @@ export default {
     isAlternativeBookshelfView() {
       const constants = this.$constants || this.$nuxt.$constants
       return this.bookshelfView == constants.BookshelfView.DETAIL
-    },
-    rssFeed() {
-      return this.series?.rssFeed
     },
     playIconFontSize() {
       return Math.max(2, 3 * this.sizeMultiplier)

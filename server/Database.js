@@ -25,8 +25,6 @@ class Database {
 
     /** @type {import('./objects/settings/ServerSettings')} */
     this.serverSettings = null
-    /** @type {import('./objects/settings/NotificationSettings')} */
-    this.notificationSettings = null
     /** @type {import('./objects/settings/EmailSettings')} */
     this.emailSettings = null
 
@@ -334,7 +332,6 @@ class Database {
     this.settings = settingsData.settings
     this.emailSettings = settingsData.emailSettings
     this.serverSettings = settingsData.serverSettings
-    this.notificationSettings = settingsData.notificationSettings
     global.ServerSettings = this.serverSettings.toJSON()
 
     // Version specific migrations

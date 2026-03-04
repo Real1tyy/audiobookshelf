@@ -115,7 +115,6 @@ export default {
         tags: this.$strings.LabelTag,
         series: this.$strings.LabelSeries,
         authors: this.$strings.LabelAuthor,
-        narrators: this.$strings.LabelNarrator,
         publishers: this.$strings.LabelPublisher,
         publishedDecades: this.$strings.LabelPublishedDecade,
         languages: this.$strings.LabelLanguage,
@@ -125,7 +124,6 @@ export default {
         ebooks: this.$strings.LabelEbooks,
         abridged: this.$strings.LabelAbridged,
         issues: this.$strings.ButtonIssues,
-        'feed-open': this.$strings.LabelRSSFeedOpen,
         explicit: this.$strings.LabelExplicit,
         'share-open': this.$strings.LabelShareOpen
       }

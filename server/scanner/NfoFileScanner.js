@@ -29,10 +29,6 @@ class NfoFileScanner {
           if (nfoMetadata.authors?.length) {
             bookMetadata.authors = nfoMetadata.authors
           }
-        } else if (key === 'narrators') {
-          if (nfoMetadata.narrators?.length) {
-            bookMetadata.narrators = nfoMetadata.narrators
-          }
         } else if (key === 'series') {
           if (nfoMetadata.series) {
             bookMetadata.series = [

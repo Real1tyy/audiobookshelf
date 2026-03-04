@@ -89,8 +89,8 @@ class CoverSearchManager {
     if (provider === 'all') {
       providers = [...BookFinder.providers]
     } else if (provider === 'best') {
-      // Best providers: google, fantlab, and audible.com
-      providers = ['google', 'fantlab', 'audible']
+      // Best providers: google and audible.com
+      providers = ['google', 'audible']
     } else {
       providers = [provider]
     }

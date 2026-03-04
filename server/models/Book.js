@@ -117,8 +117,6 @@ class Book extends Model {
     this.viewedCount
     /** @type {number} */
     this.totalListeningTime
-    /** @type {string[]} */
-    this.narrators
     /** @type {AudioFileObject[]} */
     this.audioFiles
     /** @type {EBookFileObject} */
@@ -182,7 +180,6 @@ class Book extends Model {
           defaultValue: 0
         },
 
-        narrators: DataTypes.JSON,
         audioFiles: DataTypes.JSON,
         ebookFile: DataTypes.JSON,
         chapters: DataTypes.JSON,
@@ -233,7 +230,7 @@ class Book extends Model {
       // Skip if only stats fields (viewedCount, totalListeningTime) changed
       /** @type {string[]} */
       const changedFields = Array.isArray(options?.fields) ? options.fields : instance.changed() || []
-      const metadataFields = ['title', 'subtitle', 'publishedYear', 'publishedDate', 'publisher', 'description', 'isbn', 'asin', 'language', 'explicit', 'abridged', 'rating', 'url', 'relatedBooks', 'narrators', 'genres', 'tags', 'chapters']
+      const metadataFields = ['title', 'subtitle', 'publishedYear', 'publishedDate', 'publisher', 'description', 'isbn', 'asin', 'language', 'explicit', 'abridged', 'rating', 'url', 'relatedBooks', 'genres', 'tags', 'chapters']
       const hasMetadataChanges = changedFields.some(field => metadataFields.includes(field))
 
       if (hasMetadataChanges) {
@@ -430,7 +427,6 @@ class Book extends Model {
       title: this.title,
       subtitle: this.subtitle,
       authors: this.authors.map((a) => a.name),
-      narrators: this.narrators,
       series: this.series.map((se) => {
         const sequence = se.bookSeries?.sequence || ''
         if (!sequence) return se.name
@@ -513,7 +509,7 @@ class Book extends Model {
           hasUpdates = true
         }
       }
-      const arrayOfStringsKeys = ['narrators', 'genres']
+      const arrayOfStringsKeys = ['genres']
       arrayOfStringsKeys.forEach((key) => {
         if (Array.isArray(payload.metadata[key]) && !payload.metadata[key].some((item) => typeof item !== 'string') && JSON.stringify(this[key]) !== JSON.stringify(payload.metadata[key])) {
           this[key] = payload.metadata[key]
@@ -756,7 +752,6 @@ class Book extends Model {
       title: this.title,
       subtitle: this.subtitle,
       authors,
-      narrators: [...(this.narrators || [])],
       series,
       genres: [...(this.genres || [])],
       publishedYear: this.publishedYear,
@@ -783,7 +778,6 @@ class Book extends Model {
       subtitle: this.subtitle,
       authorName: this.authorName,
       authorNameLF: this.authorNameLF,
-      narratorName: (this.narrators || []).join(', '),
       seriesName: this.seriesName,
       genres: [...(this.genres || [])],
       publishedYear: this.publishedYear,
@@ -808,7 +802,6 @@ class Book extends Model {
     oldMetadataJSON.titleIgnorePrefix = getTitlePrefixAtEnd(this.title)
     oldMetadataJSON.authorName = this.authorName
     oldMetadataJSON.authorNameLF = this.authorNameLF
-    oldMetadataJSON.narratorName = (this.narrators || []).join(', ')
     oldMetadataJSON.seriesName = this.seriesName
     oldMetadataJSON.descriptionPlain = this.description ? htmlSanitizer.stripAllTags(this.description) : null
     return oldMetadataJSON

@@ -369,7 +369,6 @@ class Server {
         '/library/:library/search',
         '/library/:library/bookshelf/:id?',
         '/library/:library/authors',
-        '/library/:library/narrators',
         '/library/:library/stats',
         '/library/:library/series/:id?',
         '/config/users/:id',

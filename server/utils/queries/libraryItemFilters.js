@@ -130,52 +130,12 @@ module.exports = {
   },
 
   /**
-   * Get all library items that have narrators
-   * @param {string[]} narrators
-   * @returns {Promise<import('../../models/LibraryItem')[]>}
-   */
-  async getAllLibraryItemsWithNarrators(narrators) {
-    const libraryItems = []
-    const booksWithNarrator = await Database.bookModel.findAll({
-      where: Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(narrators) WHERE json_valid(narrators) AND json_each.value IN (:narrators))`), {
-        [Sequelize.Op.gte]: 1
-      }),
-      replacements: {
-        narrators
-      },
-      include: [
-        {
-          model: Database.libraryItemModel
-        },
-        {
-          model: Database.authorModel,
-          through: {
-            attributes: []
-          }
-        },
-        {
-          model: Database.seriesModel,
-          through: {
-            attributes: ['sequence']
-          }
-        }
-      ]
-    })
-    for (const book of booksWithNarrator) {
-      const libraryItem = book.libraryItem
-      libraryItem.media = book
-      libraryItems.push(libraryItem)
-    }
-    return libraryItems
-  },
-
-  /**
    * Search library items
    * @param {import('../../models/User')} user
    * @param {import('../../models/Library')} library
    * @param {string} query
    * @param {number} limit
-   * @returns {{book:object[], narrators:object[], authors:object[], tags:object[], series:object[]}}
+   * @returns {{book:object[], authors:object[], tags:object[], series:object[]}}
    */
   search(user, library, query, limit) {
     return libraryItemsBookFilters.search(user, library, query, limit, 0)

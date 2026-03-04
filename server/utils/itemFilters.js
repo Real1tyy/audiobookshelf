@@ -103,7 +103,6 @@ function applyAdvancedFilter(libraryItems, filterGroup, filterValue) {
           'description': !media.description,
           'genres': !media.genres || media.genres.length === 0,
           'language': !media.language,
-          'narrators': !media.narrators || media.narrators.length === 0,
           'publishedYear': !media.publishedYear,
           'publisher': !media.publisher,
           'series': !media.series || media.series.length === 0,

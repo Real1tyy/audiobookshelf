@@ -1,15 +1,8 @@
 import ItemSlider from '@/components/widgets/ItemSlider.vue'
-import NarratorCard from '@/components/cards/NarratorCard.vue'
 import AuthorCard from '@/components/cards/AuthorCard.vue'
 
 function createMountOptions(shelftype) {
   const items = {
-    narrators: [
-      { name: 'John Doe', numBooks: 5 },
-      { name: 'Jane Doe', numBooks: 3 },
-      { name: 'Jack Doe', numBooks: 1 },
-      { name: 'Jill Doe', numBooks: 7 }
-    ],
     authors: [
       { id: 1, name: 'John Doe', numBooks: 5 },
       { id: 2, name: 'Jane Doe', numBooks: 3 },
@@ -23,7 +16,6 @@ function createMountOptions(shelftype) {
     type: shelftype
   }
   const stubs = {
-    'cards-narrator-card': NarratorCard,
     'cards-author-card': AuthorCard
   }
   const mocks = {
@@ -56,15 +48,6 @@ describe('ItemSlider', () => {
 
   beforeEach(() => {})
 
-  it('renders a narrators slider', () => {
-    mountOptions = createMountOptions('narrators')
-    cy.mount(ItemSlider, mountOptions)
-
-    cy.get('&item').should('have.length', 4)
-    cy.get('&leftScrollButton').should('be.visible').and('not.have.class', 'text-gray-300')
-    cy.get('&rightScrollButton').should('be.visible').and('have.class', 'text-gray-300')
-  })
-
   it('renders an authors slider', () => {
     mountOptions = createMountOptions('authors')
     cy.mount(ItemSlider, mountOptions)
@@ -75,7 +58,7 @@ describe('ItemSlider', () => {
   })
 
   it('hides the scroll button when all items are visible', () => {
-    mountOptions = createMountOptions('narrators')
+    mountOptions = createMountOptions('authors')
     mountOptions.propsData.items = mountOptions.propsData.items.slice(0, 2)
     cy.mount(ItemSlider, mountOptions)
 

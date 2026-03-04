@@ -37,7 +37,6 @@ const AbsMetadataFileScanner = require('./AbsMetadataFileScanner')
  * @property {string} isbn
  * @property {string} asin
  * @property {string} language
- * @property {string[]} narrators
  * @property {string[]} genres
  * @property {string[]} tags
  * @property {string[]} authors
@@ -308,13 +307,6 @@ class BookScanner {
         if (bookMetadata.tags.some((t) => !existingTags.includes(t)) || existingTags.some((t) => !bookMetadata.tags.includes(t))) {
           libraryScan.addLog(LogLevel.DEBUG, `Updating book tags "${existingTags.join(',')}" => "${bookMetadata.tags.join(',')}" for book "${bookMetadata.title}"`)
           media.tags = bookMetadata.tags
-          hasMediaChanges = true
-        }
-      } else if (key === 'narrators') {
-        const existingNarrators = media.narrators || []
-        if (bookMetadata.narrators.some((t) => !existingNarrators.includes(t)) || existingNarrators.some((t) => !bookMetadata.narrators.includes(t))) {
-          libraryScan.addLog(LogLevel.DEBUG, `Updating book narrators "${existingNarrators.join(',')}" => "${bookMetadata.narrators.join(',')}" for book "${bookMetadata.title}"`)
-          media.narrators = bookMetadata.narrators
           hasMediaChanges = true
         }
       } else if (key === 'chapters') {
@@ -666,7 +658,6 @@ class BookScanner {
       isbn: undefined,
       asin: undefined,
       language: undefined,
-      narrators: [],
       genres: [],
       tags: [],
       authors: [],
@@ -748,10 +739,6 @@ class BookScanner {
             if (ebookMetdataObject.authors?.length) {
               this.bookMetadata.authors = ebookMetdataObject.authors
             }
-          } else if (key === 'narrators') {
-            if (ebookMetdataObject.narrators?.length) {
-              this.bookMetadata.narrators = ebookMetdataObject.narrators
-            }
           } else if (key === 'series') {
             if (ebookMetdataObject.series?.length) {
               this.bookMetadata.series = ebookMetdataObject.series
@@ -773,22 +760,13 @@ class BookScanner {
     }
 
     /**
-     * Description from desc.txt and narrator from reader.txt
+     * Description from desc.txt
      */
     async txtFiles() {
       // If desc.txt in library item folder then use this for description
       if (this.libraryItemData.descTxtLibraryFile) {
         const description = await readTextFile(this.libraryItemData.descTxtLibraryFile.metadata.path)
         if (description.trim()) this.bookMetadata.description = description.trim()
-      }
-
-      // If reader.txt in library item folder then use this for narrator
-      if (this.libraryItemData.readerTxtLibraryFile) {
-        let narrator = await readTextFile(this.libraryItemData.readerTxtLibraryFile.metadata.path)
-        narrator = narrator.split(/\r?\n/)[0]?.trim() || '' // Only use first line
-        if (narrator) {
-          this.bookMetadata.narrators = parseNameString.parse(narrator)?.names || []
-        }
       }
     }
 
@@ -834,7 +812,6 @@ class BookScanner {
       title: libraryItem.media.title,
       subtitle: libraryItem.media.subtitle,
       authors: libraryItem.media.authors.map((a) => a.name),
-      narrators: libraryItem.media.narrators,
       series: libraryItem.media.series.map((se) => {
         const sequence = se.bookSeries?.sequence || ''
         if (!sequence) return se.name

@@ -112,19 +112,12 @@ class Scanner {
    */
   async quickMatchBookBuildUpdatePayload(apiRouterCtx, libraryItem, matchData, options) {
     // Update media metadata if not set OR overrideDetails flag
-    const detailKeysToUpdate = ['title', 'subtitle', 'description', 'narrator', 'publisher', 'publishedYear', 'genres', 'tags', 'language', 'explicit', 'abridged', 'asin', 'isbn']
+    const detailKeysToUpdate = ['title', 'subtitle', 'description', 'publisher', 'publishedYear', 'genres', 'tags', 'language', 'explicit', 'abridged', 'asin', 'isbn']
     const updatePayload = {}
 
     for (const key in matchData) {
       if (matchData[key] && detailKeysToUpdate.includes(key)) {
-        if (key === 'narrator') {
-          if (!libraryItem.media.narrators?.length || options.overrideDetails) {
-            updatePayload.narrators = matchData[key]
-              .split(',')
-              .map((v) => v.trim())
-              .filter((v) => !!v)
-          }
-        } else if (key === 'genres') {
+        if (key === 'genres') {
           if (!libraryItem.media.genres.length || options.overrideDetails) {
             let genresArray = []
             if (Array.isArray(matchData[key])) genresArray = [...matchData[key]]

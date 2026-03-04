@@ -1,5 +1,4 @@
 import LocalAudioPlayer from './LocalAudioPlayer'
-import CastPlayer from './CastPlayer'
 import AudioTrack from './AudioTrack'
 
 export default class PlayerHandler {
@@ -28,14 +27,8 @@ export default class PlayerHandler {
     this.repeatMode = 'off' // 'off', 'all', 'one'
   }
 
-  get isCasting() {
-    return this.ctx.$store.state.globals.isCasting
-  }
   get libraryItemId() {
     return this.libraryItem ? this.libraryItem.id : null
-  }
-  get isPlayingCastedItem() {
-    return this.libraryItem && this.player instanceof CastPlayer
   }
   get isPlayingLocalItem() {
     return this.libraryItem && this.player instanceof LocalAudioPlayer
@@ -74,25 +67,7 @@ export default class PlayerHandler {
   }
 
   switchPlayer(playWhenReady) {
-    if (this.isCasting && !(this.player instanceof CastPlayer)) {
-      console.log('[PlayerHandler] Switching to cast player')
-
-      this.stopPlayInterval()
-      this.playerStateChange('LOADING')
-
-      this.startTime = this.player ? this.player.getCurrentTime() : this.startTime
-      if (this.player) {
-        this.player.destroy()
-      }
-      this.player = new CastPlayer(this.ctx)
-      this.setPlayerListeners()
-
-      if (this.libraryItem) {
-        // libraryItem was already loaded - prepare for cast
-        this.playWhenReady = playWhenReady
-        this.prepare()
-      }
-    } else if (!this.isCasting && !(this.player instanceof LocalAudioPlayer)) {
+    if (!(this.player instanceof LocalAudioPlayer)) {
       console.log('[PlayerHandler] Switching to local player')
 
       this.stopPlayInterval()
@@ -130,7 +105,7 @@ export default class PlayerHandler {
       return
     }
     // Switch to HLS stream on error
-    if (!this.isCasting && this.player instanceof LocalAudioPlayer) {
+    if (this.player instanceof LocalAudioPlayer) {
       console.log(`[PlayerHandler] Audio player error switching to HLS stream`)
       this.prepare(true)
     }
@@ -198,8 +173,8 @@ export default class PlayerHandler {
   async prepare(forceTranscode = false) {
     this.setSessionId(null) // Reset session
 
-    // Check offline cache first (only for non-episode, non-cast, non-forced-transcode)
-    if (!forceTranscode && !this.episodeId && !this.isCasting) {
+    // Check offline cache first (only for non-episode, non-forced-transcode)
+    if (!forceTranscode && !this.episodeId) {
       const offlineTracks = await this.ctx.$store.dispatch('offline/getOfflineTracks', this.libraryItem.id).catch(() => null)
       if (offlineTracks && offlineTracks.length) {
         console.log('[PlayerHandler] Playing from offline cache')
@@ -225,9 +200,9 @@ export default class PlayerHandler {
         deviceId: this.getDeviceId()
       },
       supportedMimeTypes: this.player.playableMimeTypes,
-      mediaPlayer: this.isCasting ? 'chromecast' : 'html5',
+      mediaPlayer: 'html5',
       forceTranscode,
-      forceDirectPlay: this.isCasting, // TODO: add transcode support for chromecast
+      forceDirectPlay: false
       seriesId: this.seriesId || undefined
     }
 

@@ -65,10 +65,7 @@
       </div>
 
       <div class="flex flex-wrap mt-2 -mx-1">
-        <div class="w-full md:w-1/2 px-1">
-          <ui-multi-select ref="narratorsSelect" v-model="details.narrators" :label="$strings.LabelNarrators" :items="narrators" @input="handleInputChange" />
-        </div>
-        <div class="w-1/2 md:w-1/4 px-1 mt-2 md:mt-0">
+        <div class="w-1/2 md:w-1/4 px-1">
           <ui-text-input-with-label ref="isbnInput" v-model="details.isbn" label="ISBN" trim-whitespace @input="handleInputChange" />
         </div>
         <div class="w-1/2 md:w-1/4 px-1 mt-2 md:mt-0">
@@ -113,7 +110,6 @@ export default {
         subtitle: null,
         description: null,
         authors: [],
-        narrators: [],
         series: [],
         publishedYear: null,
         publisher: null,
@@ -154,9 +150,6 @@ export default {
     series() {
       return this.filterData.series || []
     },
-    narrators() {
-      return this.filterData.narrators || []
-    },
     filterData() {
       return this.$store.state.libraries.filterData || {}
     }
@@ -185,7 +178,7 @@ export default {
           if (key === 'tags') {
             // Concat and remove dupes
             this.newTags = [...new Set(this.newTags.concat(batchDetails.tags))]
-          } else if (key === 'genres' || key === 'narrators' || key === 'url' || key === 'relatedBooks') {
+          } else if (key === 'genres' || key === 'url' || key === 'relatedBooks') {
             // Concat and remove dupes
             this.details[key] = [...new Set(this.details[key].concat(batchDetails[key]))]
           } else if (key === 'authors' || key === 'series') {
@@ -199,7 +192,7 @@ export default {
         } else {
           if (key === 'tags') {
             this.newTags = [...batchDetails.tags]
-          } else if (key === 'genres' || key === 'narrators' || key === 'url' || key === 'relatedBooks') {
+          } else if (key === 'genres' || key === 'url' || key === 'relatedBooks') {
             this.details[key] = [...batchDetails[key]]
           } else if (key === 'authors' || key === 'series') {
             this.details[key] = batchDetails[key].map((i) => ({ ...i }))
@@ -265,9 +258,6 @@ export default {
       if (this.$refs.authorsSelect && this.$refs.authorsSelect.isFocused) {
         this.$refs.authorsSelect.forceBlur()
       }
-      if (this.$refs.narratorsSelect && this.$refs.narratorsSelect.isFocused) {
-        this.$refs.narratorsSelect.forceBlur()
-      }
       if (this.$refs.genresSelect && this.$refs.genresSelect.isFocused) {
         this.$refs.genresSelect.forceBlur()
       }
@@ -321,7 +311,7 @@ export default {
         // Key cleared out or key first populated
         if ((!newValue && oldValue) || (newValue && !oldValue)) {
           metadata[key] = newValue
-        } else if (key === 'narrators' || key === 'genres' || key === 'relatedBooks' || key === 'url') {
+        } else if (key === 'genres' || key === 'relatedBooks' || key === 'url') {
           // Check array of strings
           if (!this.stringArrayEqual(newValue, oldValue)) {
             metadata[key] = [...newValue]
@@ -351,7 +341,6 @@ export default {
       this.details.subtitle = this.mediaMetadata.subtitle
       this.details.description = this.mediaMetadata.description
       this.details.authors = (this.mediaMetadata.authors || []).map((se) => ({ ...se }))
-      this.details.narrators = [...(this.mediaMetadata.narrators || [])]
       this.details.genres = [...(this.mediaMetadata.genres || [])]
       this.details.series = (this.mediaMetadata.series || []).map((se) => ({ ...se }))
       this.details.publishedYear = this.mediaMetadata.publishedYear

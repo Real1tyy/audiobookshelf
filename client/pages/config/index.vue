@@ -94,11 +94,6 @@
             <h2 class="font-semibold">{{ $strings.HeaderSettingsWebClient }}</h2>
           </div>
 
-          <div class="flex items-center py-2">
-            <ui-toggle-switch v-model="newServerSettings.chromecastEnabled" :label="$strings.LabelSettingsChromecastSupport" :disabled="updatingServerSettings" @input="(val) => updateSettingsKey('chromecastEnabled', val)" />
-            <p aria-hidden="true" class="pl-4">{{ $strings.LabelSettingsChromecastSupport }}</p>
-          </div>
-
           <div class="flex items-center py-2 mb-2">
             <ui-toggle-switch v-model="newServerSettings.allowIframe" :label="$strings.LabelSettingsAllowIframe" :disabled="updatingServerSettings" @input="(val) => updateSettingsKey('allowIframe', val)" />
             <p aria-hidden="true" class="pl-4">{{ $strings.LabelSettingsAllowIframe }}</p>

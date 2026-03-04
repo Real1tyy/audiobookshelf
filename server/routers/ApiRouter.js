@@ -20,7 +20,6 @@ const SeriesController = require('../controllers/SeriesController')
 const FileSystemController = require('../controllers/FileSystemController')
 const AuthorController = require('../controllers/AuthorController')
 const SessionController = require('../controllers/SessionController')
-const NotificationController = require('../controllers/NotificationController')
 const EmailController = require('../controllers/EmailController')
 const SearchController = require('../controllers/SearchController')
 const CacheController = require('../controllers/CacheController')
@@ -80,9 +79,6 @@ class ApiRouter {
     this.router.post('/libraries/:id/reindex-transcripts', LibraryController.middleware.bind(this), LibraryController.reindexTranscripts.bind(this))
     this.router.get('/libraries/:id/stats', LibraryController.middleware.bind(this), LibraryController.stats.bind(this))
     this.router.get('/libraries/:id/authors', LibraryController.middleware.bind(this), LibraryController.getAuthors.bind(this))
-    this.router.get('/libraries/:id/narrators', LibraryController.middleware.bind(this), LibraryController.getNarrators.bind(this))
-    this.router.patch('/libraries/:id/narrators/:narratorId', LibraryController.middleware.bind(this), LibraryController.updateNarrator.bind(this))
-    this.router.delete('/libraries/:id/narrators/:narratorId', LibraryController.middleware.bind(this), LibraryController.removeNarrator.bind(this))
     this.router.get('/libraries/:id/tags', LibraryController.middleware.bind(this), LibraryController.getTags.bind(this))
     this.router.patch('/libraries/:id/tags/:tagId', LibraryController.middleware.bind(this), LibraryController.updateTag.bind(this))
     this.router.delete('/libraries/:id/tags/:tagId', LibraryController.middleware.bind(this), LibraryController.removeTag.bind(this))
@@ -223,18 +219,6 @@ class ApiRouter {
     this.router.get('/session/:id', SessionController.openSessionMiddleware.bind(this), SessionController.getOpenSession.bind(this))
     this.router.post('/session/:id/sync', SessionController.openSessionMiddleware.bind(this), SessionController.sync.bind(this))
     this.router.post('/session/:id/close', SessionController.openSessionMiddleware.bind(this), SessionController.close.bind(this))
-
-    //
-    // Notification Routes (Admin and up)
-    //
-    this.router.get('/notifications', NotificationController.middleware.bind(this), NotificationController.get.bind(this))
-    this.router.patch('/notifications', NotificationController.middleware.bind(this), NotificationController.update.bind(this))
-    this.router.get('/notificationdata', NotificationController.middleware.bind(this), NotificationController.getData.bind(this))
-    this.router.get('/notifications/test', NotificationController.middleware.bind(this), NotificationController.fireTestEvent.bind(this))
-    this.router.post('/notifications', NotificationController.middleware.bind(this), NotificationController.createNotification.bind(this))
-    this.router.delete('/notifications/:id', NotificationController.middleware.bind(this), NotificationController.deleteNotification.bind(this))
-    this.router.patch('/notifications/:id', NotificationController.middleware.bind(this), NotificationController.updateNotification.bind(this))
-    this.router.get('/notifications/:id/test', NotificationController.middleware.bind(this), NotificationController.sendNotificationTest.bind(this))
 
     //
     // Email Routes (Admin and up)

@@ -240,7 +240,7 @@ export default {
       return redirect(`/login?redirect=${route.path}`)
     }
 
-    var item = await app.$axios.$get(`/api/items/${params.id}?expanded=1&include=rssfeed,share,relatedbooks`).catch((error) => {
+    var item = await app.$axios.$get(`/api/items/${params.id}?expanded=1&include=share,relatedbooks`).catch((error) => {
       console.error('Failed', error)
       return false
     })
@@ -253,7 +253,6 @@ export default {
     }
     return {
       libraryItem: item,
-      rssFeed: item.rssFeed || null,
       mediaItemShare: item.mediaItemShare || null
     }
   },
@@ -506,12 +505,6 @@ export default {
     userCanDownload() {
       return this.$store.getters['user/getUserCanDownload']
     },
-    showRssFeedBtn() {
-      if (!this.rssFeed && !this.tracks.length) return false // Cannot open RSS feed with no tracks
-
-      // If rss feed is open then show feed url to users otherwise just show to admins
-      return this.userIsAdminOrUp || this.rssFeed
-    },
     showQueueBtn() {
       if (!this.isBook) return false
       return !this.$store.getters['getIsStreamingFromDifferentLibrary'] && this.streamLibraryItem
@@ -523,13 +516,6 @@ export default {
         items.push({
           text: this.$strings.LabelYourBookmarks,
           action: 'bookmarks'
-        })
-      }
-
-      if (this.showRssFeedBtn) {
-        items.push({
-          text: this.$strings.LabelOpenRSSFeed,
-          action: 'rss-feeds'
         })
       }
 
@@ -692,9 +678,8 @@ export default {
         console.log('Item was updated', libraryItem)
         // Fetch the full updated item with related books
         try {
-          const updatedItem = await this.$axios.$get(`/api/items/${libraryItem.id}?expanded=1&include=downloads,rssfeed,share,relatedbooks`)
+          const updatedItem = await this.$axios.$get(`/api/items/${libraryItem.id}?expanded=1&include=downloads,share,relatedbooks`)
           this.libraryItem = updatedItem
-          this.rssFeed = updatedItem.rssFeed || null
           this.mediaItemShare = updatedItem.mediaItemShare || null
         } catch (error) {
           console.error('Failed to fetch updated item', error)
@@ -731,23 +716,6 @@ export default {
           this.resettingProgress = false
         })
     },
-    clickRSSFeed() {
-      this.$store.commit('globals/setRSSFeedOpenCloseModal', {
-        id: this.libraryItemId,
-        name: this.title,
-        type: 'item',
-        feed: this.rssFeed
-      })
-    },
-    rssFeedOpen(data) {
-      if (data.entityId === this.libraryItemId) {
-        this.rssFeed = data
-      }
-    },
-    rssFeedClosed(data) {
-      if (data.entityId === this.libraryItemId) {
-        this.rssFeed = null
-      }
     },
     shareOpen(mediaItemShare) {
       if (mediaItemShare.mediaItemId === this.media.id) {
@@ -978,8 +946,6 @@ export default {
     contextMenuAction({ action, data }) {
       if (action === 'bookmarks') {
         this.showBookmarksModal = true
-      } else if (action === 'rss-feeds') {
-        this.clickRSSFeed()
       } else if (action === 'download') {
         this.downloadLibraryItem()
       } else if (action === 'delete') {
@@ -997,16 +963,12 @@ export default {
 
     this.$eventBus.$on(`${this.libraryItem.id}_updated`, this.libraryItemUpdated)
     this.$root.socket.on('item_updated', this.libraryItemUpdated)
-    this.$root.socket.on('rss_feed_open', this.rssFeedOpen)
-    this.$root.socket.on('rss_feed_closed', this.rssFeedClosed)
     this.$root.socket.on('share_open', this.shareOpen)
     this.$root.socket.on('share_closed', this.shareClosed)
   },
   beforeDestroy() {
     this.$eventBus.$off(`${this.libraryItem.id}_updated`, this.libraryItemUpdated)
     this.$root.socket.off('item_updated', this.libraryItemUpdated)
-    this.$root.socket.off('rss_feed_open', this.rssFeedOpen)
-    this.$root.socket.off('rss_feed_closed', this.rssFeedClosed)
     this.$root.socket.off('share_open', this.shareOpen)
     this.$root.socket.off('share_closed', this.shareClosed)
   }

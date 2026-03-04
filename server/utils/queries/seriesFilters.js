@@ -33,11 +33,6 @@ module.exports = {
     }
 
     const seriesIncludes = []
-    if (include.includes('rssfeed')) {
-      seriesIncludes.push({
-        model: Database.feedModel
-      })
-    }
 
     const userPermissionBookWhere = libraryItemsBookFilters.getUserPermissionBookWhereQuery(user)
 
@@ -188,10 +183,6 @@ module.exports = {
 
       if (s.dataValues.totalDuration) {
         oldSeries.totalDuration = s.dataValues.totalDuration
-      }
-
-      if (s.feeds?.length) {
-        oldSeries.rssFeed = s.feeds[0].toOldJSONMinified()
       }
 
       // TODO: Sort books by sequence in query

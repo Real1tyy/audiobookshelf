@@ -45,11 +45,6 @@
               <span class="material-symbols text-base">delete</span>
             </button>
 
-            <!-- RSS feed button -->
-            <ui-tooltip v-if="seriesRssFeed" :text="$strings.LabelOpenRSSFeed" direction="bottom">
-              <ui-icon-btn icon="rss_feed" class="mx-2" :size="7" icon-font-size="1.2rem" bg-color="bg-success" outlined @click="showOpenSeriesRSSFeed" />
-            </ui-tooltip>
-
             <!-- Context menu -->
             <ui-context-menu-dropdown v-if="contextMenuItems.length" :items="contextMenuItems" class="mx-px" @action="contextMenuAction" />
           </div>
@@ -117,7 +112,7 @@ export default {
 
     // Build query params
     const queryParams = new URLSearchParams()
-    queryParams.append('include', 'items,progress,rssfeed')
+    queryParams.append('include', 'items,progress')
     if (searchQuery) queryParams.append('search', searchQuery)
     if (filterBy !== 'all') queryParams.append('filter', filterBy)
     if (sortBy !== 'sequence') queryParams.append('sort', sortBy)
@@ -177,9 +172,6 @@ export default {
     },
     seriesProgress() {
       return this.series.progress || null
-    },
-    seriesRssFeed() {
-      return this.series.rssFeed || null
     },
     userCanUpdate() {
       return this.$store.getters['user/getUserCanUpdate']
@@ -270,13 +262,6 @@ export default {
         }
       ]
 
-      if (this.userIsAdminOrUp || this.seriesRssFeed) {
-        items.push({
-          text: this.$strings.LabelOpenRSSFeed,
-          action: 'open-rss-feed'
-        })
-      }
-
       if (this.isSeriesRemovedFromContinueListening) {
         items.push({
           text: this.$strings.LabelReAddSeriesToContinueListening,
@@ -318,7 +303,7 @@ export default {
       try {
         // Build query params
         const queryParams = new URLSearchParams()
-        queryParams.append('include', 'items,progress,rssfeed')
+        queryParams.append('include', 'items,progress')
         if (this.searchQuery) queryParams.append('search', this.searchQuery)
         if (this.filterBy !== 'all') queryParams.append('filter', this.filterBy)
         if (this.sortBy !== 'sequence') queryParams.append('sort', this.sortBy)
@@ -476,18 +461,8 @@ export default {
         this.updateBookSelectionMode(true)
       }
     },
-    showOpenSeriesRSSFeed() {
-      this.$store.commit('globals/setRSSFeedOpenCloseModal', {
-        id: this.series.id,
-        name: this.series.name,
-        type: 'series',
-        feed: this.seriesRssFeed
-      })
-    },
     contextMenuAction({ action }) {
-      if (action === 'open-rss-feed') {
-        this.showOpenSeriesRSSFeed()
-      } else if (action === 're-add-to-continue-listening') {
+      if (action === 're-add-to-continue-listening') {
         this.reAddSeriesToContinueListening()
       } else if (action === 'mark-series-finished') {
         this.markSeriesFinished()
@@ -568,16 +543,6 @@ export default {
         this.$router.push(`/library/${this.currentLibraryId}`)
       }
     },
-    rssFeedOpen(data) {
-      if (data.entityId === this.seriesId) {
-        this.series.rssFeed = data
-      }
-    },
-    rssFeedClosed(data) {
-      if (data.entityId === this.seriesId) {
-        this.series.rssFeed = null
-      }
-    }
   },
   mounted() {
     // Set active cover size key for this page
@@ -593,8 +558,6 @@ export default {
 
     this.$root.socket.on('series_updated', this.seriesUpdated)
     this.$root.socket.on('series_removed', this.seriesRemoved)
-    this.$root.socket.on('rss_feed_open', this.rssFeedOpen)
-    this.$root.socket.on('rss_feed_closed', this.rssFeedClosed)
     this.$root.socket.on('user_series_progress_updated', this.seriesProgressUpdated)
     this.$eventBus.$on('bookshelf_clear_selection', this.clearSelectedEntities)
     this.$eventBus.$on('bookshelf_select_all', this.selectAllEntities)
@@ -602,8 +565,6 @@ export default {
   beforeDestroy() {
     this.$root.socket.off('series_updated', this.seriesUpdated)
     this.$root.socket.off('series_removed', this.seriesRemoved)
-    this.$root.socket.off('rss_feed_open', this.rssFeedOpen)
-    this.$root.socket.off('rss_feed_closed', this.rssFeedClosed)
     this.$root.socket.off('user_series_progress_updated', this.seriesProgressUpdated)
     this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)
     this.$eventBus.$off('bookshelf_select_all', this.selectAllEntities)

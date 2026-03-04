@@ -196,7 +196,7 @@ export default {
       const limitQuery = limit ? `&limit=${limit}` : ''
 
       const categories = await this.$axios
-        .$get(`/api/libraries/${this.currentLibraryId}/personalized?include=rssfeed,numEpisodesIncomplete,share${limitQuery}`)
+        .$get(`/api/libraries/${this.currentLibraryId}/personalized?include=share${limitQuery}`)
         .then((data) => {
           return data
         })

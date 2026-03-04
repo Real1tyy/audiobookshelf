@@ -216,7 +216,6 @@ export const mutations = {
       genres: [],
       tags: [],
       series: [],
-      narrators: [],
       languages: [],
       publishers: [],
       publishedDecades: []
@@ -266,16 +265,6 @@ export const mutations = {
         if (!state.filterData.tags.includes(tag)) {
           state.filterData.tags.push(tag)
           state.filterData.tags.sort((a, b) => a.localeCompare(b))
-        }
-      })
-    }
-
-    // Add narrators
-    if (mediaMetadata.narrators?.length) {
-      mediaMetadata.narrators.forEach((narrator) => {
-        if (!state.filterData.narrators.includes(narrator)) {
-          state.filterData.narrators.push(narrator)
-          state.filterData.narrators.sort((a, b) => a.localeCompare(b))
         }
       })
     }

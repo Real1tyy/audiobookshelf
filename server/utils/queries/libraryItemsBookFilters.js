@@ -270,7 +270,7 @@ module.exports = {
         mediaWhere[key] = {
           [Sequelize.Op.or]: [null, '']
         }
-      } else if (['genres', 'tags', 'narrators', 'chapters'].includes(value)) {
+      } else if (['genres', 'tags', 'chapters'].includes(value)) {
         mediaWhere[value] = {
           [Sequelize.Op.or]: [null, Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col(value)), 0)]
         }
@@ -469,7 +469,6 @@ module.exports = {
     if (filterGroup !== 'series' && sortBy === 'sequence') {
       sortBy = 'media.metadata.title'
     }
-    const includeRSSFeed = include.includes('rssfeed')
     const includeMediaItemShare = !!user?.isAdminOrUp && include.includes('share')
 
     let bookAttributes = null
@@ -504,13 +503,6 @@ module.exports = {
 
     const libraryItemIncludes = []
     const bookIncludes = []
-
-    if (includeRSSFeed) {
-      libraryItemIncludes.push({
-        model: Database.feedModel,
-        separate: true
-      })
-    }
 
     const activeFilters = Array.isArray(filters) && filters.length ? filters : [{ filterGroup, filterValue }]
     const hasFilter = (g) => activeFilters.some((f) => f.filterGroup === g)
@@ -616,7 +608,7 @@ module.exports = {
         }
 
         // Use existing single-filter builder for most other groups, but avoid replacement key collisions
-        if (['genres', 'tags', 'narrators'].includes(g)) {
+        if (['genres', 'tags'].includes(g)) {
           const key = `filterValue${idx}`
           replacements[key] = v
           bookWhere.push(
@@ -777,10 +769,6 @@ module.exports = {
         }
       }
 
-      if (libraryItem.feeds?.length) {
-        libraryItem.rssFeed = libraryItem.feeds[0]
-      }
-
       if (includeMediaItemShare) {
         libraryItem.mediaItemShare = ShareManager.findByMediaItemId(libraryItem.mediaId)
       }
@@ -813,11 +801,6 @@ module.exports = {
   async getContinueSeriesLibraryItems(library, user, include, limit, offset) {
     const libraryId = library.id
     const libraryItemIncludes = []
-    if (include.includes('rssfeed')) {
-      libraryItemIncludes.push({
-        model: Database.feedModel
-      })
-    }
 
     const bookWhere = []
     // TODO: Permissions should also be applied to subqueries
@@ -931,9 +914,6 @@ module.exports = {
           name: s.name,
           sequence: s.bookSeries[bookIndex].sequence
         }
-        if (libraryItem.feeds?.length) {
-          libraryItem.rssFeed = libraryItem.feeds[0]
-        }
         libraryItem.media = book
         return libraryItem
       })
@@ -990,13 +970,7 @@ module.exports = {
 
     const booksFromSeriesToInclude = seriesNotStarted.map((se) => se.bookSeries?.[0]?.bookId).filter((bid) => bid)
 
-    // optional include rssFeed
     const libraryItemIncludes = []
-    if (include.includes('rssfeed')) {
-      libraryItemIncludes.push({
-        model: Database.feedModel
-      })
-    }
 
     // Step 2: Get books not started and not in a series OR is the first book of a series not started (ordered randomly)
     const { rows: books, count } = await Database.bookModel.findAndCountAll({
@@ -1078,10 +1052,6 @@ module.exports = {
 
       libraryItem.media = book
 
-      if (libraryItem.feeds?.length) {
-        libraryItem.rssFeed = libraryItem.feeds[0]
-      }
-
       return libraryItem
     })
 
@@ -1153,7 +1123,7 @@ module.exports = {
    * @param {string} query
    * @param {number} limit
    * @param {number} offset
-   * @returns {{book:object[], narrators:object[], authors:object[], tags:object[], series:object[]}}
+   * @returns {{book:object[], authors:object[], tags:object[], series:object[]}}
    */
   async search(user, library, query, limit, offset) {
     const userPermissionBookWhere = this.getUserPermissionBookWhereQuery(user)
@@ -1237,23 +1207,6 @@ module.exports = {
     }
 
     const matchJsonValue = textSearchQuery.matchExpression('json_each.value')
-
-    // Search narrators
-    const narratorMatches = []
-    const [narratorResults] = await Database.sequelize.query(`SELECT value, count(*) AS numBooks FROM books b, libraryItems li, json_each(b.narrators) WHERE json_valid(b.narrators) AND ${matchJsonValue} AND b.id = li.mediaId AND li.libraryId = :libraryId GROUP BY value LIMIT :limit OFFSET :offset;`, {
-      replacements: {
-        libraryId: library.id,
-        limit,
-        offset
-      },
-      raw: true
-    })
-    for (const row of narratorResults) {
-      narratorMatches.push({
-        name: row.value,
-        numBooks: row.numBooks
-      })
-    }
 
     // Search tags
     const tagMatches = []
@@ -1342,7 +1295,6 @@ module.exports = {
 
     return {
       book: itemMatches,
-      narrators: narratorMatches,
       tags: tagMatches,
       genres: genreMatches,
       series: seriesMatches,

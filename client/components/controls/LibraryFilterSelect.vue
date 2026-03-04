@@ -353,10 +353,6 @@ export default {
           name: this.$strings.LabelLanguage
         },
         {
-          id: 'narrators',
-          name: this.$strings.LabelNarrator
-        },
-        {
           id: 'publishedYear',
           name: this.$strings.LabelPublishYear
         },

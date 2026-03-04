@@ -29,10 +29,6 @@ class OpfFileScanner {
           if (opfMetadata.authors?.length) {
             bookMetadata.authors = opfMetadata.authors
           }
-        } else if (key === 'narrators') {
-          if (opfMetadata.narrators?.length) {
-            bookMetadata.narrators = opfMetadata.narrators
-          }
         } else if (key === 'series') {
           if (opfMetadata.series?.length) {
             bookMetadata.series = opfMetadata.series

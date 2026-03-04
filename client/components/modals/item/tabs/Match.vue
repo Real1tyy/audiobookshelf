@@ -82,15 +82,6 @@
             </p>
           </div>
         </div>
-        <div v-if="selectedMatchOrig.narrator" class="flex items-center py-2">
-          <ui-checkbox v-model="selectedMatchUsage.narrator" checkbox-bg="bg" @input="checkboxToggled" />
-          <div class="grow ml-4">
-            <ui-multi-select v-model="selectedMatch.narrator" :items="narrators" :disabled="!selectedMatchUsage.narrator" :label="$strings.LabelNarrators" />
-            <p v-if="mediaMetadata.narratorName" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('narrator', mediaMetadata.narrators)">{{ mediaMetadata.narratorName }}</a>
-            </p>
-          </div>
-        </div>
         <div v-if="selectedMatchOrig.description" class="flex items-center py-2">
           <ui-checkbox v-model="selectedMatchUsage.description" checkbox-bg="bg" @input="checkboxToggled" />
           <div class="grow ml-4">
@@ -232,7 +223,6 @@ export default {
         subtitle: true,
         cover: true,
         author: true,
-        narrator: true,
         description: true,
         publisher: true,
         publishedYear: true,
@@ -316,9 +306,6 @@ export default {
     mediaType() {
       return this.libraryItem?.mediaType || null
     },
-    narrators() {
-      return this.filterData.narrators || []
-    },
     genres() {
       const currentGenres = this.filterData.genres || []
       const selectedMatchGenres = this.selectedMatch.genres || []
@@ -401,7 +388,6 @@ export default {
         subtitle: true,
         cover: true,
         author: true,
-        narrator: true,
         description: true,
         publisher: true,
         publishedYear: true,
@@ -495,9 +481,6 @@ export default {
         if (match.tags && !Array.isArray(match.tags)) {
           match.tags = match.tags.split(',').map((g) => g.trim())
         }
-        if (match.narrator && !Array.isArray(match.narrator)) {
-          match.narrator = match.narrator.split(',').map((g) => g.trim())
-        }
       }
 
       console.log('Select Match', match)
@@ -540,8 +523,6 @@ export default {
               })
             )
             updatePayload.metadata.authors = authorPayload
-          } else if (key === 'narrator') {
-            updatePayload.metadata.narrators = this.selectedMatch[key]
           } else if (key === 'genres') {
             updatePayload.metadata.genres = [...this.selectedMatch[key]]
           } else if (key === 'tags') {

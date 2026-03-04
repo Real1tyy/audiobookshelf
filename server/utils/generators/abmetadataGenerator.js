@@ -33,9 +33,6 @@ function parseJsonMetadataText(text) {
     if (abmetadataData.authors?.length) {
       abmetadataData.authors = [...new Set(abmetadataData.authors.map((t) => t?.trim()).filter((t) => t))]
     }
-    if (abmetadataData.narrators?.length) {
-      abmetadataData.narrators = [...new Set(abmetadataData.narrators.map((t) => t?.trim()).filter((t) => t))]
-    }
     if (abmetadataData.genres?.length) {
       abmetadataData.genres = [...new Set(abmetadataData.genres.map((t) => t?.trim()).filter((t) => t))]
     }

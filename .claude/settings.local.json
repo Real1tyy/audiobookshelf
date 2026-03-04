@@ -16,7 +16,9 @@
       "mcp__context7__query-docs",
       "Bash(npx mocha:*)",
       "Bash(npm run:*)",
-      "Bash(timeout 10 npx tsx:*)"
+      "Bash(timeout 10 npx tsx:*)",
+      "Bash(wc:*)",
+      "Bash(shopt:*)"
     ]
   }
 }

@@ -184,11 +184,6 @@ export default {
       this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
       this.$setServerLanguageCode(serverSettings.language)
 
-      if (serverSettings.chromecastEnabled) {
-        console.log('Chromecast enabled import script')
-        require('@/plugins/chromecast.js').default(this)
-      }
-
       this.$store.commit('libraries/setLastLoad', 0) // Ensure libraries get loaded again when switching users
       this.$store.commit('libraries/setCurrentLibrary', { id: userDefaultLibraryId })
       this.$store.commit('user/setUser', user)

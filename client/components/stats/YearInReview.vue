@@ -183,13 +183,6 @@ export default {
 
       if (!this.variant) {
         // Text stats
-        const topNarrator = this.yearStats.mostListenedNarrator
-        if (topNarrator) {
-          addText(this.$strings.StatsTopNarrator, '24px', 'normal', tanColor, '1px', 70, 520, 330)
-          addText(topNarrator.name, '36px', 'bolder', 'white', '0px', 70, 564, 330)
-          addText(this.$elapsedPrettyExtended(topNarrator.time, true, false), '24px', 'lighter', 'white', '1px', 70, 599)
-        }
-
         const topGenre = this.yearStats.topGenres[0]
         if (topGenre) {
           addText(this.$strings.StatsTopGenre, '24px', 'normal', tanColor, '1px', 430, 520, 330)

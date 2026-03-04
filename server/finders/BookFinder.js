@@ -3,7 +3,6 @@ const GoogleBooks = require('../providers/GoogleBooks')
 const Audible = require('../providers/Audible')
 const iTunes = require('../providers/iTunes')
 const Audnexus = require('../providers/Audnexus')
-const FantLab = require('../providers/FantLab')
 const AudiobookCovers = require('../providers/AudiobookCovers')
 const CustomProviderAdapter = require('../providers/CustomProviderAdapter')
 const Logger = require('../Logger')
@@ -19,11 +18,10 @@ class BookFinder {
     this.audible = new Audible()
     this.iTunesApi = new iTunes()
     this.audnexus = new Audnexus()
-    this.fantLab = new FantLab()
     this.audiobookCovers = new AudiobookCovers()
     this.customProviderAdapter = new CustomProviderAdapter()
 
-    this.providers = ['google', 'itunes', 'openlibrary', 'fantlab', 'audiobookcovers', 'audible', 'audible.ca', 'audible.uk', 'audible.au', 'audible.fr', 'audible.de', 'audible.jp', 'audible.it', 'audible.in', 'audible.es']
+    this.providers = ['google', 'itunes', 'openlibrary', 'audiobookcovers', 'audible', 'audible.ca', 'audible.uk', 'audible.au', 'audible.fr', 'audible.de', 'audible.jp', 'audible.it', 'audible.in', 'audible.es']
 
     this.verbose = false
   }
@@ -138,23 +136,6 @@ class BookFinder {
       return []
     }
     // Google has good sort
-    return books
-  }
-
-  /**
-   *
-   * @param {string} title
-   * @param {string} author
-   * @returns {Promise<Object[]>}
-   */
-  async getFantLabResults(title, author) {
-    var books = await this.fantLab.search(title, author, this.#providerResponseTimeout)
-    if (this.verbose) Logger.debug(`FantLab Book Search Results: ${books.length || 0}`)
-    if (books.errorCode) {
-      Logger.error(`FantLab Search Error ${books.errorCode}`)
-      return []
-    }
-
     return books
   }
 
@@ -588,8 +569,6 @@ class BookFinder {
       books = await this.getiTunesAudiobooksResults(title)
     } else if (provider === 'openlibrary') {
       books = await this.getOpenLibResults(title, author, maxTitleDistance, maxAuthorDistance)
-    } else if (provider === 'fantlab') {
-      books = await this.getFantLabResults(title, author)
     } else if (provider === 'audiobookcovers') {
       books = await this.getAudiobookCoversResults(title)
     } else {
@@ -615,8 +594,8 @@ class BookFinder {
         searchResults.push(...providerResults)
       }
     } else if (provider === 'best') {
-      // Best providers: google, fantlab, and audible.com
-      const bestProviders = ['google', 'fantlab', 'audible']
+      // Best providers: google and audible.com
+      const bestProviders = ['google', 'audible']
       for (const providerString of bestProviders) {
         const providerResults = await this.search(null, providerString, title, author, options)
         Logger.debug(`[BookFinder] Found ${providerResults.length} covers from ${providerString}`)

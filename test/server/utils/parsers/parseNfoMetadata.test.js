@@ -33,18 +33,6 @@ describe('parseNfoMetadata', () => {
     expect(result.authors).to.deep.equal(['John Steinbeck', 'Ernest Hemingway'])
   })
 
-  it('parses narrators', () => {
-    const nfoText = 'Read by: Jake Gyllenhaal'
-    const result = parseNfoMetadata(nfoText)
-    expect(result.narrators).to.deep.equal(['Jake Gyllenhaal'])
-  })
-
-  it('parses multiple narrators', () => {
-    const nfoText = 'Read by: Jake Gyllenhaal, Kate Winslet'
-    const result = parseNfoMetadata(nfoText)
-    expect(result.narrators).to.deep.equal(['Jake Gyllenhaal', 'Kate Winslet'])
-  })
-
   it('parses series name', () => {
     const nfoText = 'Series Name: Harry Potter'
     const result = parseNfoMetadata(nfoText)

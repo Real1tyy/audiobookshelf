@@ -42,8 +42,7 @@ module.exports = {
     // Important: when routerBasePath is "/", this must be "" (not "/"), otherwise
     // consumers that do `${process.env.serverUrl}/api/...` will generate `//api/...`
     // and the browser will navigate to `https://api/...`.
-    serverUrl: normalizeServerUrl(publicServerHostUrl, routerBasePath),
-    chromecastReceiver: 'FD1F76C5'
+    serverUrl: normalizeServerUrl(publicServerHostUrl, routerBasePath)
   },
   telemetry: false,
 

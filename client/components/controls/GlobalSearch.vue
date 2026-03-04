@@ -83,14 +83,6 @@
             </li>
           </template>
 
-          <p v-if="narratorResults.length" class="uppercase text-xs text-gray-400 mb-1 mt-3 px-1 font-semibold">{{ $strings.LabelNarrators }}</p>
-          <template v-for="narrator in narratorResults">
-            <li :key="narrator.name" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-1" role="option" @click="clickOption">
-              <nuxt-link :to="`/library/${currentLibraryId}/bookshelf?filter=narrators.${$encode(narrator.name)}`">
-                <cards-narrator-search-card :narrator="narrator.name" :num-books="narrator.numBooks" />
-              </nuxt-link>
-            </li>
-          </template>
         </template>
       </ul>
     </div>
@@ -113,7 +105,6 @@ export default {
       seriesResults: [],
       tagResults: [],
       genreResults: [],
-      narratorResults: [],
       transcriptResults: [],
       searchTimeout: null,
       lastSearch: null
@@ -130,7 +121,7 @@ export default {
       if (this.searchMode === 'transcript') {
         return this.transcriptResults.length
       }
-      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.tagResults.length + this.genreResults.length + this.narratorResults.length
+      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.tagResults.length + this.genreResults.length
     }
   },
   watch: {
@@ -159,7 +150,6 @@ export default {
       this.seriesResults = []
       this.tagResults = []
       this.genreResults = []
-      this.narratorResults = []
       this.transcriptResults = []
       this.showMenu = false
       this.isFetching = false
@@ -201,7 +191,6 @@ export default {
         this.seriesResults = []
         this.tagResults = []
         this.genreResults = []
-        this.narratorResults = []
       } else {
         const searchResults = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/search?q=${encodeURIComponent(value)}&limit=3`).catch((error) => {
           console.error('Search error', error)
@@ -213,7 +202,6 @@ export default {
         this.seriesResults = searchResults.series || []
         this.tagResults = searchResults.tags || []
         this.genreResults = searchResults.genres || []
-        this.narratorResults = searchResults.narrators || []
         this.transcriptResults = []
       }
 

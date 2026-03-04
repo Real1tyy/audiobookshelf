@@ -16,8 +16,6 @@ export const state = () => ({
   selectedMediaItems: [],
   selectedRawCoverUrl: null,
   selectedMediaItemShare: null,
-  isCasting: false, // Actively casting
-  isChromecastInitialized: false, // Script loadeds
   showBatchQuickMatchModal: false,
   dateFormats: [
     {
@@ -146,12 +144,6 @@ export const mutations = {
   },
   setSelectedSeries(state, series) {
     state.selectedSeries = series
-  },
-  setChromecastInitialized(state, val) {
-    state.isChromecastInitialized = val
-  },
-  setCasting(state, val) {
-    state.isCasting = val
   },
   setShowBatchQuickMatchModal(state, val) {
     state.showBatchQuickMatchModal = val

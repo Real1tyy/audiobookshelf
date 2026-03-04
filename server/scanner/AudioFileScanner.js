@@ -104,7 +104,7 @@ class AudioFileScanner {
 
   /**
    * Get track and disc number from audio filename
-   * @param {{title:string, subtitle:string, series:string, sequence:string, publishedYear:string, narrators:string}} mediaMetadataFromScan
+   * @param {{title:string, subtitle:string, series:string, sequence:string, publishedYear:string}} mediaMetadataFromScan
    * @param {LibraryItem.LibraryFileObject} audioLibraryFile
    * @returns {{trackNumber:number, discNumber:number}}
    */
@@ -150,7 +150,7 @@ class AudioFileScanner {
    *
    * @param {string} mediaType
    * @param {LibraryItem.LibraryFileObject} libraryFile
-   * @param {{title:string, subtitle:string, series:string, sequence:string, publishedYear:string, narrators:string}} mediaMetadataFromScan
+   * @param {{title:string, subtitle:string, series:string, sequence:string, publishedYear:string}} mediaMetadataFromScan
    * @returns {Promise<AudioFile>}
    */
   async scan(mediaType, libraryFile, mediaMetadataFromScan) {
@@ -221,10 +221,6 @@ class AudioFileScanner {
   setBookMetadataFromAudioMetaTags(bookTitle, audioFiles, bookMetadata, libraryScan) {
     const MetadataMapArray = [
       {
-        tag: 'tagComposer',
-        key: 'narrators'
-      },
-      {
         tag: 'tagDescription',
         altTag: 'tagComment',
         key: 'description'
@@ -287,9 +283,7 @@ class AudioFileScanner {
       if (value && typeof value === 'string') {
         value = value.trim() // Trim whitespace
 
-        if (mapping.key === 'narrators') {
-          bookMetadata.narrators = parseNameString.parse(value)?.names || []
-        } else if (mapping.key === 'authors') {
+        if (mapping.key === 'authors') {
           bookMetadata.authors = parseNameString.parse(value)?.names || []
         } else if (mapping.key === 'genres') {
           bookMetadata.genres = this.parseGenresString(value)

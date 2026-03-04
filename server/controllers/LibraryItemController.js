@@ -86,7 +86,6 @@ class LibraryItemController {
         audioFiles: [],
         duration: 0,
         chapters: [],
-        narrators: [],
         genres: []
       }
 

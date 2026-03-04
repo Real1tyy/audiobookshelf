@@ -10,7 +10,6 @@ const parseNameString = require('./parsers/parseNameString')
  * @property {string} subtitle Book mediaType only
  * @property {string} asin Book mediaType only
  * @property {string[]} authors Book mediaType only
- * @property {string[]} narrators Book mediaType only
  * @property {string} seriesName Book mediaType only
  * @property {string} seriesSequence Book mediaType only
  * @property {string} publishedYear Book mediaType only
@@ -154,7 +153,6 @@ function getBookDataFromDir(relPath, parseSubtitle = false) {
 
   // The  may contain various other pieces of metadata, these functions extract it.
   var [folder, asin] = getASIN(folder)
-  var [folder, narrators] = getNarrator(folder)
   var [folder, sequence] = series ? getSequence(folder) : [folder, null]
   var [folder, publishedYear] = getPublishedYear(folder)
   var [title, subtitle] = parseSubtitle ? getSubtitle(folder) : [folder, null]
@@ -164,25 +162,12 @@ function getBookDataFromDir(relPath, parseSubtitle = false) {
     subtitle,
     asin,
     authors: parseNameString.parse(author)?.names || [],
-    narrators: parseNameString.parse(narrators)?.names || [],
     seriesName: series,
     seriesSequence: sequence,
     publishedYear
   }
 }
 module.exports.getBookDataFromDir = getBookDataFromDir
-
-/**
- * Extract narrator from folder name
- *
- * @param {string} folder
- * @returns {[string, string]} [folder, narrator]
- */
-function getNarrator(folder) {
-  let pattern = /^(?<title>.*) \{(?<narrators>.*)\}$/
-  let match = folder.match(pattern)
-  return match ? [match.groups.title, match.groups.narrators] : [folder, null]
-}
 
 /**
  * Extract series sequence from folder name

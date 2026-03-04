@@ -77,7 +77,6 @@ module.exports = {
 
     let authorListeningMap = {}
     let genreListeningMap = {}
-    let narratorListeningMap = {}
     let monthListeningMap = {}
     let bookListeningMap = {}
 
@@ -132,12 +131,6 @@ module.exports = {
           authorListeningMap[au.name] += listeningSessionListeningTime
         })
 
-        const narrators = ls.mediaMetadata?.narrators || []
-        narrators.forEach((narrator) => {
-          if (!narratorListeningMap[narrator]) narratorListeningMap[narrator] = 0
-          narratorListeningMap[narrator] += listeningSessionListeningTime
-        })
-
         // Filter out bad genres like "audiobook" and "audio book"
         const genres = (ls.mediaMetadata?.genres || []).filter((g) => g && !g.toLowerCase().includes('audiobook') && !g.toLowerCase().includes('audio book'))
         genres.forEach((genre) => {
@@ -158,16 +151,6 @@ module.exports = {
       }))
       .sort((a, b) => b.time - a.time)
       .slice(0, 3)
-
-    let mostListenedNarrator = null
-    for (const narrator in narratorListeningMap) {
-      if (!mostListenedNarrator?.time || narratorListeningMap[narrator] > mostListenedNarrator.time) {
-        mostListenedNarrator = {
-          time: Math.round(narratorListeningMap[narrator]),
-          name: narrator
-        }
-      }
-    }
 
     let topGenres = null
     topGenres = Object.keys(genreListeningMap)
@@ -194,7 +177,6 @@ module.exports = {
       totalBookListeningTime,
       topAuthors,
       topGenres,
-      mostListenedNarrator,
       mostListenedMonth,
       numBooksFinished,
       numBooksListened: Object.keys(bookListeningMap).length,

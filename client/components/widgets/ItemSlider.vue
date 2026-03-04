@@ -68,11 +68,6 @@ export default {
           itemPropName: 'author-mount',
           itemIdFunc: (item) => item.id
         },
-        narrators: {
-          component: 'cards-narrator-card',
-          itemPropName: 'narrator',
-          itemIdFunc: (item) => item.name
-        },
         book: {
           component: 'cards-lazy-book-card',
           itemPropName: 'book-mount',

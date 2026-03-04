@@ -15,13 +15,6 @@
         <controls-global-search v-if="currentLibrary" class="mr-1 sm:mr-0" />
         <div class="grow" />
 
-        <ui-tooltip v-if="isChromecastInitialized && !isHttps" direction="bottom" text="Casting requires a secure connection" class="flex items-center">
-          <span class="material-symbols text-2xl text-warning/50"> cast </span>
-        </ui-tooltip>
-        <div v-if="isChromecastInitialized" class="w-6 min-w-6 h-6 ml-2 mr-1 sm:mx-2 cursor-pointer">
-          <google-cast-launcher></google-cast-launcher>
-        </div>
-
         <widgets-notification-widget class="hidden md:block" />
 
         <nuxt-link v-if="currentLibrary" to="/config/stats" class="hover:text-gray-200 cursor-pointer w-8 h-8 hidden sm:flex items-center justify-center mx-1">
@@ -154,15 +147,6 @@ export default {
     },
     processingBatch() {
       return this.$store.state.processingBatch
-    },
-    isChromecastEnabled() {
-      return this.$store.getters['getServerSetting']('chromecastEnabled')
-    },
-    isChromecastInitialized() {
-      return this.$store.state.globals.isChromecastInitialized
-    },
-    isHttps() {
-      return location.protocol === 'https:' || process.env.NODE_ENV === 'development'
     },
     libraryItemIdStreaming() {
       return this.$store.getters['getLibraryItemIdStreaming']

@@ -108,12 +108,8 @@
           </div>
         </ui-tooltip>
 
-        <!-- rss feed icon -->
-        <div cy-id="rssFeed" v-if="rssFeed && !isSelectionMode && !isHovering" class="absolute text-success top-0 left-0 z-10" :style="{ padding: 0.375 + 'em' }">
-          <span class="material-symbols" aria-hidden="true" :style="{ fontSize: 1.5 + 'em' }">rss_feed</span>
-        </div>
         <!-- media item shared icon -->
-        <div cy-id="mediaItemShare" v-if="mediaItemShare && !isSelectionMode && !isHovering" class="absolute text-success left-0 z-10" :style="{ padding: 0.375 + 'em', top: rssFeed ? '2em' : '0px' }">
+        <div cy-id="mediaItemShare" v-if="mediaItemShare && !isSelectionMode && !isHovering" class="absolute text-success left-0 z-10" :style="{ padding: 0.375 + 'em', top: '0px' }">
           <span class="material-symbols" aria-hidden="true" :style="{ fontSize: 1.5 + 'em' }">public</span>
         </div>
 
@@ -630,10 +626,6 @@ export default {
     isAuthorBookshelfView() {
       const constants = this.$constants || this.$nuxt.$constants
       return this.bookshelfView === constants.BookshelfView.AUTHOR
-    },
-    rssFeed() {
-      if (this.booksInSeries) return null
-      return this._libraryItem.rssFeed || null
     },
     mediaItemShare() {
       return this._libraryItem.mediaItemShare || null

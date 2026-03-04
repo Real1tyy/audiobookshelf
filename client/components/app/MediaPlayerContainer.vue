@@ -539,15 +539,6 @@ export default {
     streamReset({ startTime, streamId }) {
       this.playerHandler.resetStream(startTime, streamId)
     },
-    castSessionActive(isActive) {
-      if (isActive && this.playerHandler.isPlayingLocalItem) {
-        // Cast session started switch to cast player
-        this.playerHandler.switchPlayer()
-      } else if (!isActive && this.playerHandler.isPlayingCastedItem) {
-        // Cast session ended switch to local player
-        this.playerHandler.switchPlayer()
-      }
-    },
     playNextItemInQueue() {
       if (this.hasNextItemInQueue) {
         this.playQueueItem({ index: this.currentPlayerQueueIndex + 1 })
@@ -784,7 +775,6 @@ export default {
     }
   },
   mounted() {
-    this.$eventBus.$on('cast-session-active', this.castSessionActive)
     this.$eventBus.$on('playback-seek', this.seek)
     this.$eventBus.$on('playback-time-update', this.playbackTimeUpdate)
     this.$eventBus.$on('play-queue-item', this.playQueueItem)
@@ -794,7 +784,6 @@ export default {
     document.addEventListener('visibilitychange', this.onVisibilityChange)
   },
   beforeDestroy() {
-    this.$eventBus.$off('cast-session-active', this.castSessionActive)
     this.$eventBus.$off('playback-seek', this.seek)
     this.$eventBus.$off('playback-time-update', this.playbackTimeUpdate)
     this.$eventBus.$off('play-queue-item', this.playQueueItem)

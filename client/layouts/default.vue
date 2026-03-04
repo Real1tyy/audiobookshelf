@@ -52,9 +52,6 @@ export default {
     user() {
       return this.$store.state.user.user
     },
-    isCasting() {
-      return this.$store.state.globals.isCasting
-    },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
     },

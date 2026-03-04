@@ -45,10 +45,6 @@
               <ui-checkbox v-model="selectedBatchUsage.tags" />
               <ui-multi-select ref="tagsSelect" v-model="batchDetails.tags" :label="$strings.LabelTags" :disabled="!selectedBatchUsage.tags" :items="tagItems" @newItem="newTagItem" @removedItem="removedTagItem" class="mb-5 ml-4" />
             </div>
-            <div class="flex items-center px-4 h-18 w-1/2">
-              <ui-checkbox v-model="selectedBatchUsage.narrators" />
-              <ui-multi-select ref="narratorsSelect" v-model="batchDetails.narrators" :disabled="!selectedBatchUsage.narrators" :label="$strings.LabelNarrators" :items="narratorItems" @newItem="newNarratorItem" @removedItem="removedNarratorItem" class="mb-5 ml-4" />
-            </div>
             <div v-if="!isMapAppend" class="flex items-center px-4 h-18 w-1/2">
               <ui-checkbox v-model="selectedBatchUsage.publisher" />
               <ui-text-input-with-label ref="publisherInput" v-model="batchDetails.publisher" :disabled="!selectedBatchUsage.publisher" :label="$strings.LabelPublisher" trim-whitespace class="mb-5 ml-4" />
@@ -178,7 +174,6 @@ export default {
       isScrollable: false,
       newTagItems: [],
       newGenreItems: [],
-      newNarratorItems: [],
       mapDetailsType: 'overwrite',
       batchDetails: {
         subtitle: null,
@@ -187,7 +182,6 @@ export default {
         series: [],
         genres: [],
         tags: [],
-        narrators: [],
         publisher: null,
         language: null,
         explicit: false,
@@ -206,7 +200,6 @@ export default {
         series: false,
         genres: false,
         tags: false,
-        narrators: false,
         publisher: false,
         language: false,
         explicit: false,
@@ -218,7 +211,7 @@ export default {
         asin: false,
         description: false
       },
-      appendableKeys: ['authors', 'genres', 'tags', 'narrators', 'series', 'url', 'relatedBooks'],
+      appendableKeys: ['authors', 'genres', 'tags', 'series', 'url', 'relatedBooks'],
       openMapOptions: false,
       itemsWithChanges: []
     }
@@ -239,9 +232,6 @@ export default {
     tagItems() {
       return this.tags.concat(this.newTagItems)
     },
-    narratorItems() {
-      return [...this.narrators, ...this.newNarratorItems]
-    },
     genres() {
       return this.filterData.genres || []
     },
@@ -250,9 +240,6 @@ export default {
     },
     series() {
       return this.filterData.series || []
-    },
-    narrators() {
-      return this.filterData.narrators || []
     },
     authors() {
       return this.filterData.authors || []
@@ -283,7 +270,6 @@ export default {
         series: [],
         genres: [],
         tags: [],
-        narrators: [],
         publisher: null,
         language: null,
         explicit: false,
@@ -302,7 +288,6 @@ export default {
         series: false,
         genres: false,
         tags: false,
-        narrators: false,
         publisher: false,
         language: false,
         explicit: false,
@@ -353,7 +338,7 @@ export default {
                 existingValues.push(entity.name)
               }
             })
-          } else if (key === 'genres' || key === 'narrators' || key === 'relatedBooks') {
+          } else if (key === 'genres' || key === 'relatedBooks') {
             if (!existingValues) existingValues = []
             ;(li.media.metadata[key] || []).forEach((item) => {
               if (!existingValues.includes(item)) {
@@ -389,9 +374,6 @@ export default {
       }
       if (this.$refs.authorsSelect && this.$refs.authorsSelect.isFocused) {
         this.$refs.authorsSelect.forceBlur()
-      }
-      if (this.$refs.narratorsSelect && this.$refs.narratorsSelect.isFocused) {
-        this.$refs.narratorsSelect.forceBlur()
       }
       if (this.$refs.genresSelect && this.$refs.genresSelect.isFocused) {
         this.$refs.genresSelect.forceBlur()
@@ -446,8 +428,6 @@ export default {
     },
     newSeriesItem(item) {},
     removedSeriesItem(item) {},
-    newNarratorItem(item) {},
-    removedNarratorItem(item) {},
     newTagItem(item) {},
     removedTagItem(item) {},
     newGenreItem(item) {},
@@ -466,9 +446,6 @@ export default {
         }
         if (copy.media.metadata.series) {
           copy.media.metadata.series = copy.media.metadata.series.map((se) => ({ ...se }))
-        }
-        if (copy.media.metadata.narrators) {
-          copy.media.metadata.narrators = [...copy.media.metadata.narrators]
         }
         if (copy.media.metadata.genres) {
           copy.media.metadata.genres = [...copy.media.metadata.genres]

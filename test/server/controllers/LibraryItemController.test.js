@@ -47,11 +47,11 @@ describe('LibraryItemController', () => {
       const newLibrary = await Database.libraryModel.create({ name: 'Test Library', mediaType: 'book' })
       const newLibraryFolder = await Database.libraryFolderModel.create({ path: '/test', libraryId: newLibrary.id })
 
-      const newBook = await Database.bookModel.create({ title: 'Test Book', audioFiles: [], tags: [], narrators: [], genres: [], chapters: [] })
+      const newBook = await Database.bookModel.create({ title: 'Test Book', audioFiles: [], tags: [], genres: [], chapters: [] })
       const newLibraryItem = await Database.libraryItemModel.create({ libraryFiles: [], mediaId: newBook.id, mediaType: 'book', libraryId: newLibrary.id, libraryFolderId: newLibraryFolder.id })
       libraryItem1Id = newLibraryItem.id
 
-      const newBook2 = await Database.bookModel.create({ title: 'Test Book 2', audioFiles: [], tags: [], narrators: [], genres: [], chapters: [] })
+      const newBook2 = await Database.bookModel.create({ title: 'Test Book 2', audioFiles: [], tags: [], genres: [], chapters: [] })
       const newLibraryItem2 = await Database.libraryItemModel.create({ libraryFiles: [], mediaId: newBook2.id, mediaType: 'book', libraryId: newLibrary.id, libraryFolderId: newLibraryFolder.id })
       libraryItem2Id = newLibraryItem2.id
 

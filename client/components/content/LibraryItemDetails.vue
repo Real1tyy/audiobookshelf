@@ -1,16 +1,5 @@
 <template>
   <div>
-    <div v-if="narrators?.length" class="flex py-0.5 mt-4">
-      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
-        <span class="text-white/60 uppercase text-sm">{{ $strings.LabelNarrators }}</span>
-      </div>
-      <div class="max-w-[calc(100vw-10rem)] overflow-hidden text-ellipsis">
-        <template v-for="(narrator, index) in narrators">
-          <nuxt-link :key="narrator" :to="`/library/${libraryId}/bookshelf?filter=narrators.${$encode(narrator)}`" class="hover:underline">{{ narrator }}</nuxt-link
-          ><span :key="index" v-if="index < narrators.length - 1">,&nbsp;</span>
-        </template>
-      </div>
-    </div>
     <div v-if="publishedYear" role="paragraph" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelPublishYear }}</span>
@@ -163,9 +152,6 @@ export default {
     },
     publisher() {
       return this.mediaMetadata.publisher || ''
-    },
-    narrators() {
-      return this.mediaMetadata.narrators || []
     },
     language() {
       return this.mediaMetadata.language || null

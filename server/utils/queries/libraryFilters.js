@@ -101,9 +101,6 @@ module.exports = {
     return {
       items: libraryItems.map((li) => {
         const oldLibraryItem = li.toOldJSONMinified()
-        if (li.rssFeed) {
-          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-        }
         if (li.mediaItemShare) {
           oldLibraryItem.mediaItemShare = li.mediaItemShare
         }
@@ -126,9 +123,6 @@ module.exports = {
     return {
       libraryItems: libraryItems.map((li) => {
         const oldLibraryItem = li.toOldJSONMinified()
-        if (li.rssFeed) {
-          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-        }
         if (li.size && !oldLibraryItem.media.size) {
           oldLibraryItem.media.size = li.size
         }
@@ -154,9 +148,6 @@ module.exports = {
     return {
       libraryItems: libraryItems.map((li) => {
         const oldLibraryItem = li.toOldJSONMinified()
-        if (li.rssFeed) {
-          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-        }
         if (li.series) {
           oldLibraryItem.media.metadata.series = li.series
         }
@@ -183,9 +174,6 @@ module.exports = {
     return {
       items: libraryItems.map((li) => {
         const oldLibraryItem = li.toOldJSONMinified()
-        if (li.rssFeed) {
-          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-        }
         if (li.mediaItemShare) {
           oldLibraryItem.mediaItemShare = li.mediaItemShare
         }
@@ -207,11 +195,6 @@ module.exports = {
     if (!library.isBook) return { series: [], count: 0 }
 
     const seriesIncludes = []
-    if (include.includes('rssfeed')) {
-      seriesIncludes.push({
-        model: Database.feedModel
-      })
-    }
 
     const userPermissionBookWhere = libraryItemsBookFilters.getUserPermissionBookWhereQuery(user)
 
@@ -278,10 +261,6 @@ module.exports = {
     const allOldSeries = []
     for (const s of series) {
       const oldSeries = s.toOldJSON()
-
-      if (s.feeds?.length) {
-        oldSeries.rssFeed = s.feeds[0].toOldJSONMinified()
-      }
 
       // TODO: Sort books by sequence in query
       s.bookSeries.sort((a, b) => {
@@ -377,9 +356,6 @@ module.exports = {
     return {
       libraryItems: libraryItems.map((li) => {
         const oldLibraryItem = li.toOldJSONMinified()
-        if (li.rssFeed) {
-          oldLibraryItem.rssFeed = li.rssFeed.toOldJSONMinified()
-        }
         if (li.mediaItemShare) {
           oldLibraryItem.mediaItemShare = li.mediaItemShare
         }

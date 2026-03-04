@@ -279,7 +279,6 @@ function getFFMetadataObject(libraryItem, audioFilesLength) {
     date: libraryItem.media.publishedYear,
     comment: libraryItem.media.description,
     description: libraryItem.media.description,
-    composer: (libraryItem.media.narrators || []).join(', '),
     copyright: libraryItem.media.publisher,
     publisher: libraryItem.media.publisher, // mp3 only
     TRACKTOTAL: `${audioFilesLength}`, // mp3 only

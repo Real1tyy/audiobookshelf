@@ -34,10 +34,6 @@ function parseNfoMetadata(nfoText) {
         case 'author':
           metadata.authors = value.split(/\s*,\s*/).filter(v => v)
           break
-        case 'narrator':
-        case 'read by':
-          metadata.narrators = value.split(/\s*,\s*/).filter(v => v)
-          break
         case 'series name':
           metadata.series = value
           break

@@ -12,7 +12,6 @@ const providerMap = {
   google: 'Google Books',
   itunes: 'iTunes',
   openlibrary: 'Open Library',
-  fantlab: 'FantLab.ru',
   audiobookcovers: 'AudiobookCovers.com',
   audible: 'Audible.com',
   'audible.ca': 'Audible.ca',

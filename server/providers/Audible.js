@@ -41,7 +41,7 @@ class Audible {
   }
 
   cleanResult(item) {
-    const { title, subtitle, asin, authors, narrators, publisherName, summary, releaseDate, image, genres, seriesPrimary, seriesSecondary, language, runtimeLengthMin, formatType, isbn } = item
+    const { title, subtitle, asin, authors, publisherName, summary, releaseDate, image, genres, seriesPrimary, seriesSecondary, language, runtimeLengthMin, formatType, isbn } = item
 
     const series = []
     if (seriesPrimary) {
@@ -69,7 +69,6 @@ class Audible {
       title,
       subtitle: subtitle || null,
       author: authors ? authors.map(({ name }) => name).join(', ') : null,
-      narrator: narrators ? narrators.map(({ name }) => name).join(', ') : null,
       publisher: publisherName,
       publishedYear: releaseDate ? releaseDate.split('-')[0] : null,
       description: summary || null,

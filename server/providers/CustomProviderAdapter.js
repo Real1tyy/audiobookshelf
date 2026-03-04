@@ -113,13 +113,12 @@ class CustomProviderAdapter {
 
     // re-map keys to throw out
     return matches.map((match) => {
-      const { title, subtitle, author, narrator, publisher, publishedYear, description, cover, isbn, asin, genres, tags, series, language, duration } = match
+      const { title, subtitle, author, publisher, publishedYear, description, cover, isbn, asin, genres, tags, series, language, duration } = match
 
       const payload = {
         title: toStringOrUndefined(title),
         subtitle: toStringOrUndefined(subtitle),
         author: toStringOrUndefined(author),
-        narrator: toStringOrUndefined(narrator),
         publisher: toStringOrUndefined(publisher),
         publishedYear: toStringOrUndefined(publishedYear),
         description: description && typeof description === 'string' ? htmlSanitizer.sanitize(description) : undefined,

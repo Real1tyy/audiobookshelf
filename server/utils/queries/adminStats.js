@@ -89,7 +89,6 @@ module.exports = {
     const numAuthorsAdded = await this.getNumAuthorsAddedForYear(year)
 
     let authorListeningMap = {}
-    let narratorListeningMap = {}
     let genreListeningMap = {}
 
     const listeningSessions = await this.getListeningSessionsForYear(year)
@@ -101,12 +100,6 @@ module.exports = {
       authors.forEach((au) => {
         if (!authorListeningMap[au.name]) authorListeningMap[au.name] = 0
         authorListeningMap[au.name] += ls.timeListening || 0
-      })
-
-      const narrators = ls.mediaMetadata?.narrators || []
-      narrators.forEach((narrator) => {
-        if (!narratorListeningMap[narrator]) narratorListeningMap[narrator] = 0
-        narratorListeningMap[narrator] += ls.timeListening || 0
       })
 
       // Filter out bad genres like "audiobook" and "audio book"
@@ -122,15 +115,6 @@ module.exports = {
       .map((authorName) => ({
         name: authorName,
         time: Math.round(authorListeningMap[authorName])
-      }))
-      .sort((a, b) => b.time - a.time)
-      .slice(0, 3)
-
-    let topNarrators = null
-    topNarrators = Object.keys(narratorListeningMap)
-      .map((narratorName) => ({
-        name: narratorName,
-        time: Math.round(narratorListeningMap[narratorName])
       }))
       .sort((a, b) => b.time - a.time)
       .slice(0, 3)
@@ -164,7 +148,6 @@ module.exports = {
       totalListeningTime,
       numBooks: totalStatResults?.totalItems || 0,
       topAuthors,
-      topNarrators,
       topGenres
     }
   },

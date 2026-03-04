@@ -170,17 +170,6 @@ function fetchSeries(metadataMeta) {
   return dedupedResult
 }
 
-function fetchNarrators(creators, metadata) {
-  const narrators = fetchCreators(creators, 'nrt')
-  if (narrators?.length) return narrators
-  try {
-    const narratorsJSON = JSON.parse(fetchTagString(metadata.meta, 'calibre:user_metadata:#narrators').replace(/&quot;/g, '"'))
-    return narratorsJSON['#value#']
-  } catch {
-    return null
-  }
-}
-
 function fetchTags(metadata) {
   if (!metadata['dc:tag'] || !metadata['dc:tag'].length) return []
   return [...new Set(metadata['dc:tag'].filter((tag) => tag && typeof tag === 'string'))]
@@ -226,12 +215,10 @@ module.exports.parseOpfMetadataJson = (json) => {
   }
   const creators = parseCreators(metadata)
   const authors = (fetchCreators(creators, 'aut') || []).map((au) => au?.trim()).filter((au) => au)
-  const narrators = (fetchNarrators(creators, metadata) || []).map((nrt) => nrt?.trim()).filter((nrt) => nrt)
   return {
     title: fetchTitle(metadata),
     subtitle: fetchSubtitle(metadata),
     authors,
-    narrators,
     publishedYear: fetchDate(metadata),
     publisher: fetchPublisher(metadata),
     isbn: fetchISBN(metadata),

@@ -2,7 +2,6 @@ import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOpt
 
 const oldEmailSettings = require('../objects/settings/EmailSettings')
 const oldServerSettings = require('../objects/settings/ServerSettings')
-const oldNotificationSettings = require('../objects/settings/NotificationSettings')
 
 class Setting extends Model<InferAttributes<Setting>, InferCreationAttributes<Setting>> {
   declare key: string
@@ -15,13 +14,11 @@ class Setting extends Model<InferAttributes<Setting>, InferCreationAttributes<Se
 
     const emailSettingsJson = settings.find((se) => (se as any).id === 'email-settings')
     const serverSettingsJson = settings.find((se) => (se as any).id === 'server-settings')
-    const notificationSettingsJson = settings.find((se) => (se as any).id === 'notification-settings')
 
     return {
       settings,
       emailSettings: new oldEmailSettings(emailSettingsJson),
-      serverSettings: new oldServerSettings(serverSettingsJson),
-      notificationSettings: new oldNotificationSettings(notificationSettingsJson)
+      serverSettings: new oldServerSettings(serverSettingsJson)
     }
   }
 

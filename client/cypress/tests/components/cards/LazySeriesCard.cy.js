@@ -12,8 +12,7 @@ describe('LazySeriesCard', () => {
       { id: 3, updatedAt: /* 04/16/2024 */ 1713272400000, addedAt: 1713272400000, media: { coverPath: 'cover3.jpg' }, title: 'The Return of the King' }
     ],
     addedAt: /* 04/17/2024 */ 1713358800000,
-    totalDuration: /* 7h 30m */ 3600 * 7 + 60 * 30,
-    rssFeed: 'https://example.com/feed.rss'
+    totalDuration: /* 7h 30m */ 3600 * 7 + 60 * 30
   }
 
   const propsData = {
@@ -80,19 +79,17 @@ describe('LazySeriesCard', () => {
     cy.get('&seriesLengthMarker').should('be.visible').and('have.text', propsData.seriesMount.books.length)
     cy.get('&seriesProgressBar').should('not.exist')
     cy.get('&hoveringDisplayTitle').should('be.hidden')
-    cy.get('&rssFeedMarker').should('be.visible')
     cy.get('&standardBottomDisplayTitle').should('not.exist')
     cy.get('&detailBottomDisplayTitle').should('be.visible')
     cy.get('&detailBottomDisplayTitle').should('have.text', 'The Lord of the Rings')
     cy.get('&detailBottomSortLine').should('have.text', 'Added 04/17/2024')
   })
 
-  it('shows series name and hides rss feed marker on mouseover', () => {
+  it('shows series name on mouseover', () => {
     cy.mount(LazySeriesCard, { propsData, stubs, mocks })
     cy.get('&card').trigger('mouseover')
 
     cy.get('&hoveringDisplayTitle').should('be.visible').should('have.text', 'The Lord of the Rings')
-    cy.get('&rssFeedMarker').should('not.exist')
   })
 
   it('routes properly when clicked', () => {
@@ -165,16 +162,6 @@ describe('LazySeriesCard', () => {
         const defaultWidth = defailtHeight * 2
         expect(width).to.equal(defaultWidth)
       })
-  })
-
-  it('hides the rss feed marker when there is no rss feed', () => {
-    const updatedPropsData = {
-      ...propsData,
-      seriesMount: { ...series, rssFeed: null }
-    }
-    cy.mount(LazySeriesCard, { propsData: updatedPropsData, stubs, mocks })
-
-    cy.get('&rssFeedMarker').should('not.exist')
   })
 
   it('shows the standard bottom display when bookshelf view is 0', () => {

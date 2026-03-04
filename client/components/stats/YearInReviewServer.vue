@@ -195,12 +195,6 @@ export default {
           }
         }
 
-        if (this.yearStats.topNarrators.length) {
-          addText(this.$strings.StatsTopNarrators, '24px', 'normal', tanColor, '1px', 430, 549)
-          for (let i = 0; i < this.yearStats.topNarrators.length; i++) {
-            addText(this.yearStats.topNarrators[i].name, '36px', 'bolder', 'white', '0px', 430, 609 + i * 60, 330)
-          }
-        }
       } else if (this.variant === 2) {
         // Text stats
         ctx.textAlign = 'left'

@@ -544,7 +544,6 @@ class LibraryItem extends Model {
       title: mediaExpanded.title,
       subtitle: mediaExpanded.subtitle,
       authors: mediaExpanded.authors.map((a) => a.name),
-      narrators: mediaExpanded.narrators,
       series: mediaExpanded.series.map((se) => {
         const sequence = se.bookSeries?.sequence || ''
         if (!sequence) return se.name
