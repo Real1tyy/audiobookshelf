@@ -1,74 +1,52 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, NonAttribute, Sequelize } from 'sequelize'
 
 const oldPlaybackSession = require('../objects/PlaybackSession')
 
-class PlaybackSession extends Model {
-  constructor(values, options) {
-    super(values, options)
+class PlaybackSession extends Model<InferAttributes<PlaybackSession>, InferCreationAttributes<PlaybackSession>> {
+  declare id: CreationOptional<string>
+  declare mediaItemId: string
+  declare mediaItemType: string
+  declare displayTitle: string | null
+  declare displayAuthor: string | null
+  declare duration: number | null
+  declare playMethod: number | null
+  declare mediaPlayer: string | null
+  declare startTime: number | null
+  declare currentTime: number | null
+  declare serverVersion: string | null
+  declare coverPath: string | null
+  declare timeListening: number | null
+  declare mediaMetadata: any | null
+  declare date: string | null
+  declare dayOfWeek: string | null
+  declare extraData: any | null
+  declare userId: ForeignKey<string>
+  declare deviceId: ForeignKey<string | null>
+  declare libraryId: ForeignKey<string | null>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {UUIDV4} */
-    this.mediaItemId
-    /** @type {string} */
-    this.mediaItemType
-    /** @type {string} */
-    this.displayTitle
-    /** @type {string} */
-    this.displayAuthor
-    /** @type {number} */
-    this.duration
-    /** @type {number} */
-    this.playMethod
-    /** @type {string} */
-    this.mediaPlayer
-    /** @type {number} */
-    this.startTime
-    /** @type {number} */
-    this.currentTime
-    /** @type {string} */
-    this.serverVersion
-    /** @type {string} */
-    this.coverPath
-    /** @type {number} */
-    this.timeListening
-    /** @type {Object} */
-    this.mediaMetadata
-    /** @type {string} */
-    this.date
-    /** @type {string} */
-    this.dayOfWeek
-    /** @type {Object} */
-    this.extraData
-    /** @type {UUIDV4} */
-    this.userId
-    /** @type {UUIDV4} */
-    this.deviceId
-    /** @type {UUIDV4} */
-    this.libraryId
-    /** @type {Date} */
-    this.updatedAt
-    /** @type {Date} */
-    this.createdAt
-  }
+  // Expanded properties
+  declare mediaItem?: NonAttribute<any>
+  declare device?: NonAttribute<any>
 
-  static async getOldPlaybackSessions(where = null) {
+  static async getOldPlaybackSessions(where: any = null) {
     const playbackSessions = await this.findAll({
       where,
       include: [
         {
-          model: this.sequelize.models.device
+          model: this.sequelize!.models.device
         }
       ]
     })
     return playbackSessions.map((session) => this.getOldPlaybackSession(session))
   }
 
-  static async getById(sessionId) {
+  static async getById(sessionId: string) {
     const playbackSession = await this.findByPk(sessionId, {
       include: [
         {
-          model: this.sequelize.models.device
+          model: this.sequelize!.models.device
         }
       ]
     })
@@ -76,7 +54,7 @@ class PlaybackSession extends Model {
     return this.getOldPlaybackSession(playbackSession)
   }
 
-  static getOldPlaybackSession(playbackSessionExpanded) {
+  static getOldPlaybackSession(playbackSessionExpanded: PlaybackSession) {
     return new oldPlaybackSession({
       id: playbackSessionExpanded.id,
       userId: playbackSessionExpanded.userId,
@@ -93,7 +71,7 @@ class PlaybackSession extends Model {
       duration: playbackSessionExpanded.duration,
       playMethod: playbackSessionExpanded.playMethod,
       mediaPlayer: playbackSessionExpanded.mediaPlayer,
-      deviceInfo: playbackSessionExpanded.device?.getOldDevice() || null,
+      deviceInfo: (playbackSessionExpanded as any).device?.getOldDevice() || null,
       serverVersion: playbackSessionExpanded.serverVersion,
       date: playbackSessionExpanded.date,
       dayOfWeek: playbackSessionExpanded.dayOfWeek,
@@ -105,7 +83,7 @@ class PlaybackSession extends Model {
     })
   }
 
-  static removeById(sessionId) {
+  static removeById(sessionId: string) {
     return this.destroy({
       where: {
         id: sessionId
@@ -113,15 +91,15 @@ class PlaybackSession extends Model {
     })
   }
 
-  static createFromOld(oldPlaybackSession) {
-    const playbackSession = this.getFromOld(oldPlaybackSession)
+  static createFromOld(oldPlaybackSessionObj: any) {
+    const playbackSession = this.getFromOld(oldPlaybackSessionObj)
     return this.upsert(playbackSession, {
       silent: true
-    })
+    } as any)
   }
 
-  static updateFromOld(oldPlaybackSession) {
-    const playbackSession = this.getFromOld(oldPlaybackSession)
+  static updateFromOld(oldPlaybackSessionObj: any) {
+    const playbackSession = this.getFromOld(oldPlaybackSessionObj)
     return this.update(playbackSession, {
       where: {
         id: playbackSession.id
@@ -130,46 +108,43 @@ class PlaybackSession extends Model {
     })
   }
 
-  static getFromOld(oldPlaybackSession) {
+  static getFromOld(oldPlaybackSessionObj: any) {
     return {
-      id: oldPlaybackSession.id,
-      mediaItemId: oldPlaybackSession.bookId,
+      id: oldPlaybackSessionObj.id,
+      mediaItemId: oldPlaybackSessionObj.bookId,
       mediaItemType: 'book',
-      libraryId: oldPlaybackSession.libraryId,
-      displayTitle: oldPlaybackSession.displayTitle,
-      displayAuthor: oldPlaybackSession.displayAuthor,
-      duration: oldPlaybackSession.duration,
-      playMethod: oldPlaybackSession.playMethod,
-      mediaPlayer: oldPlaybackSession.mediaPlayer,
-      startTime: oldPlaybackSession.startTime,
-      currentTime: oldPlaybackSession.currentTime,
-      serverVersion: oldPlaybackSession.serverVersion || null,
-      createdAt: oldPlaybackSession.startedAt,
-      updatedAt: oldPlaybackSession.updatedAt,
-      userId: oldPlaybackSession.userId,
-      deviceId: oldPlaybackSession.deviceInfo?.id || null,
-      timeListening: oldPlaybackSession.timeListening,
-      coverPath: oldPlaybackSession.coverPath,
-      mediaMetadata: oldPlaybackSession.mediaMetadata,
-      date: oldPlaybackSession.date,
-      dayOfWeek: oldPlaybackSession.dayOfWeek,
+      libraryId: oldPlaybackSessionObj.libraryId,
+      displayTitle: oldPlaybackSessionObj.displayTitle,
+      displayAuthor: oldPlaybackSessionObj.displayAuthor,
+      duration: oldPlaybackSessionObj.duration,
+      playMethod: oldPlaybackSessionObj.playMethod,
+      mediaPlayer: oldPlaybackSessionObj.mediaPlayer,
+      startTime: oldPlaybackSessionObj.startTime,
+      currentTime: oldPlaybackSessionObj.currentTime,
+      serverVersion: oldPlaybackSessionObj.serverVersion || null,
+      createdAt: oldPlaybackSessionObj.startedAt,
+      updatedAt: oldPlaybackSessionObj.updatedAt,
+      userId: oldPlaybackSessionObj.userId,
+      deviceId: oldPlaybackSessionObj.deviceInfo?.id || null,
+      timeListening: oldPlaybackSessionObj.timeListening,
+      coverPath: oldPlaybackSessionObj.coverPath,
+      mediaMetadata: oldPlaybackSessionObj.mediaMetadata,
+      date: oldPlaybackSessionObj.date,
+      dayOfWeek: oldPlaybackSessionObj.dayOfWeek,
       extraData: {
-        libraryItemId: oldPlaybackSession.libraryItemId
+        libraryItemId: oldPlaybackSessionObj.libraryItemId
       }
     }
   }
 
-  getMediaItem(options) {
+  getMediaItem(options?: any) {
     if (!this.mediaItemType) return Promise.resolve(null)
-    const mixinMethodName = `get${this.sequelize.uppercaseFirst(this.mediaItemType)}`
-    return this[mixinMethodName](options)
+    const mixinMethodName = `get${(this.sequelize as any).uppercaseFirst(this.mediaItemType)}`
+    return (this as any)[mixinMethodName](options)
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -220,7 +195,7 @@ class PlaybackSession extends Model {
     })
     PlaybackSession.belongsTo(book, { foreignKey: 'mediaItemId', constraints: false })
 
-    PlaybackSession.addHook('afterFind', (findResult) => {
+    PlaybackSession.addHook('afterFind', (findResult: any) => {
       if (!findResult) return
 
       if (!Array.isArray(findResult)) findResult = [findResult]
@@ -230,7 +205,6 @@ class PlaybackSession extends Model {
           instance.mediaItem = instance.book
           instance.dataValues.mediaItem = instance.dataValues.book
         }
-        // To prevent mistakes:
         delete instance.book
         delete instance.dataValues.book
       }
@@ -238,4 +212,4 @@ class PlaybackSession extends Model {
   }
 }
 
-module.exports = PlaybackSession
+export = PlaybackSession

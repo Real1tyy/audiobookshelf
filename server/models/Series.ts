@@ -1,51 +1,25 @@
-const { DataTypes, Model, where, fn, col, literal } = require('sequelize')
+import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, NonAttribute, Sequelize, where, fn, col, literal } from 'sequelize'
 
 const { getTitlePrefixAtEnd, getTitleIgnorePrefix } = require('../utils/index')
 
-class Series extends Model {
-  constructor(values, options) {
-    super(values, options)
+class Series extends Model<InferAttributes<Series>, InferCreationAttributes<Series>> {
+  declare id: CreationOptional<string>
+  declare name: string
+  declare nameIgnorePrefix: string | null
+  declare description: string | null
+  declare coverPath: string | null
+  declare libraryId: ForeignKey<string>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {string} */
-    this.name
-    /** @type {string} */
-    this.nameIgnorePrefix
-    /** @type {string} */
-    this.description
-    /** @type {string} */
-    this.coverPath
-    /** @type {UUIDV4} */
-    this.libraryId
-    /** @type {Date} */
-    this.createdAt
-    /** @type {Date} */
-    this.updatedAt
+  // Expanded properties
+  declare books?: NonAttribute<any[]>
 
-    // Expanded properties
-
-    /** @type {import('./Book').BookExpandedWithLibraryItem[]} - only set when expanded */
-    this.books
-  }
-
-  /**
-   * Check if series exists
-   * @param {string} seriesId
-   * @returns {Promise<boolean>}
-   */
-  static async checkExistsById(seriesId) {
+  static async checkExistsById(seriesId: string): Promise<boolean> {
     return (await this.count({ where: { id: seriesId } })) > 0
   }
 
-  /**
-   * Get series by name and libraryId. name case insensitive
-   *
-   * @param {string} seriesName
-   * @param {string} libraryId
-   * @returns {Promise<Series>}
-   */
-  static async getByNameAndLibrary(seriesName, libraryId) {
+  static async getByNameAndLibrary(seriesName: string, libraryId: string) {
     return this.findOne({
       where: [
         where(fn('lower', col('name')), seriesName.toLowerCase()),
@@ -56,25 +30,14 @@ class Series extends Model {
     })
   }
 
-  /**
-   *
-   * @param {string} seriesId
-   * @returns {Promise<Series>}
-   */
-  static async getExpandedById(seriesId) {
+  static async getExpandedById(seriesId: string) {
     const series = await this.findByPk(seriesId)
     if (!series) return null
-    series.books = await series.getBooksExpandedWithLibraryItem()
+    series.books = await (series as any).getBooksExpandedWithLibraryItem()
     return series
   }
 
-  /**
-   *
-   * @param {string} seriesName
-   * @param {string} libraryId
-   * @returns {Promise<Series>}
-   */
-  static async findOrCreateByNameAndLibrary(seriesName, libraryId) {
+  static async findOrCreateByNameAndLibrary(seriesName: string, libraryId: string) {
     const series = await this.getByNameAndLibrary(seriesName, libraryId)
     if (series) return series
     return this.create({
@@ -84,11 +47,8 @@ class Series extends Model {
     })
   }
 
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -113,14 +73,7 @@ class Series extends Model {
               }
             ]
           },
-          // {
-          //   fields: [{
-          //     name: 'nameIgnorePrefix',
-          //     collate: 'NOCASE'
-          //   }]
-          // },
           {
-            // unique constraint on name and libraryId
             fields: ['name', 'libraryId'],
             unique: true,
             name: 'unique_series_name_per_library'
@@ -139,26 +92,21 @@ class Series extends Model {
     Series.belongsTo(library)
   }
 
-  /**
-   * Get all books in collection expanded with library item
-   *
-   * @returns {Promise<import('./Book').BookExpandedWithLibraryItem[]>}
-   */
   getBooksExpandedWithLibraryItem() {
-    return this.getBooks({
+    return (this as any).getBooks({
       joinTableAttributes: ['sequence'],
       include: [
         {
-          model: this.sequelize.models.libraryItem
+          model: this.sequelize!.models.libraryItem
         },
         {
-          model: this.sequelize.models.author,
+          model: this.sequelize!.models.author,
           through: {
             attributes: []
           }
         },
         {
-          model: this.sequelize.models.series,
+          model: this.sequelize!.models.series,
           through: {
             attributes: ['sequence']
           }
@@ -181,7 +129,7 @@ class Series extends Model {
     }
   }
 
-  toJSONMinimal(sequence) {
+  toJSONMinimal(sequence: string) {
     return {
       id: this.id,
       name: this.name,
@@ -190,4 +138,4 @@ class Series extends Model {
   }
 }
 
-module.exports = Series
+export = Series

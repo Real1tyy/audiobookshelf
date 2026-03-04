@@ -1,26 +1,14 @@
-const { DataTypes, Model } = require('sequelize')
+import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, Sequelize } from 'sequelize'
 
-class LibraryFolder extends Model {
-  constructor(values, options) {
-    super(values, options)
+class LibraryFolder extends Model<InferAttributes<LibraryFolder>, InferCreationAttributes<LibraryFolder>> {
+  declare id: CreationOptional<string>
+  declare path: string
+  declare libraryId: ForeignKey<string>
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 
-    /** @type {UUIDV4} */
-    this.id
-    /** @type {string} */
-    this.path
-    /** @type {UUIDV4} */
-    this.libraryId
-    /** @type {Date} */
-    this.createdAt
-    /** @type {Date} */
-    this.updatedAt
-  }
-
-  /**
-   * Initialize model
-   * @param {import('../Database').sequelize} sequelize
-   */
-  static init(sequelize) {
+  static init(...args: any[]): any {
+    const sequelize = args[0] as Sequelize
     super.init(
       {
         id: {
@@ -43,9 +31,6 @@ class LibraryFolder extends Model {
     LibraryFolder.belongsTo(library)
   }
 
-  /**
-   * TODO: Update to use new model
-   */
   toOldJSON() {
     return {
       id: this.id,
@@ -56,4 +41,4 @@ class LibraryFolder extends Model {
   }
 }
 
-module.exports = LibraryFolder
+export = LibraryFolder

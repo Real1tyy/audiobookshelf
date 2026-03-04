@@ -36,7 +36,8 @@
     ]
   },
   "mocha": {
-    "recursive": true
+    "recursive": true,
+    "require": ["tsx/cjs"]
   },
   "author": "advplyr",
   "license": "GPL-3.0",
