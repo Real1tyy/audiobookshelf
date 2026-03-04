@@ -25,3 +25,29 @@ sw.*
 tailwind.compiled.css
 tailwind.config.js
 Data
+*.log
+node_modules
+dist
+.wrangler
+.astro
+.env
+.dev.vars
+.DS_Store
+.secrets-state.json
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# ESLint cache
+.eslintcache
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+
+# Tool use logs
+data/
+*settings.local.json
+logs/
+*.log
