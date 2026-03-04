@@ -200,7 +200,7 @@ class Database {
     })
 
     // Helper function
-    this.sequelize.uppercaseFirst = (str) => (str ? `${str[0].toUpperCase()}${str.substr(1)}` : '')
+    this.sequelize.uppercaseFirst = (str) => (str ? `${str[0].toUpperCase()}${str.slice(1)}` : '')
 
     try {
       await this.sequelize.authenticate()

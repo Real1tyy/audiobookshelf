@@ -175,7 +175,7 @@ const getTitleParts = (title) => {
   for (const prefix of prefixesToIgnore) {
     // e.g. for prefix "the". If title is "The Book" return "Book, The"
     if (title.toLowerCase().startsWith(`${prefix} `)) {
-      return [title.substr(prefix.length + 1), `${prefix.substr(0, 1).toUpperCase() + prefix.substr(1)}`]
+      return [title.slice(prefix.length + 1), `${prefix[0].toUpperCase()}${prefix.slice(1)}`]
     }
   }
   return [title, null]
