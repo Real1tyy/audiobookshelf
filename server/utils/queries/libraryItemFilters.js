@@ -44,27 +44,6 @@ module.exports = {
       libraryItem.media = book
       libraryItems.push(libraryItem)
     }
-    const podcastsWithTag = await Database.podcastModel.findAll({
-      where: Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:tags))`), {
-        [Sequelize.Op.gte]: 1
-      }),
-      replacements: {
-        tags
-      },
-      include: [
-        {
-          model: Database.libraryItemModel
-        },
-        {
-          model: Database.podcastEpisodeModel
-        }
-      ]
-    })
-    for (const podcast of podcastsWithTag) {
-      const libraryItem = podcast.libraryItem
-      libraryItem.media = podcast
-      libraryItems.push(libraryItem)
-    }
     return libraryItems
   },
 
@@ -105,27 +84,6 @@ module.exports = {
       libraryItem.media = book
       libraryItems.push(libraryItem)
     }
-    const podcastsWithGenre = await Database.podcastModel.findAll({
-      where: Sequelize.where(Sequelize.literal(`(SELECT count(*) FROM json_each(genres) WHERE json_valid(genres) AND json_each.value IN (:genres))`), {
-        [Sequelize.Op.gte]: 1
-      }),
-      replacements: {
-        genres
-      },
-      include: [
-        {
-          model: Database.libraryItemModel
-        },
-        {
-          model: Database.podcastEpisodeModel
-        }
-      ]
-    })
-    for (const podcast of podcastsWithGenre) {
-      const libraryItem = podcast.libraryItem
-      libraryItem.media = podcast
-      libraryItems.push(libraryItem)
-    }
     return libraryItems
   },
 
@@ -156,10 +114,6 @@ module.exports = {
       include: [
         {
           model: Database.bookModel,
-          attributes: ['id', 'title']
-        },
-        {
-          model: Database.podcastModel,
           attributes: ['id', 'title']
         }
       ],

@@ -112,7 +112,6 @@ class MediaProgress extends Model<InferAttributes<MediaProgress>, InferCreationA
       id: this.id,
       userId: this.userId,
       libraryItemId: this.extraData?.libraryItemId || null,
-      episodeId: null,
       mediaItemId: this.mediaItemId,
       mediaItemType: this.mediaItemType,
       duration: this.duration,

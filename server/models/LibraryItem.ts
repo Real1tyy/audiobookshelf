@@ -665,12 +665,12 @@ class LibraryItem extends Model<InferAttributes<LibraryItem>, InferCreationAttri
     return this.media.audioFiles.find((af: any) => af.ino === ino)
   }
 
-  getTrackList(episodeId?: string) {
+  getTrackList() {
     if (!this.media) {
       Logger.error(`[LibraryItem] getTrackList: Library item "${this.id}" does not have media`)
       return []
     }
-    return this.media.getTracklist(this.id, episodeId)
+    return this.media.getTracklist(this.id)
   }
 
   getLibraryFileWithIno(ino: string) {

@@ -10,7 +10,6 @@ class PlaybackSession {
     this.libraryId = null
     this.libraryItemId = null
     this.bookId = null
-    this.episodeId = null
 
     this.mediaType = null
     this.mediaMetadata = null
@@ -56,7 +55,6 @@ class PlaybackSession {
       libraryId: this.libraryId,
       libraryItemId: this.libraryItemId,
       bookId: this.bookId,
-      episodeId: this.episodeId,
       mediaType: this.mediaType,
       mediaMetadata: structuredClone(this.mediaMetadata),
       chapters: (this.chapters || []).map((c) => ({ ...c })),
@@ -90,7 +88,6 @@ class PlaybackSession {
       libraryId: this.libraryId,
       libraryItemId: this.libraryItemId,
       bookId: this.bookId,
-      episodeId: this.episodeId,
       mediaType: this.mediaType,
       mediaMetadata: structuredClone(this.mediaMetadata),
       chapters: (this.chapters || []).map((c) => ({ ...c })),
@@ -120,7 +117,6 @@ class PlaybackSession {
     this.libraryId = session.libraryId || null
     this.libraryItemId = session.libraryItemId
     this.bookId = session.bookId || null
-    this.episodeId = session.episodeId
     this.mediaType = session.mediaType
     this.duration = session.duration
     this.playMethod = session.playMethod
@@ -133,10 +129,6 @@ class PlaybackSession {
     if (this.libraryItemId?.startsWith('li_') || this.libraryItemId?.startsWith('local_')) {
       this.libraryItemId = null
     }
-    if (this.episodeId?.startsWith('ep_') || this.episodeId?.startsWith('local_')) {
-      this.episodeId = null
-    }
-
     if (session.deviceInfo instanceof DeviceInfo) {
       this.deviceInfo = new DeviceInfo(session.deviceInfo.toJSON())
     } else {
@@ -168,7 +160,6 @@ class PlaybackSession {
   }
 
   get mediaItemId() {
-    if (this.episodeId) return `${this.libraryItemId}-${this.episodeId}`
     return this.libraryItemId
   }
 
@@ -203,22 +194,20 @@ class PlaybackSession {
    * @param {*} mediaPlayer
    * @param {*} deviceInfo
    * @param {*} startTime
-   * @param {*} episodeId
    */
-  setData(libraryItem, userId, mediaPlayer, deviceInfo, startTime, episodeId = null) {
+  setData(libraryItem, userId, mediaPlayer, deviceInfo, startTime) {
     this.id = uuidv4()
     this.userId = userId
     this.libraryId = libraryItem.libraryId
     this.libraryItemId = libraryItem.id
-    this.bookId = episodeId ? null : libraryItem.media.id
-    this.episodeId = episodeId
+    this.bookId = libraryItem.media.id
     this.mediaType = libraryItem.mediaType
     this.mediaMetadata = libraryItem.media.oldMetadataToJSON()
-    this.chapters = libraryItem.media.getChapters(episodeId)
-    this.displayTitle = libraryItem.media.getPlaybackTitle(episodeId)
+    this.chapters = libraryItem.media.getChapters()
+    this.displayTitle = libraryItem.media.getPlaybackTitle()
     this.displayAuthor = libraryItem.media.getPlaybackAuthor()
     this.coverPath = libraryItem.media.coverPath
-    this.duration = libraryItem.media.getPlaybackDuration(episodeId)
+    this.duration = libraryItem.media.getPlaybackDuration()
 
     this.mediaPlayer = mediaPlayer
     this.deviceInfo = deviceInfo || new DeviceInfo()

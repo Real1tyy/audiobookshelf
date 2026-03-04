@@ -13,10 +13,7 @@ const oldDbIdMap = {
   libraryItems: {},
   authors: {}, // key is (new) library id with another map of author ids
   series: {}, // key is (new) library id with another map of series ids
-  collections: {},
-  podcastEpisodes: {},
   books: {}, // key is library item id
-  podcasts: {}, // key is library item id
   devices: {} // key is a json stringify of the old DeviceInfo data OR deviceId if it exists
 }
 
@@ -143,99 +140,13 @@ function migrateBook(oldLibraryItem, LibraryItem) {
 }
 
 /**
- * Migrate oldLibraryItem.media to Podcast model
- * Migrate PodcastEpisode
- * @param {objects.LibraryItem} oldLibraryItem
- * @param {object} LibraryItem models.LibraryItem object
- * @returns {object} { podcast: object, podcastEpisode: [] }
- */
-function migratePodcast(oldLibraryItem, LibraryItem) {
-  const _newRecords = {
-    podcast: null,
-    podcastEpisode: []
-  }
-
-  const oldPodcast = oldLibraryItem.media
-  const oldPodcastMetadata = oldPodcast.metadata
-
-  //
-  // Migrate Podcast
-  //
-  const Podcast = {
-    id: uuidv4(),
-    title: oldPodcastMetadata.title,
-    titleIgnorePrefix: getTitleIgnorePrefix(oldPodcastMetadata.title),
-    author: oldPodcastMetadata.author,
-    releaseDate: oldPodcastMetadata.releaseDate,
-    feedURL: oldPodcastMetadata.feedUrl,
-    imageURL: oldPodcastMetadata.imageUrl,
-    description: oldPodcastMetadata.description,
-    itunesPageURL: oldPodcastMetadata.itunesPageUrl,
-    itunesId: oldPodcastMetadata.itunesId,
-    itunesArtistId: oldPodcastMetadata.itunesArtistId,
-    language: oldPodcastMetadata.language,
-    podcastType: oldPodcastMetadata.type,
-    explicit: !!oldPodcastMetadata.explicit,
-    autoDownloadEpisodes: !!oldPodcast.autoDownloadEpisodes,
-    autoDownloadSchedule: oldPodcast.autoDownloadSchedule,
-    lastEpisodeCheck: oldPodcast.lastEpisodeCheck,
-    maxEpisodesToKeep: oldPodcast.maxEpisodesToKeep || 0,
-    maxNewEpisodesToDownload: oldPodcast.maxNewEpisodesToDownload || 3,
-    lastCoverSearchQuery: oldPodcast.lastCoverSearchQuery,
-    lastCoverSearch: oldPodcast.lastCoverSearch,
-    createdAt: LibraryItem.createdAt,
-    updatedAt: LibraryItem.updatedAt,
-    coverPath: oldPodcast.coverPath,
-    tags: oldPodcast.tags,
-    genres: oldPodcastMetadata.genres
-  }
-  _newRecords.podcast = Podcast
-  oldDbIdMap.podcasts[oldLibraryItem.id] = Podcast.id
-
-  //
-  // Migrate PodcastEpisodes
-  //
-  const oldEpisodes = oldPodcast.episodes || []
-  for (const oldEpisode of oldEpisodes) {
-    oldEpisode.audioFile.index = 1
-
-    const PodcastEpisode = {
-      id: uuidv4(),
-      oldEpisodeId: oldEpisode.id,
-      index: oldEpisode.index,
-      season: oldEpisode.season || null,
-      episode: oldEpisode.episode || null,
-      episodeType: oldEpisode.episodeType || null,
-      title: oldEpisode.title,
-      subtitle: oldEpisode.subtitle || null,
-      description: oldEpisode.description || null,
-      pubDate: oldEpisode.pubDate || null,
-      enclosureURL: oldEpisode.enclosure?.url || null,
-      enclosureSize: oldEpisode.enclosure?.length || null,
-      enclosureType: oldEpisode.enclosure?.type || null,
-      publishedAt: oldEpisode.publishedAt || null,
-      createdAt: oldEpisode.addedAt,
-      updatedAt: oldEpisode.updatedAt,
-      podcastId: Podcast.id,
-      audioFile: oldEpisode.audioFile,
-      chapters: oldEpisode.chapters || []
-    }
-    _newRecords.podcastEpisode.push(PodcastEpisode)
-    oldDbIdMap.podcastEpisodes[oldEpisode.id] = PodcastEpisode.id
-  }
-  return _newRecords
-}
-
-/**
- * Migrate libraryItems to LibraryItem, Book, Podcast models
+ * Migrate libraryItems to LibraryItem and Book models
  * @param {Array<objects.LibraryItem>} oldLibraryItems
- * @returns {object} { libraryItem: [], book: [], podcast: [], podcastEpisode: [], bookSeries: [], bookAuthor: [] }
+ * @returns {object} { libraryItem: [], book: [], bookSeries: [], bookAuthor: [] }
  */
 function migrateLibraryItems(oldLibraryItems) {
   const _newRecords = {
     book: [],
-    podcast: [],
-    podcastEpisode: [],
     bookSeries: [],
     bookAuthor: [],
     libraryItem: []
@@ -251,7 +162,7 @@ function migrateLibraryItems(oldLibraryItems) {
       Logger.error(`[dbMigration] migrateLibraryItems: Old library id not found "${oldLibraryItem.libraryId}"`)
       continue
     }
-    if (!['book', 'podcast'].includes(oldLibraryItem.mediaType)) {
+    if (oldLibraryItem.mediaType !== 'book') {
       Logger.error(`[dbMigration] migrateLibraryItems: Not migrating library item with mediaType=${oldLibraryItem.mediaType}`)
       continue
     }
@@ -296,22 +207,14 @@ function migrateLibraryItems(oldLibraryItems) {
     _newRecords.libraryItem.push(LibraryItem)
 
     //
-    // Migrate Book/Podcast
+    // Migrate Book
     //
-    if (oldLibraryItem.mediaType === 'book') {
-      const bookRecords = migrateBook(oldLibraryItem, LibraryItem)
-      _newRecords.book.push(bookRecords.book)
-      _newRecords.bookAuthor.push(...bookRecords.bookAuthor)
-      _newRecords.bookSeries.push(...bookRecords.bookSeries)
+    const bookRecords = migrateBook(oldLibraryItem, LibraryItem)
+    _newRecords.book.push(bookRecords.book)
+    _newRecords.bookAuthor.push(...bookRecords.bookAuthor)
+    _newRecords.bookSeries.push(...bookRecords.bookSeries)
 
-      LibraryItem.mediaId = oldDbIdMap.books[oldLibraryItem.id]
-    } else if (oldLibraryItem.mediaType === 'podcast') {
-      const podcastRecords = migratePodcast(oldLibraryItem, LibraryItem)
-      _newRecords.podcast.push(podcastRecords.podcast)
-      _newRecords.podcastEpisode.push(...podcastRecords.podcastEpisode)
-
-      LibraryItem.mediaId = oldDbIdMap.podcasts[oldLibraryItem.id]
-    }
+    LibraryItem.mediaId = oldDbIdMap.books[oldLibraryItem.id]
   }
   return _newRecords
 }
@@ -327,7 +230,7 @@ function migrateLibraries(oldLibraries) {
     libraryFolder: []
   }
   for (const oldLibrary of oldLibraries) {
-    if (!['book', 'podcast'].includes(oldLibrary.mediaType)) {
+    if (oldLibrary.mediaType !== 'book') {
       Logger.error(`[dbMigration] migrateLibraries: Not migrating library with mediaType=${oldLibrary.mediaType}`)
       continue
     }
@@ -530,14 +433,8 @@ function migrateUsers(oldUsers) {
     // Migrate MediaProgress
     //
     for (const oldMediaProgress of oldUser.mediaProgress) {
-      let mediaItemType = 'book'
-      let mediaItemId = null
-      if (oldMediaProgress.episodeId) {
-        mediaItemType = 'podcastEpisode'
-        mediaItemId = oldDbIdMap.podcastEpisodes[oldMediaProgress.episodeId]
-      } else {
-        mediaItemId = oldDbIdMap.books[oldMediaProgress.libraryItemId]
-      }
+      const mediaItemType = 'book'
+      const mediaItemId = oldDbIdMap.books[oldMediaProgress.libraryItemId]
 
       if (!mediaItemId) {
         Logger.warn(`[dbMigration] migrateUsers: Unable to find media item for media progress "${oldMediaProgress.id}"`)
@@ -653,14 +550,8 @@ function migrateSessions(oldSessions) {
     //
     // Migrate PlaybackSession
     //
-    let mediaItemId = null
-    let mediaItemType = 'book'
-    if (oldSession.mediaType === 'podcast') {
-      mediaItemId = oldDbIdMap.podcastEpisodes[oldSession.episodeId] || null
-      mediaItemType = 'podcastEpisode'
-    } else {
-      mediaItemId = oldDbIdMap.books[oldSession.libraryItemId] || null
-    }
+    const mediaItemId = oldDbIdMap.books[oldSession.libraryItemId] || null
+    const mediaItemType = 'book'
 
     const PlaybackSession = {
       id: uuidv4(),
@@ -694,55 +585,6 @@ function migrateSessions(oldSessions) {
 }
 
 /**
- * Migrate collections to Collection & CollectionBook
- * @param {Array<objects.Collection>} oldCollections
- * @returns {object} { collection: [], collectionBook: [] }
- */
-function migrateCollections(oldCollections) {
-  const _newRecords = {
-    collection: [],
-    collectionBook: []
-  }
-  for (const oldCollection of oldCollections) {
-    const libraryId = oldDbIdMap.libraries[oldCollection.libraryId]
-    if (!libraryId) {
-      Logger.warn(`[dbMigration] migrateCollections: Library not found for collection "${oldCollection.name}" (id:${oldCollection.libraryId})`)
-      continue
-    }
-
-    const BookIds = oldCollection.books.map((lid) => oldDbIdMap.books[lid]).filter((bid) => bid)
-    if (!BookIds.length) {
-      Logger.warn(`[dbMigration] migrateCollections: Collection "${oldCollection.name}" has no books`)
-      continue
-    }
-
-    const Collection = {
-      id: uuidv4(),
-      name: oldCollection.name,
-      description: oldCollection.description,
-      createdAt: oldCollection.createdAt,
-      updatedAt: oldCollection.lastUpdate,
-      libraryId
-    }
-    oldDbIdMap.collections[oldCollection.id] = Collection.id
-    _newRecords.collection.push(Collection)
-
-    let order = 1
-    BookIds.forEach((bookId) => {
-      const CollectionBook = {
-        id: uuidv4(),
-        createdAt: Collection.createdAt,
-        bookId,
-        collectionId: Collection.id,
-        order: order++
-      }
-      _newRecords.collectionBook.push(CollectionBook)
-    })
-  }
-  return _newRecords
-}
-
-/**
  * Migrate playlists to Playlist and PlaylistMediaItem
  * @param {Array<objects.Playlist>} oldPlaylists
  * @returns {object} { playlist: [], playlistMediaItem: [] }
@@ -765,15 +607,10 @@ function migratePlaylists(oldPlaylists) {
       continue
     }
 
-    let mediaItemType = 'book'
-    let MediaItemIds = []
+    const mediaItemType = 'book'
+    const MediaItemIds = []
     oldPlaylist.items.forEach((itemObj) => {
-      if (itemObj.episodeId) {
-        mediaItemType = 'podcastEpisode'
-        if (oldDbIdMap.podcastEpisodes[itemObj.episodeId]) {
-          MediaItemIds.push(oldDbIdMap.podcastEpisodes[itemObj.episodeId])
-        }
-      } else if (oldDbIdMap.books[itemObj.libraryItemId]) {
+      if (oldDbIdMap.books[itemObj.libraryItemId]) {
         MediaItemIds.push(oldDbIdMap.books[itemObj.libraryItemId])
       }
     })
@@ -805,107 +642,6 @@ function migratePlaylists(oldPlaylists) {
       }
       _newRecords.playlistMediaItem.push(PlaylistMediaItem)
     })
-  }
-  return _newRecords
-}
-
-/**
- * Migrate feeds to Feed and FeedEpisode models
- * @param {Array<objects.Feed>} oldFeeds
- * @returns {object} { feed: [], feedEpisode: [] }
- */
-function migrateFeeds(oldFeeds) {
-  const _newRecords = {
-    feed: [],
-    feedEpisode: []
-  }
-  for (const oldFeed of oldFeeds) {
-    if (!oldFeed.episodes?.length) {
-      continue
-    }
-
-    let entityId = null
-
-    if (oldFeed.entityType === 'collection') {
-      entityId = oldDbIdMap.collections[oldFeed.entityId]
-    } else if (oldFeed.entityType === 'libraryItem') {
-      entityId = oldDbIdMap.libraryItems[oldFeed.entityId]
-    } else if (oldFeed.entityType === 'series') {
-      // Series were split to be per library
-      // This will use the first series it finds
-      for (const libraryId in oldDbIdMap.series) {
-        if (oldDbIdMap.series[libraryId][oldFeed.entityId]) {
-          entityId = oldDbIdMap.series[libraryId][oldFeed.entityId]
-          break
-        }
-      }
-    }
-
-    if (!entityId) {
-      Logger.warn(`[dbMigration] migrateFeeds: Entity not found for feed "${oldFeed.entityType}" (id:${oldFeed.entityId})`)
-      continue
-    }
-
-    const userId = oldDbIdMap.users[oldFeed.userId]
-    if (!userId) {
-      Logger.warn(`[dbMigration] migrateFeeds: User not found for feed (id:${oldFeed.userId})`)
-      continue
-    }
-
-    const oldFeedMeta = oldFeed.meta
-
-    const Feed = {
-      id: uuidv4(),
-      slug: oldFeed.slug,
-      entityType: oldFeed.entityType,
-      entityId,
-      entityUpdatedAt: oldFeed.entityUpdatedAt,
-      serverAddress: oldFeed.serverAddress,
-      feedURL: oldFeed.feedUrl,
-      coverPath: oldFeed.coverPath || null,
-      imageURL: oldFeedMeta.imageUrl,
-      siteURL: oldFeedMeta.link,
-      title: oldFeedMeta.title,
-      description: oldFeedMeta.description,
-      author: oldFeedMeta.author,
-      podcastType: oldFeedMeta.type || null,
-      language: oldFeedMeta.language || null,
-      ownerName: oldFeedMeta.ownerName || null,
-      ownerEmail: oldFeedMeta.ownerEmail || null,
-      explicit: !!oldFeedMeta.explicit,
-      preventIndexing: !!oldFeedMeta.preventIndexing,
-      createdAt: oldFeed.createdAt,
-      updatedAt: oldFeed.updatedAt,
-      userId
-    }
-    _newRecords.feed.push(Feed)
-
-    //
-    // Migrate FeedEpisodes
-    //
-    for (const oldFeedEpisode of oldFeed.episodes) {
-      const FeedEpisode = {
-        id: uuidv4(),
-        title: oldFeedEpisode.title,
-        author: oldFeedEpisode.author,
-        description: oldFeedEpisode.description,
-        siteURL: oldFeedEpisode.link,
-        enclosureURL: oldFeedEpisode.enclosure?.url || null,
-        enclosureType: oldFeedEpisode.enclosure?.type || null,
-        enclosureSize: oldFeedEpisode.enclosure?.size || null,
-        pubDate: oldFeedEpisode.pubDate,
-        season: oldFeedEpisode.season || null,
-        episode: oldFeedEpisode.episode || null,
-        episodeType: oldFeedEpisode.episodeType || null,
-        duration: oldFeedEpisode.duration,
-        filePath: oldFeedEpisode.fullPath,
-        explicit: !!oldFeedEpisode.explicit,
-        createdAt: oldFeed.createdAt,
-        updatedAt: oldFeed.updatedAt,
-        feedId: Feed.id
-      }
-      _newRecords.feedEpisode.push(FeedEpisode)
-    }
   }
   return _newRecords
 }
@@ -998,7 +734,7 @@ async function handleMigrateSeries(DatabaseModels, oldLibraryItems) {
 }
 
 /**
- * bulkCreate new LibraryItem, Book and Podcast rows
+ * bulkCreate new LibraryItem and Book rows
  * @param {Map<string,Model>} DatabaseModels
  * @param {Array<objects.LibraryItem>} oldLibraryItems
  */
@@ -1063,19 +799,6 @@ async function handleMigrateSessions(DatabaseModels) {
 }
 
 /**
- * Load old collections and bulkCreate new Collection, CollectionBook models
- * @param {Map<string,Model>} DatabaseModels
- */
-async function handleMigrateCollections(DatabaseModels) {
-  const oldCollections = await oldDbFiles.loadOldData('collections')
-  const newCollectionRecords = migrateCollections(oldCollections)
-  for (const model in newCollectionRecords) {
-    Logger.info(`[dbMigration] Inserting ${newCollectionRecords[model].length} ${model} rows`)
-    await DatabaseModels[model].bulkCreate(newCollectionRecords[model])
-  }
-}
-
-/**
  * Load old playlists and bulkCreate new Playlist, PlaylistMediaItem models
  * @param {Map<string,Model>} DatabaseModels
  */
@@ -1085,19 +808,6 @@ async function handleMigratePlaylists(DatabaseModels) {
   for (const model in newPlaylistRecords) {
     Logger.info(`[dbMigration] Inserting ${newPlaylistRecords[model].length} ${model} rows`)
     await DatabaseModels[model].bulkCreate(newPlaylistRecords[model])
-  }
-}
-
-/**
- * Load old feeds and bulkCreate new Feed, FeedEpisode models
- * @param {Map<string,Model>} DatabaseModels
- */
-async function handleMigrateFeeds(DatabaseModels) {
-  const oldFeeds = await oldDbFiles.loadOldData('feeds')
-  const newFeedRecords = migrateFeeds(oldFeeds)
-  for (const model in newFeedRecords) {
-    Logger.info(`[dbMigration] Inserting ${newFeedRecords[model].length} ${model} rows`)
-    await DatabaseModels[model].bulkCreate(newFeedRecords[model])
   }
 }
 
@@ -1112,7 +822,7 @@ module.exports.migrate = async (DatabaseModels) => {
   // Migrate EmailSettings, NotificationSettings and ServerSettings to Setting model
   await handleMigrateSettings(DatabaseModels)
 
-  // Migrate Series, Author, LibraryItem, Book, Podcast
+  // Migrate Series, Author, LibraryItem, Book
   await handleMigrateAuthorsSeriesAndLibraryItems(DatabaseModels)
 
   // Migrate User, MediaProgress
@@ -1121,14 +831,8 @@ module.exports.migrate = async (DatabaseModels) => {
   // Migrate PlaybackSession, Device
   await handleMigrateSessions(DatabaseModels)
 
-  // Migrate Collection, CollectionBook
-  await handleMigrateCollections(DatabaseModels)
-
   // Migrate Playlist, PlaylistMediaItem
   await handleMigratePlaylists(DatabaseModels)
-
-  // Migrate Feed, FeedEpisode
-  await handleMigrateFeeds(DatabaseModels)
 
   // Purge author images and cover images from cache
   try {
@@ -1171,14 +875,6 @@ async function migrationPatchNewColumns(queryInterface) {
           { transaction: t }
         ),
         queryInterface.addColumn(
-          'podcastEpisodes',
-          'extraData',
-          {
-            type: DataTypes.JSON
-          },
-          { transaction: t }
-        ),
-        queryInterface.addColumn(
           'libraries',
           'extraData',
           {
@@ -1203,7 +899,6 @@ async function handleOldLibraryItems(ctx) {
   const libraryItems = await ctx.models.libraryItem.findAllExpandedWhere()
 
   const bulkUpdateItems = []
-  const bulkUpdateEpisodes = []
 
   for (const libraryItem of libraryItems) {
     // Find matching old library item by ino
@@ -1217,30 +912,7 @@ async function handleOldLibraryItems(ctx) {
           oldLibraryItemId: matchingOldLibraryItem.id
         }
       })
-
-      if (libraryItem.media.podcastEpisodes?.length && matchingOldLibraryItem.media.episodes?.length) {
-        for (const podcastEpisode of libraryItem.media.podcastEpisodes) {
-          // Find matching old episode by audio file ino
-          const matchingOldPodcastEpisode = matchingOldLibraryItem.media.episodes.find((oep) => oep.audioFile?.ino && oep.audioFile.ino === podcastEpisode.audioFile?.ino)
-          if (matchingOldPodcastEpisode) {
-            oldDbIdMap.podcastEpisodes[matchingOldPodcastEpisode.id] = podcastEpisode.id
-
-            bulkUpdateEpisodes.push({
-              id: podcastEpisode.id,
-              extraData: {
-                oldEpisodeId: matchingOldPodcastEpisode.id
-              }
-            })
-          }
-        }
-      }
     }
-  }
-
-  if (bulkUpdateEpisodes.length) {
-    await ctx.models.podcastEpisode.bulkCreate(bulkUpdateEpisodes, {
-      updateOnDuplicate: ['extraData']
-    })
   }
 
   if (bulkUpdateItems.length) {
@@ -1249,7 +921,7 @@ async function handleOldLibraryItems(ctx) {
     })
   }
 
-  Logger.info(`[dbMigration] Migration 2.3.0+: Updated ${bulkUpdateItems.length} library items & ${bulkUpdateEpisodes.length} episodes`)
+  Logger.info(`[dbMigration] Migration 2.3.0+: Updated ${bulkUpdateItems.length} library items`)
 }
 
 /**
@@ -1485,40 +1157,6 @@ async function migrationPatch2Books(ctx, offset = 0) {
 
 /**
  * Migration from 2.3.3 to 2.3.4
- * Populating the titleIgnorePrefix column on podcast
- * @param {/src/Database} ctx
- * @param {number} offset
- */
-async function migrationPatch2Podcasts(ctx, offset = 0) {
-  const podcasts = await ctx.models.podcast.findAll({
-    limit: 500,
-    offset
-  })
-  if (!podcasts.length) return
-
-  const bulkUpdateItems = []
-  for (const podcast of podcasts) {
-    bulkUpdateItems.push({
-      id: podcast.id,
-      titleIgnorePrefix: getTitleIgnorePrefix(podcast.title)
-    })
-  }
-
-  if (bulkUpdateItems.length) {
-    Logger.info(`[dbMigration] Migration patch 2.3.3+ - patching ${bulkUpdateItems.length} podcasts`)
-    await ctx.models.podcast.bulkCreate(bulkUpdateItems, {
-      updateOnDuplicate: ['titleIgnorePrefix']
-    })
-  }
-
-  if (podcasts.length < 500) {
-    return
-  }
-  return migrationPatch2Podcasts(ctx, offset + podcasts.length)
-}
-
-/**
- * Migration from 2.3.3 to 2.3.4
  * Populating the nameIgnorePrefix column on series
  * @param {/src/Database} ctx
  * @param {number} offset
@@ -1735,14 +1373,6 @@ module.exports.migrationPatch2 = async (ctx) => {
               { transaction: t }
             ),
             queryInterface.addColumn(
-              'podcasts',
-              'titleIgnorePrefix',
-              {
-                type: DataTypes.STRING
-              },
-              { transaction: t }
-            ),
-            queryInterface.addColumn(
               'series',
               'nameIgnorePrefix',
               {
@@ -1778,9 +1408,6 @@ module.exports.migrationPatch2 = async (ctx) => {
 
       // Patch books duration & titleIgnorePrefix column
       await migrationPatch2Books(ctx, 0)
-
-      // Patch podcasts titleIgnorePrefix column
-      await migrationPatch2Podcasts(ctx, 0)
 
       // Patch authors lastFirst column
       await migrationPatch2Authors(ctx, 0)

@@ -75,13 +75,12 @@ class PlaybackSessionManager {
    *
    * @param {import('../controllers/LibraryItemController').LibraryItemControllerRequest} req
    * @param {import('express').Response} res
-   * @param {string} [episodeId]
    */
-  async startSessionRequest(req, res, episodeId) {
+  async startSessionRequest(req, res) {
     const deviceInfo = await this.getDeviceInfo(req, req.body?.deviceInfo)
     Logger.debug(`[PlaybackSessionManager] startSessionRequest for device ${deviceInfo.deviceDescription}`)
     const { libraryItem, body: options } = req
-    const session = await this.startSession(req.user, deviceInfo, libraryItem, episodeId, options)
+    const session = await this.startSession(req.user, deviceInfo, libraryItem, options)
     res.json(session.toJSONForClient(libraryItem))
   }
 
@@ -195,7 +194,7 @@ class PlaybackSessionManager {
       if (session.displayAuthor == null || session.displayAuthor === '') {
         session.displayAuthor = libraryItem.authorNamesFirstLast
       }
-      session.duration = libraryItem.media.getPlaybackDuration(sessionJson.episodeId)
+      session.duration = libraryItem.media.getPlaybackDuration()
 
       Logger.debug(`[PlaybackSessionManager] Inserting new session for "${session.displayTitle}" (${session.id})`)
       await Database.createPlaybackSession(session)
@@ -221,7 +220,7 @@ class PlaybackSessionManager {
       progressSynced: false
     }
 
-    const mediaItemId = session.episodeId || libraryItem.media.id
+    const mediaItemId = libraryItem.media.id
     let userProgressForItem = user.getMediaProgress(mediaItemId)
     if (userProgressForItem) {
       if (userProgressForItem.updatedAt.valueOf() > session.updatedAt) {
@@ -230,7 +229,6 @@ class PlaybackSessionManager {
         Logger.info(`[PlaybackSessionManager] Updating progress for "${session.displayTitle}" with current time ${session.currentTime} (previously ${userProgressForItem.currentTime})`)
         const updateResponse = await user.createUpdateMediaProgressFromPayload({
           libraryItemId: libraryItem.id,
-          episodeId: session.episodeId,
           ...session.mediaProgressObject,
           markAsFinishedPercentComplete: library.librarySettings.markAsFinishedPercentComplete,
           markAsFinishedTimeRemaining: library.librarySettings.markAsFinishedTimeRemaining
@@ -244,7 +242,6 @@ class PlaybackSessionManager {
       Logger.info(`[PlaybackSessionManager] Creating new media progress for media item "${session.displayTitle}"`)
       const updateResponse = await user.createUpdateMediaProgressFromPayload({
         libraryItemId: libraryItem.id,
-        episodeId: session.episodeId,
         ...session.mediaProgressObject,
         markAsFinishedPercentComplete: library.librarySettings.markAsFinishedPercentComplete,
         markAsFinishedTimeRemaining: library.librarySettings.markAsFinishedTimeRemaining
@@ -301,11 +298,10 @@ class PlaybackSessionManager {
    * @param {import('../models/User')} user
    * @param {DeviceInfo} deviceInfo
    * @param {import('../models/LibraryItem')} libraryItem
-   * @param {string|null} episodeId
    * @param {{forceDirectPlay?:boolean, forceTranscode?:boolean, mediaPlayer:string, supportedMimeTypes?:string[]}} options
    * @returns {Promise<PlaybackSession>}
    */
-  async startSession(user, deviceInfo, libraryItem, episodeId, options) {
+  async startSession(user, deviceInfo, libraryItem, options) {
     // Close any sessions already open for user and device
     const userSessions = this.sessions.filter((playbackSession) => playbackSession.userId === user.id && playbackSession.deviceId === deviceInfo.id)
     for (const session of userSessions) {
@@ -313,10 +309,10 @@ class PlaybackSessionManager {
       await this.closeSession(user, session, null)
     }
 
-    const shouldDirectPlay = options.forceDirectPlay || (!options.forceTranscode && libraryItem.media.checkCanDirectPlay(options.supportedMimeTypes, episodeId))
+    const shouldDirectPlay = options.forceDirectPlay || (!options.forceTranscode && libraryItem.media.checkCanDirectPlay(options.supportedMimeTypes))
     const mediaPlayer = options.mediaPlayer || 'unknown'
 
-    const mediaItemId = episodeId || libraryItem.media.id
+    const mediaItemId = libraryItem.media.id
     const userProgress = user.getMediaProgress(mediaItemId)
     let userStartTime = 0
     if (userProgress) {
@@ -328,7 +324,7 @@ class PlaybackSessionManager {
       }
     }
     const newPlaybackSession = new PlaybackSession()
-    newPlaybackSession.setData(libraryItem, user.id, mediaPlayer, deviceInfo, userStartTime, episodeId)
+    newPlaybackSession.setData(libraryItem, user.id, mediaPlayer, deviceInfo, userStartTime)
 
     if (options.seriesId) {
       newPlaybackSession.seriesId = options.seriesId
@@ -337,11 +333,11 @@ class PlaybackSessionManager {
     let audioTracks = []
     if (shouldDirectPlay) {
       Logger.debug(`[PlaybackSessionManager] "${user.username}" starting direct play session for item "${libraryItem.id}" with id ${newPlaybackSession.id} (Device: ${newPlaybackSession.deviceDescription})`)
-      audioTracks = libraryItem.getTrackList(episodeId)
+      audioTracks = libraryItem.getTrackList()
       newPlaybackSession.playMethod = PlayMethod.DIRECTPLAY
     } else {
       Logger.debug(`[PlaybackSessionManager] "${user.username}" starting stream session for item "${libraryItem.id}" (Device: ${newPlaybackSession.deviceDescription})`)
-      const stream = new Stream(newPlaybackSession.id, this.StreamsPath, user, libraryItem, episodeId, userStartTime)
+      const stream = new Stream(newPlaybackSession.id, this.StreamsPath, user, libraryItem, userStartTime)
       await stream.generatePlaylist()
       stream.start() // Start transcode
 
@@ -389,7 +385,6 @@ class PlaybackSessionManager {
 
     const updateResponse = await user.createUpdateMediaProgressFromPayload({
       libraryItemId: libraryItem.id,
-      episodeId: session.episodeId,
       // duration no longer required (v2.15.1) but used if available
       duration: syncData.duration || session.duration || 0,
       currentTime: syncData.currentTime,

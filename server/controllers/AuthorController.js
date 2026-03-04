@@ -458,7 +458,7 @@ class AuthorController {
     const authorLibraryItemIdsArr = authorLibraryItems.map((li) => li.id)
     const authorLibraryItemIdsSet = new Set(authorLibraryItemIdsArr)
 
-    // MediaProgress is keyed by mediaItemId (bookId/episodeId). The corresponding libraryItemId is stored in extraData.
+    // MediaProgress is keyed by mediaItemId (bookId). The corresponding libraryItemId is stored in extraData.
     // Use extraData.libraryItemId so we only count finishes for this author's library items.
     const finishedLibraryItemIds = new Set(
       userMediaProgress

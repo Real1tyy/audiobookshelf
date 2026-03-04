@@ -219,8 +219,7 @@ class LibraryItemController {
 
       // Include users media progress
       if (includeEntities.includes('progress')) {
-        const episodeId = req.query.episode || null
-        item.userMediaProgress = req.user.getOldMediaProgress(item.id, episodeId)
+        item.userMediaProgress = req.user.getOldMediaProgress(item.id)
       }
 
       if (item.mediaType === 'book' && req.user.isAdminOrUp && includeEntities.includes('share')) {
@@ -599,7 +598,7 @@ class LibraryItemController {
       return res.sendStatus(404)
     }
 
-    this.playbackSessionManager.startSessionRequest(req, res, null)
+    this.playbackSessionManager.startSessionRequest(req, res)
   }
 
   /**
@@ -1331,7 +1330,7 @@ class LibraryItemController {
     }
 
     if (req.path.includes('/play')) {
-      // allow POST requests using /play and /play/:episodeId
+      // allow POST requests using /play
     } else if (req.method == 'DELETE' && !req.user.canDelete) {
       Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to delete without permission`)
       return res.sendStatus(403)

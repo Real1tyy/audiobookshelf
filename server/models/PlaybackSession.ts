@@ -61,7 +61,6 @@ class PlaybackSession extends Model<InferAttributes<PlaybackSession>, InferCreat
       libraryId: playbackSessionExpanded.libraryId,
       libraryItemId: playbackSessionExpanded.extraData?.libraryItemId || null,
       bookId: playbackSessionExpanded.mediaItemId,
-      episodeId: null,
       mediaType: 'book',
       mediaMetadata: playbackSessionExpanded.mediaMetadata,
       chapters: null,

@@ -13,14 +13,13 @@ const hlsPlaylistGenerator = require('../utils/generators/hlsPlaylistGenerator')
 const AudioTrack = require('./files/AudioTrack')
 
 class Stream extends EventEmitter {
-  constructor(sessionId, streamPath, user, libraryItem, episodeId, startTime, transcodeOptions = {}) {
+  constructor(sessionId, streamPath, user, libraryItem, startTime, transcodeOptions = {}) {
     super()
 
     this.id = sessionId
     this.user = user
     /** @type {import('../models/LibraryItem')} */
     this.libraryItem = libraryItem
-    this.episodeId = episodeId
 
     this.transcodeOptions = transcodeOptions
 
@@ -41,21 +40,14 @@ class Stream extends EventEmitter {
     this.furthestSegmentCreated = 0
   }
 
-  /**
-   * @returns {import('../models/PodcastEpisode') | null}
-   */
-  get episode() {
-    if (!this.libraryItem.isPodcast) return null
-    return this.libraryItem.media.podcastEpisodes.find((ep) => ep.id === this.episodeId)
-  }
   get mediaTitle() {
-    return this.libraryItem.media.getPlaybackTitle(this.episodeId)
+    return this.libraryItem.media.getPlaybackTitle()
   }
   get totalDuration() {
-    return this.libraryItem.media.getPlaybackDuration(this.episodeId)
+    return this.libraryItem.media.getPlaybackDuration()
   }
   get tracks() {
-    return this.libraryItem.getTrackList(this.episodeId)
+    return this.libraryItem.getTrackList()
   }
   get tracksAudioFileType() {
     if (!this.tracks.length) return null
@@ -112,7 +104,7 @@ class Stream extends EventEmitter {
       id: this.id,
       userId: this.user.id,
       libraryItem: this.libraryItem.toOldJSONExpanded(),
-      episode: this.episode ? this.episode.toOldJSONExpanded(this.libraryItem.id) : null,
+      episode: null,
       segmentLength: this.segmentLength,
       playlistPath: this.playlistPath,
       clientPlaylistUri: this.clientPlaylistUri,
