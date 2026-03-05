@@ -1,12 +1,11 @@
 const { Request, Response } = require('express')
 const uuid = require('uuid')
-const Path = require('path')
 const { Op } = require('sequelize')
 const Logger = require('../Logger')
 const Database = require('../Database')
 
 const { PlayMethod } = require('../utils/constants')
-const { getAudioMimeTypeFromExtname, encodeUriPath } = require('../utils/fileUtils')
+const { sendXAccel, setAudioContentType, resDownload } = require('../utils/responseHelpers')
 const zipHelpers = require('../utils/zipHelpers')
 
 const PlaybackSession = require('../objects/PlaybackSession')
@@ -155,11 +154,7 @@ class ShareController {
       return res.status(404).send('Cover image not found')
     }
 
-    if (global.XAccel) {
-      const encodedURI = encodeUriPath(global.XAccel + coverPath)
-      Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-      return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-    }
+    if (sendXAccel(res, coverPath)) return
 
     res.sendFile(coverPath)
   }
@@ -196,17 +191,9 @@ class ShareController {
     }
     const audioTrackPath = audioTrack.metadata.path
 
-    if (global.XAccel) {
-      const encodedURI = encodeUriPath(global.XAccel + audioTrackPath)
-      Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-      return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-    }
+    if (sendXAccel(res, audioTrackPath)) return
 
-    // Express does not set the correct mimetype for m4b files so use our defined mimetypes if available
-    const audioMimeType = getAudioMimeTypeFromExtname(Path.extname(audioTrackPath))
-    if (audioMimeType) {
-      res.setHeader('Content-Type', audioMimeType)
-    }
+    setAudioContentType(res, audioTrackPath)
     res.sendFile(audioTrackPath)
   }
 
@@ -252,11 +239,8 @@ class ShareController {
 
     try {
       if (libraryItem.isFile) {
-        const audioMimeType = getAudioMimeTypeFromExtname(Path.extname(itemPath))
-        if (audioMimeType) {
-          res.setHeader('Content-Type', audioMimeType)
-        }
-        await new Promise((resolve, reject) => res.download(itemPath, libraryItem.relPath, (error) => (error ? reject(error) : resolve())))
+        setAudioContentType(res, itemPath)
+        await resDownload(res, itemPath, libraryItem.relPath)
       } else {
         const filename = `${itemTitle}.zip`
         await zipHelpers.zipDirectoryPipe(itemPath, filename, res)
@@ -313,10 +297,6 @@ class ShareController {
    * @param {Response} res
    */
   async getMediaItemShares(req, res) {
-    if (!req.user.isAdminOrUp) {
-      return res.sendStatus(403)
-    }
-
     try {
       const shares = ShareManager.openMediaItemShares.map((s) => s.mediaItemShare)
 
@@ -372,10 +352,6 @@ class ShareController {
    * @param {Response} res
    */
   async createMediaItemShare(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[ShareController] Non-admin user "${req.user.username}" attempted to create item share`)
-      return res.sendStatus(403)
-    }
 
     const { slug, expiresAt, mediaItemType, mediaItemId, isDownloadable } = req.body
 
@@ -436,10 +412,6 @@ class ShareController {
    * @param {Response} res
    */
   async deleteMediaItemShare(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[ShareController] Non-admin user "${req.user.username}" attempted to delete item share`)
-      return res.sendStatus(403)
-    }
 
     try {
       const mediaItemShare = await Database.mediaItemShareModel.findByPk(req.params.id)

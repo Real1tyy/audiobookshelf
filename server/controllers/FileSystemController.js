@@ -22,11 +22,6 @@ class FileSystemController {
    * @param {Response} res
    */
   async getPaths(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[FileSystemController] Non-admin user "${req.user.username}" attempting to get filesystem paths`)
-      return res.sendStatus(403)
-    }
-
     const relpath = req.query.path
     const level = toNumber(req.query.level, 0)
 

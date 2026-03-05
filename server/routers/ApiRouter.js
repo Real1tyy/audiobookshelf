@@ -3,6 +3,7 @@ const Path = require('path')
 const sequelize = require('sequelize')
 
 const Logger = require('../Logger')
+const { requireAdmin } = require('../middleware')
 const Database = require('../Database')
 const SocketAuthority = require('../SocketAuthority')
 
@@ -62,14 +63,14 @@ class ApiRouter {
     // Library Routes
     //
     this.router.get(/^\/libraries/, this.apiCacheManager.middleware)
-    this.router.post('/libraries', LibraryController.create.bind(this))
+    this.router.post('/libraries', requireAdmin, LibraryController.create.bind(this))
     this.router.get('/libraries', LibraryController.findAll.bind(this))
     this.router.get('/libraries/:id', LibraryController.middleware.bind(this), LibraryController.findOne.bind(this))
-    this.router.patch('/libraries/:id', LibraryController.middleware.bind(this), LibraryController.update.bind(this))
-    this.router.delete('/libraries/:id', LibraryController.middleware.bind(this), LibraryController.delete.bind(this))
+    this.router.patch('/libraries/:id', requireAdmin, LibraryController.middleware.bind(this), LibraryController.update.bind(this))
+    this.router.delete('/libraries/:id', requireAdmin, LibraryController.middleware.bind(this), LibraryController.delete.bind(this))
 
     this.router.get('/libraries/:id/items', LibraryController.middleware.bind(this), LibraryController.getLibraryItems.bind(this))
-    this.router.delete('/libraries/:id/issues', LibraryController.middleware.bind(this), LibraryController.removeLibraryItemsWithIssues.bind(this))
+    this.router.delete('/libraries/:id/issues', requireAdmin, LibraryController.middleware.bind(this), LibraryController.removeLibraryItemsWithIssues.bind(this))
     this.router.get('/libraries/:id/series', LibraryController.middleware.bind(this), LibraryController.getAllSeriesForLibrary.bind(this))
     this.router.get('/libraries/:id/series/:seriesId', LibraryController.middleware.bind(this), LibraryController.getSeriesForLibrary.bind(this))
     this.router.get('/libraries/:id/personalized', LibraryController.middleware.bind(this), LibraryController.getUserPersonalizedShelves.bind(this))
@@ -82,10 +83,10 @@ class ApiRouter {
     this.router.get('/libraries/:id/tags', LibraryController.middleware.bind(this), LibraryController.getTags.bind(this))
     this.router.patch('/libraries/:id/tags/:tagId', LibraryController.middleware.bind(this), LibraryController.updateTag.bind(this))
     this.router.delete('/libraries/:id/tags/:tagId', LibraryController.middleware.bind(this), LibraryController.removeTag.bind(this))
-    this.router.get('/libraries/:id/matchall', LibraryController.middleware.bind(this), LibraryController.matchAll.bind(this))
-    this.router.post('/libraries/:id/scan', LibraryController.middleware.bind(this), LibraryController.scan.bind(this))
-    this.router.post('/libraries/order', LibraryController.reorder.bind(this))
-    this.router.post('/libraries/:id/remove-metadata', LibraryController.middleware.bind(this), LibraryController.removeAllMetadataFiles.bind(this))
+    this.router.get('/libraries/:id/matchall', requireAdmin, LibraryController.middleware.bind(this), LibraryController.matchAll.bind(this))
+    this.router.post('/libraries/:id/scan', requireAdmin, LibraryController.middleware.bind(this), LibraryController.scan.bind(this))
+    this.router.post('/libraries/order', requireAdmin, LibraryController.reorder.bind(this))
+    this.router.post('/libraries/:id/remove-metadata', requireAdmin, LibraryController.middleware.bind(this), LibraryController.removeAllMetadataFiles.bind(this))
     this.router.get('/libraries/:id/download', LibraryController.middleware.bind(this), LibraryController.downloadMultiple.bind(this))
 
     //
@@ -100,8 +101,8 @@ class ApiRouter {
     this.router.post('/items/batch/delete', LibraryItemController.batchDelete.bind(this))
     this.router.post('/items/batch/update', LibraryItemController.batchUpdate.bind(this))
     this.router.post('/items/batch/get', LibraryItemController.batchGet.bind(this))
-    this.router.post('/items/batch/quickmatch', LibraryItemController.batchQuickMatch.bind(this))
-    this.router.post('/items/batch/scan', LibraryItemController.batchScan.bind(this))
+    this.router.post('/items/batch/quickmatch', requireAdmin, LibraryItemController.batchQuickMatch.bind(this))
+    this.router.post('/items/batch/scan', requireAdmin, LibraryItemController.batchScan.bind(this))
 
     this.router.get('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.findOne.bind(this))
     this.router.delete('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.delete.bind(this))
@@ -114,10 +115,10 @@ class ApiRouter {
     this.router.post('/items/:id/match', LibraryItemController.middleware.bind(this), LibraryItemController.match.bind(this))
     this.router.post('/items/:id/play', LibraryItemController.middleware.bind(this), LibraryItemController.startPlaybackSession.bind(this))
     this.router.patch('/items/:id/tracks', LibraryItemController.middleware.bind(this), LibraryItemController.updateTracks.bind(this))
-    this.router.post('/items/:id/scan', LibraryItemController.middleware.bind(this), LibraryItemController.scan.bind(this))
-    this.router.get('/items/:id/metadata-object', LibraryItemController.middleware.bind(this), LibraryItemController.getMetadataObject.bind(this))
+    this.router.post('/items/:id/scan', requireAdmin, LibraryItemController.middleware.bind(this), LibraryItemController.scan.bind(this))
+    this.router.get('/items/:id/metadata-object', requireAdmin, LibraryItemController.middleware.bind(this), LibraryItemController.getMetadataObject.bind(this))
     this.router.post('/items/:id/chapters', LibraryItemController.middleware.bind(this), LibraryItemController.updateMediaChapters.bind(this))
-    this.router.get('/items/:id/ffprobe/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getFFprobeData.bind(this))
+    this.router.get('/items/:id/ffprobe/:fileid', requireAdmin, LibraryItemController.middleware.bind(this), LibraryItemController.getFFprobeData.bind(this))
     this.router.get('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getLibraryFile.bind(this))
     this.router.delete('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.deleteLibraryFile.bind(this))
     this.router.get('/items/:id/file/:fileid/download', LibraryItemController.middleware.bind(this), LibraryItemController.downloadLibraryFile.bind(this))
@@ -128,8 +129,8 @@ class ApiRouter {
     // User Routes
     //
     this.router.post('/users', UserController.middleware.bind(this), UserController.create.bind(this))
-    this.router.get('/users', UserController.middleware.bind(this), UserController.findAll.bind(this))
-    this.router.get('/users/online', UserController.getOnlineUsers.bind(this))
+    this.router.get('/users', requireAdmin, UserController.middleware.bind(this), UserController.findAll.bind(this))
+    this.router.get('/users/online', requireAdmin, UserController.getOnlineUsers.bind(this))
     this.router.get('/users/:id', UserController.middleware.bind(this), UserController.findOne.bind(this))
     this.router.patch('/users/:id', UserController.middleware.bind(this), UserController.update.bind(this))
     this.router.delete('/users/:id', UserController.middleware.bind(this), UserController.delete.bind(this))
@@ -168,18 +169,18 @@ class ApiRouter {
     //
     // Backup Routes
     //
-    this.router.get('/backups', BackupController.middleware.bind(this), BackupController.getAll.bind(this))
-    this.router.post('/backups', BackupController.middleware.bind(this), BackupController.create.bind(this))
-    this.router.delete('/backups/:id', BackupController.middleware.bind(this), BackupController.delete.bind(this))
-    this.router.get('/backups/:id/download', BackupController.middleware.bind(this), BackupController.download.bind(this))
-    this.router.get('/backups/:id/apply', BackupController.middleware.bind(this), BackupController.apply.bind(this))
-    this.router.post('/backups/upload', BackupController.middleware.bind(this), BackupController.upload.bind(this))
-    this.router.patch('/backups/path', BackupController.middleware.bind(this), BackupController.updatePath.bind(this))
+    this.router.get('/backups', requireAdmin, BackupController.middleware.bind(this), BackupController.getAll.bind(this))
+    this.router.post('/backups', requireAdmin, BackupController.middleware.bind(this), BackupController.create.bind(this))
+    this.router.delete('/backups/:id', requireAdmin, BackupController.middleware.bind(this), BackupController.delete.bind(this))
+    this.router.get('/backups/:id/download', requireAdmin, BackupController.middleware.bind(this), BackupController.download.bind(this))
+    this.router.get('/backups/:id/apply', requireAdmin, BackupController.middleware.bind(this), BackupController.apply.bind(this))
+    this.router.post('/backups/upload', requireAdmin, BackupController.middleware.bind(this), BackupController.upload.bind(this))
+    this.router.patch('/backups/path', requireAdmin, BackupController.middleware.bind(this), BackupController.updatePath.bind(this))
 
     //
     // File System Routes
     //
-    this.router.get('/filesystem', FileSystemController.getPaths.bind(this))
+    this.router.get('/filesystem', requireAdmin, FileSystemController.getPaths.bind(this))
     this.router.post('/filesystem/pathexists', FileSystemController.checkPathExists.bind(this))
 
     //
@@ -209,10 +210,10 @@ class ApiRouter {
     //
     // Playback Session Routes
     //
-    this.router.get('/sessions', SessionController.getAllWithUserData.bind(this))
+    this.router.get('/sessions', requireAdmin, SessionController.getAllWithUserData.bind(this))
     this.router.delete('/sessions/:id', SessionController.middleware.bind(this), SessionController.delete.bind(this))
-    this.router.get('/sessions/open', SessionController.getOpenSessions.bind(this))
-    this.router.post('/sessions/batch/delete', SessionController.batchDelete.bind(this))
+    this.router.get('/sessions/open', requireAdmin, SessionController.getOpenSessions.bind(this))
+    this.router.post('/sessions/batch/delete', requireAdmin, SessionController.batchDelete.bind(this))
     this.router.post('/session/local', SessionController.syncLocal.bind(this))
     this.router.post('/session/local-all', SessionController.syncLocalSessions.bind(this))
     // TODO: Update these endpoints because they are only for open playback sessions
@@ -241,66 +242,66 @@ class ApiRouter {
     //
     // Cache Routes (Admin and up)
     //
-    this.router.post('/cache/purge', CacheController.purgeCache.bind(this))
-    this.router.post('/cache/items/purge', CacheController.purgeItemsCache.bind(this))
+    this.router.post('/cache/purge', requireAdmin, CacheController.purgeCache.bind(this))
+    this.router.post('/cache/items/purge', requireAdmin, CacheController.purgeItemsCache.bind(this))
 
     //
     // Tools Routes (Admin and up)
     //
-    this.router.post('/tools/item/:id/encode-m4b', ToolsController.middleware.bind(this), ToolsController.encodeM4b.bind(this))
-    this.router.delete('/tools/item/:id/encode-m4b', ToolsController.middleware.bind(this), ToolsController.cancelM4bEncode.bind(this))
-    this.router.post('/tools/item/:id/embed-metadata', ToolsController.middleware.bind(this), ToolsController.embedAudioFileMetadata.bind(this))
-    this.router.post('/tools/batch/embed-metadata', ToolsController.middleware.bind(this), ToolsController.batchEmbedMetadata.bind(this))
-    this.router.post('/tools/item/:id/trim-audio', ToolsController.middleware.bind(this), ToolsController.trimAudio.bind(this))
-    this.router.post('/tools/item/:id/extract-highlight', ToolsController.middleware.bind(this), ToolsController.extractHighlight.bind(this))
+    this.router.post('/tools/item/:id/encode-m4b', requireAdmin, ToolsController.middleware.bind(this), ToolsController.encodeM4b.bind(this))
+    this.router.delete('/tools/item/:id/encode-m4b', requireAdmin, ToolsController.middleware.bind(this), ToolsController.cancelM4bEncode.bind(this))
+    this.router.post('/tools/item/:id/embed-metadata', requireAdmin, ToolsController.middleware.bind(this), ToolsController.embedAudioFileMetadata.bind(this))
+    this.router.post('/tools/batch/embed-metadata', requireAdmin, ToolsController.middleware.bind(this), ToolsController.batchEmbedMetadata.bind(this))
+    this.router.post('/tools/item/:id/trim-audio', requireAdmin, ToolsController.middleware.bind(this), ToolsController.trimAudio.bind(this))
+    this.router.post('/tools/item/:id/extract-highlight', requireAdmin, ToolsController.middleware.bind(this), ToolsController.extractHighlight.bind(this))
 
     //
     // Custom Metadata Provider routes
     //
-    this.router.get('/custom-metadata-providers', CustomMetadataProviderController.middleware.bind(this), CustomMetadataProviderController.getAll.bind(this))
-    this.router.post('/custom-metadata-providers', CustomMetadataProviderController.middleware.bind(this), CustomMetadataProviderController.create.bind(this))
-    this.router.delete('/custom-metadata-providers/:id', CustomMetadataProviderController.middleware.bind(this), CustomMetadataProviderController.delete.bind(this))
+    this.router.get('/custom-metadata-providers', requireAdmin, CustomMetadataProviderController.middleware.bind(this), CustomMetadataProviderController.getAll.bind(this))
+    this.router.post('/custom-metadata-providers', requireAdmin, CustomMetadataProviderController.middleware.bind(this), CustomMetadataProviderController.create.bind(this))
+    this.router.delete('/custom-metadata-providers/:id', requireAdmin, CustomMetadataProviderController.middleware.bind(this), CustomMetadataProviderController.delete.bind(this))
 
     //
     // Share routes
     //
-    this.router.get('/share/mediaitem', ShareController.getMediaItemShares.bind(this))
-    this.router.post('/share/mediaitem', ShareController.createMediaItemShare.bind(this))
-    this.router.delete('/share/mediaitem/:id', ShareController.deleteMediaItemShare.bind(this))
+    this.router.get('/share/mediaitem', requireAdmin, ShareController.getMediaItemShares.bind(this))
+    this.router.post('/share/mediaitem', requireAdmin, ShareController.createMediaItemShare.bind(this))
+    this.router.delete('/share/mediaitem/:id', requireAdmin, ShareController.deleteMediaItemShare.bind(this))
 
     //
     // Stats Routes
     //
-    this.router.get('/stats/year/:year', StatsController.middleware.bind(this), StatsController.getAdminStatsForYear.bind(this))
-    this.router.get('/stats/server', StatsController.middleware.bind(this), StatsController.getServerStats.bind(this))
+    this.router.get('/stats/year/:year', requireAdmin, StatsController.getAdminStatsForYear.bind(this))
+    this.router.get('/stats/server', requireAdmin, StatsController.getServerStats.bind(this))
 
     //
     // API Key Routes
     //
-    this.router.get('/api-keys', ApiKeyController.middleware.bind(this), ApiKeyController.getAll.bind(this))
-    this.router.post('/api-keys', ApiKeyController.middleware.bind(this), ApiKeyController.create.bind(this))
-    this.router.patch('/api-keys/:id', ApiKeyController.middleware.bind(this), ApiKeyController.update.bind(this))
-    this.router.delete('/api-keys/:id', ApiKeyController.middleware.bind(this), ApiKeyController.delete.bind(this))
+    this.router.get('/api-keys', requireAdmin, ApiKeyController.getAll.bind(this))
+    this.router.post('/api-keys', requireAdmin, ApiKeyController.create.bind(this))
+    this.router.patch('/api-keys/:id', requireAdmin, ApiKeyController.update.bind(this))
+    this.router.delete('/api-keys/:id', requireAdmin, ApiKeyController.delete.bind(this))
 
     //
     // Misc Routes
     //
     this.router.post('/upload', MiscController.handleUpload.bind(this))
     this.router.get('/tasks', MiscController.getTasks.bind(this))
-    this.router.patch('/settings', MiscController.updateServerSettings.bind(this))
-    this.router.patch('/sorting-prefixes', MiscController.updateSortingPrefixes.bind(this))
+    this.router.patch('/settings', requireAdmin, MiscController.updateServerSettings.bind(this))
+    this.router.patch('/sorting-prefixes', requireAdmin, MiscController.updateSortingPrefixes.bind(this))
     this.router.post('/authorize', MiscController.authorize.bind(this))
-    this.router.get('/tags', MiscController.getAllTags.bind(this))
-    this.router.post('/tags/rename', MiscController.renameTag.bind(this))
-    this.router.delete('/tags/:tag', MiscController.deleteTag.bind(this))
-    this.router.get('/genres', MiscController.getAllGenres.bind(this))
-    this.router.post('/genres/rename', MiscController.renameGenre.bind(this))
-    this.router.delete('/genres/:genre', MiscController.deleteGenre.bind(this))
+    this.router.get('/tags', requireAdmin, MiscController.getAllTags.bind(this))
+    this.router.post('/tags/rename', requireAdmin, MiscController.renameTag.bind(this))
+    this.router.delete('/tags/:tag', requireAdmin, MiscController.deleteTag.bind(this))
+    this.router.get('/genres', requireAdmin, MiscController.getAllGenres.bind(this))
+    this.router.post('/genres/rename', requireAdmin, MiscController.renameGenre.bind(this))
+    this.router.delete('/genres/:genre', requireAdmin, MiscController.deleteGenre.bind(this))
     this.router.post('/validate-cron', MiscController.validateCronExpression.bind(this))
-    this.router.get('/auth-settings', MiscController.getAuthSettings.bind(this))
-    this.router.patch('/auth-settings', MiscController.updateAuthSettings.bind(this))
-    this.router.post('/watcher/update', MiscController.updateWatchedPath.bind(this))
-    this.router.get('/logger-data', MiscController.getLoggerData.bind(this))
+    this.router.get('/auth-settings', requireAdmin, MiscController.getAuthSettings.bind(this))
+    this.router.patch('/auth-settings', requireAdmin, MiscController.updateAuthSettings.bind(this))
+    this.router.post('/watcher/update', requireAdmin, MiscController.updateWatchedPath.bind(this))
+    this.router.get('/logger-data', requireAdmin, MiscController.getLoggerData.bind(this))
   }
 
   //

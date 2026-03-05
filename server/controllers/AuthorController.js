@@ -6,6 +6,7 @@ const { createNewSortInstance } = require('fast-sort')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
+const { checkMethodPermissions, requireAdmin } = require('../middleware')
 const CacheManager = require('../managers/CacheManager')
 const CoverManager = require('../managers/CoverManager')
 const AuthorFinder = require('../finders/AuthorFinder')
@@ -719,16 +720,8 @@ class AuthorController {
     const author = await Database.authorModel.findByPk(req.params.id)
     if (!author) return res.sendStatus(404)
 
-    if (req.method == 'DELETE' && !req.user.canDelete) {
-      Logger.warn(`[AuthorController] User "${req.user.username}" attempted to delete without permission`)
-      return res.sendStatus(403)
-    } else if ((req.method == 'PATCH' || req.method == 'POST') && !req.user.canUpdate) {
-      Logger.warn(`[AuthorController] User "${req.user.username}" attempted to update without permission`)
-      return res.sendStatus(403)
-    }
-
     req.author = author
-    next()
+    checkMethodPermissions('AuthorController')(req, res, next)
   }
 }
 module.exports = new AuthorController()

@@ -1,9 +1,9 @@
-const Path = require('path')
 const { Request, Response, NextFunction } = require('express')
 const Logger = require('../Logger')
 const Database = require('../Database')
+const { checkMethodPermissions } = require('../middleware')
 const { toNumber, isUUID } = require('../utils/index')
-const { getAudioMimeTypeFromExtname, encodeUriPath } = require('../utils/fileUtils')
+const { sendXAccel, setAudioContentType } = require('../utils/responseHelpers')
 const { PlayMethod } = require('../utils/constants')
 
 const ShareManager = require('../managers/ShareManager')
@@ -27,10 +27,6 @@ class SessionController {
    * @param {Response} res
    */
   async getAllWithUserData(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[SessionController] getAllWithUserData: Non-admin user "${req.user.username}" requested all session data`)
-      return res.sendStatus(404)
-    }
     // Validate "user" query
     let userId = req.query.user
     if (userId && !isUUID(userId)) {
@@ -120,10 +116,6 @@ class SessionController {
    * @param {Response} res
    */
   async getOpenSessions(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[SessionController] getOpenSessions: Non-admin user "${req.user.username}" requested open session data`)
-      return res.sendStatus(404)
-    }
 
     const minifiedUserObjects = await Database.userModel.getMinifiedUserObjects()
     const openSessions = this.playbackSessionManager.sessions.map((se) => {
@@ -211,10 +203,6 @@ class SessionController {
    * @param {Response} res
    */
   async batchDelete(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[SessionController] Non-admin user "${req.user.username}" attempted to batch delete sessions`)
-      return res.sendStatus(403)
-    }
     // Validate session ids
     if (!req.body.sessions?.length || !Array.isArray(req.body.sessions) || req.body.sessions.some((s) => !isUUID(s))) {
       Logger.error(`[SessionController] Invalid request body. "sessions" array is required`, req.body)
@@ -310,17 +298,9 @@ class SessionController {
     const user = await Database.userModel.getUserById(playbackSession.userId)
     Logger.debug(`[SessionController] Serving audio track ${audioTrack.index} for session "${req.params.id}" belonging to user "${user.username}"`)
 
-    if (global.XAccel) {
-      const encodedURI = encodeUriPath(global.XAccel + audioTrack.metadata.path)
-      Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-      return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-    }
+    if (sendXAccel(res, audioTrack.metadata.path)) return
 
-    // Express does not set the correct mimetype for m4b files so use our defined mimetypes if available
-    const audioMimeType = getAudioMimeTypeFromExtname(Path.extname(audioTrack.metadata.path))
-    if (audioMimeType) {
-      res.setHeader('Content-Type', audioMimeType)
-    }
+    setAudioContentType(res, audioTrack.metadata.path)
     res.sendFile(audioTrack.metadata.path)
   }
 
@@ -356,16 +336,8 @@ class SessionController {
       return res.sendStatus(404)
     }
 
-    if (req.method == 'DELETE' && !req.user.canDelete) {
-      Logger.warn(`[SessionController] User "${req.user.username}" attempted to delete without permission`)
-      return res.sendStatus(403)
-    } else if ((req.method == 'PATCH' || req.method == 'POST') && !req.user.canUpdate) {
-      Logger.warn(`[SessionController] User "${req.user.username}" attempted to update without permission`)
-      return res.sendStatus(403)
-    }
-
     req.playbackSession = playbackSession
-    next()
+    checkMethodPermissions('SessionController')(req, res, next)
   }
 }
 module.exports = new SessionController()

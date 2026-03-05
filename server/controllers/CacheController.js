@@ -18,9 +18,6 @@ class CacheController {
    * @param {Response} res
    */
   async purgeCache(req, res) {
-    if (!req.user.isAdminOrUp) {
-      return res.sendStatus(403)
-    }
     await CacheManager.purgeAll()
     res.sendStatus(200)
   }
@@ -32,9 +29,6 @@ class CacheController {
    * @param {Response} res
    */
   async purgeItemsCache(req, res) {
-    if (!req.user.isAdminOrUp) {
-      return res.sendStatus(403)
-    }
     await CacheManager.purgeItems()
     res.sendStatus(200)
   }

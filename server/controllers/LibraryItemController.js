@@ -8,9 +8,9 @@ const Database = require('../Database')
 
 const zipHelpers = require('../utils/zipHelpers')
 const { reqSupportsWebp } = require('../utils/index')
-const { ScanResult, AudioMimeType } = require('../utils/constants')
+const { ScanResult } = require('../utils/constants')
 const youtubeTranscript = require('../utils/youtubeTranscript')
-const { getAudioMimeTypeFromExtname, encodeUriPath } = require('../utils/fileUtils')
+const { sendXAccel, setAudioContentType, resDownload, resSendFile, handleDownloadError } = require('../utils/responseHelpers')
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 const AudioFileScanner = require('../scanner/AudioFileScanner')
 const Scanner = require('../scanner/Scanner')
@@ -296,16 +296,6 @@ class LibraryItemController {
     res.sendStatus(200)
   }
 
-  static handleDownloadError(error, res) {
-    if (!res.headersSent) {
-      if (error.code === 'ENOENT') {
-        return res.status(404).send('File not found')
-      } else {
-        return res.status(500).send('Download failed')
-      }
-    }
-  }
-
   /**
    * GET: /api/items/:id/download
    * Download library item. Zip file if multiple files.
@@ -329,12 +319,8 @@ class LibraryItemController {
     try {
       // If library item is a single file in root dir then no need to zip
       if (req.libraryItem.isFile) {
-        // Express does not set the correct mimetype for m4b files so use our defined mimetypes if available
-        const audioMimeType = getAudioMimeTypeFromExtname(Path.extname(libraryItemPath))
-        if (audioMimeType) {
-          res.setHeader('Content-Type', audioMimeType)
-        }
-        await new Promise((resolve, reject) => res.download(libraryItemPath, req.libraryItem.relPath, (error) => (error ? reject(error) : resolve())))
+        setAudioContentType(res, libraryItemPath)
+        await resDownload(res, libraryItemPath, req.libraryItem.relPath)
       } else {
         const filename = `${itemTitle}.zip`
         await zipHelpers.zipDirectoryPipe(libraryItemPath, filename, res)
@@ -342,7 +328,7 @@ class LibraryItemController {
       Logger.info(`[LibraryItemController] Downloaded item "${itemTitle}" at "${libraryItemPath}"`)
     } catch (error) {
       Logger.error(`[LibraryItemController] Download failed for item "${itemTitle}" at "${libraryItemPath}"`, error)
-      LibraryItemController.handleDownloadError(error, res)
+      handleDownloadError(error, res)
     }
   }
 
@@ -567,12 +553,7 @@ class LibraryItemController {
       if (!coverPath || !(await fs.pathExists(coverPath))) {
         return res.sendStatus(404)
       }
-      // any value
-      if (global.XAccel) {
-        const encodedURI = encodeUriPath(global.XAccel + coverPath)
-        Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-        return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-      }
+      if (sendXAccel(res, coverPath)) return
       return res.sendFile(coverPath)
     }
 
@@ -868,10 +849,6 @@ class LibraryItemController {
    * @param {Response} res
    */
   async batchQuickMatch(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.warn(`Non-admin user "${req.user.username}" other than admin attempted to batch quick match library items`)
-      return res.sendStatus(403)
-    }
 
     let itemsUpdated = 0
     let itemsUnmatched = 0
@@ -925,10 +902,6 @@ class LibraryItemController {
    * @param {Response} res
    */
   async batchScan(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.warn(`Non-admin user "${req.user.username}" other than admin attempted to batch scan library items`)
-      return res.sendStatus(403)
-    }
 
     if (!req.body.libraryItemIds?.length) {
       return res.sendStatus(400)
@@ -965,10 +938,6 @@ class LibraryItemController {
    * @param {Response} res
    */
   async scan(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryItemController] Non-admin user "${req.user.username}" attempted to scan library item`)
-      return res.sendStatus(403)
-    }
 
     if (!req.libraryItem.path) {
       return res.json({ result: 'NOTHING' })
@@ -993,10 +962,6 @@ class LibraryItemController {
    * @param {Response} res
    */
   getMetadataObject(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryItemController] Non-admin user "${req.user.username}" attempted to get metadata object`)
-      return res.sendStatus(403)
-    }
 
     if (req.libraryItem.isMissing || !req.libraryItem.isBook || !req.libraryItem.media.includedAudioFiles.length) {
       Logger.error(`[LibraryItemController] getMetadataObject: Invalid library item "${req.libraryItem.media.title}"`)
@@ -1076,10 +1041,6 @@ class LibraryItemController {
    * @param {Response} res
    */
   async getFFprobeData(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryItemController] Non-admin user "${req.user.username}" attempted to get ffprobe data`)
-      return res.sendStatus(403)
-    }
 
     const audioFile = req.libraryItem.getAudioFileWithIno(req.params.fileid)
     if (!audioFile) {
@@ -1100,17 +1061,9 @@ class LibraryItemController {
   async getLibraryFile(req, res) {
     const libraryFile = req.libraryFile
 
-    if (global.XAccel) {
-      const encodedURI = encodeUriPath(global.XAccel + libraryFile.metadata.path)
-      Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-      return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-    }
+    if (sendXAccel(res, libraryFile.metadata.path)) return
 
-    // Express does not set the correct mimetype for m4b files so use our defined mimetypes if available
-    const audioMimeType = getAudioMimeTypeFromExtname(Path.extname(libraryFile.metadata.path))
-    if (audioMimeType) {
-      res.setHeader('Content-Type', audioMimeType)
-    }
+    setAudioContentType(res, libraryFile.metadata.path)
     // Explicitly advertise Range request support for resumable downloads
     res.setHeader('Accept-Ranges', 'bytes')
     res.sendFile(libraryFile.metadata.path)
@@ -1175,31 +1128,16 @@ class LibraryItemController {
 
     Logger.info(`[LibraryItemController] User "${req.user.username}" requested download for item "${req.libraryItem.media.title}" file at "${libraryFile.metadata.path}"`)
 
-    if (global.XAccel) {
-      const encodedURI = encodeUriPath(global.XAccel + libraryFile.metadata.path)
-      Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-      return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-    }
+    if (sendXAccel(res, libraryFile.metadata.path)) return
 
-    // Express does not set the correct mimetype for m4b files so use our defined mimetypes if available
-    let audioMimeType = getAudioMimeTypeFromExtname(Path.extname(libraryFile.metadata.path))
-    if (audioMimeType) {
-      // Work-around for Apple devices mishandling Content-Type on mobile browsers:
-      // https://github.com/advplyr/audiobookshelf/issues/3310
-      // We actually need to check for Webkit on Apple mobile devices because this issue impacts all browsers on iOS/iPadOS/etc, not just Safari.
-      const isAppleMobileBrowser = ua.device.vendor === 'Apple' && ua.device.type === 'mobile' && ua.engine.name === 'WebKit'
-      if (isAppleMobileBrowser && audioMimeType === AudioMimeType.M4B) {
-        audioMimeType = 'audio/m4b'
-      }
-      res.setHeader('Content-Type', audioMimeType)
-    }
+    setAudioContentType(res, libraryFile.metadata.path, ua)
 
     try {
-      await new Promise((resolve, reject) => res.download(libraryFile.metadata.path, libraryFile.metadata.filename, (error) => (error ? reject(error) : resolve())))
+      await resDownload(res, libraryFile.metadata.path, libraryFile.metadata.filename)
       Logger.info(`[LibraryItemController] Downloaded file "${libraryFile.metadata.path}"`)
     } catch (error) {
       Logger.error(`[LibraryItemController] Failed to download file "${libraryFile.metadata.path}"`, error)
-      LibraryItemController.handleDownloadError(error, res)
+      handleDownloadError(error, res)
     }
   }
 
@@ -1232,18 +1170,14 @@ class LibraryItemController {
 
     Logger.info(`[LibraryItemController] User "${req.user.username}" requested download for item "${req.libraryItem.media.title}" ebook at "${ebookFilePath}"`)
 
-    if (global.XAccel) {
-      const encodedURI = encodeUriPath(global.XAccel + ebookFilePath)
-      Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-      return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-    }
+    if (sendXAccel(res, ebookFilePath)) return
 
     try {
-      await new Promise((resolve, reject) => res.sendFile(ebookFilePath, (error) => (error ? reject(error) : resolve())))
+      await resSendFile(res, ebookFilePath)
       Logger.info(`[LibraryItemController] Downloaded ebook file "${ebookFilePath}"`)
     } catch (error) {
       Logger.error(`[LibraryItemController] Failed to download ebook file "${ebookFilePath}"`, error)
-      LibraryItemController.handleDownloadError(error, res)
+      handleDownloadError(error, res)
     }
   }
 

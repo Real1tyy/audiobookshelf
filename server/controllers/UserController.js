@@ -27,7 +27,6 @@ class UserController {
    * @param {Response} res
    */
   async findAll(req, res) {
-    if (!req.user.isAdminOrUp) return res.sendStatus(403)
     const hideRootToken = !req.user.isRoot
 
     const includes = (req.query.include || '').split(',').map((i) => i.trim())
@@ -471,10 +470,6 @@ class UserController {
    * @param {Response} res
    */
   async getOnlineUsers(req, res) {
-    if (!req.user.isAdminOrUp) {
-      return res.sendStatus(403)
-    }
-
     res.json({
       usersOnline: SocketAuthority.getUsersOnline(),
       openSessions: this.playbackSessionManager.sessions

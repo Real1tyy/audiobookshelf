@@ -4,13 +4,15 @@ const fs = require('fs-extra')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
+const { checkMethodPermissions } = require('../middleware')
 
 const CacheManager = require('../managers/CacheManager')
 const CoverManager = require('../managers/CoverManager')
 
 const libraryItemsBookFilters = require('../utils/queries/libraryItemsBookFilters')
 const { reqSupportsWebp } = require('../utils/index')
-const { downloadImageFile, encodeUriPath } = require('../utils/fileUtils')
+const { downloadImageFile } = require('../utils/fileUtils')
+const { sendXAccel } = require('../utils/responseHelpers')
 
 /**
  * Save series image from URL
@@ -321,13 +323,7 @@ class SeriesController {
         return res.sendStatus(404)
       }
 
-      // any value
-      if (global.XAccel) {
-        const encodedURI = encodeUriPath(global.XAccel + series.coverPath)
-        Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-        return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-      }
-
+      if (sendXAccel(res, series.coverPath)) return
       return res.sendFile(series.coverPath)
     }
 
@@ -510,17 +506,9 @@ class SeriesController {
       return res.sendStatus(404)
     }
 
-    if (req.method == 'DELETE' && !req.user.canDelete) {
-      Logger.warn(`[SeriesController] User "${req.user.username}" attempted to delete without permission`)
-      return res.sendStatus(403)
-    } else if ((req.method == 'PATCH' || req.method == 'POST') && !req.user.canUpdate) {
-      Logger.warn(`[SeriesController] User "${req.user.username}" attempted to update without permission`)
-      return res.sendStatus(403)
-    }
-
     req.series = series
     req.libraryItemsInSeries = libraryItems
-    next()
+    checkMethodPermissions('SeriesController')(req, res, next)
   }
 }
 module.exports = new SeriesController()

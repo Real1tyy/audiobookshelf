@@ -4,6 +4,7 @@ const fs = require('fs-extra')
 const Logger = require('../Logger')
 const Database = require('../Database')
 const fileUtils = require('../utils/fileUtils')
+const { sendXAccel } = require('../utils/responseHelpers')
 
 /**
  * @typedef RequestUserObject
@@ -132,14 +133,9 @@ class BackupController {
    * @param {Response} res
    */
   download(req, res) {
-    if (global.XAccel) {
-      const encodedURI = fileUtils.encodeUriPath(global.XAccel + req.backup.fullPath)
-      Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
-      return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
-    }
+    if (sendXAccel(res, req.backup.fullPath)) return
 
     res.setHeader('Content-disposition', 'attachment; filename=' + req.backup.filename)
-
     res.sendFile(req.backup.fullPath)
   }
 
@@ -162,11 +158,6 @@ class BackupController {
    * @param {NextFunction} next
    */
   middleware(req, res, next) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[BackupController] Non-admin user "${req.user.username}" attempting to access backups`)
-      return res.sendStatus(403)
-    }
-
     if (req.params.id) {
       req.backup = this.backupManager.backups.find((b) => b.id === req.params.id)
       if (!req.backup) {

@@ -2,6 +2,7 @@ const { Request, Response, NextFunction } = require('express')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
+const { requireAdmin } = require('../middleware')
 
 const { validateUrl } = require('../utils/index')
 
@@ -106,12 +107,7 @@ class CustomMetadataProviderController {
    * @param {NextFunction} next
    */
   async middleware(req, res, next) {
-    if (!req.user.isAdminOrUp) {
-      Logger.warn(`[CustomMetadataProviderController] Non-admin user "${req.user.username}" attempted access route "${req.path}"`)
-      return res.sendStatus(403)
-    }
-
-    // If id param then add req.customMetadataProvider
+    // If id param then load the provider
     if (req.params.id) {
       req.customMetadataProvider = await Database.customMetadataProviderModel.findByPk(req.params.id)
       if (!req.customMetadataProvider) {

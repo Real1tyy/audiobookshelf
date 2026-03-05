@@ -263,11 +263,6 @@ class ToolsController {
    * @param {NextFunction} next
    */
   async middleware(req, res, next) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryItemController] Non-root user "${req.user.username}" attempted to access tools route`)
-      return res.sendStatus(403)
-    }
-
     if (req.params.id) {
       const item = await Database.libraryItemModel.getExpandedById(req.params.id)
       if (!item?.media) return res.sendStatus(404)

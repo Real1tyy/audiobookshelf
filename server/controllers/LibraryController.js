@@ -46,10 +46,6 @@ class LibraryController {
    * @param {Response} res
    */
   async create(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to create library`)
-      return res.sendStatus(403)
-    }
 
     // Validation
     if (!req.body.name || typeof req.body.name !== 'string') {
@@ -237,10 +233,6 @@ class LibraryController {
    * @param {Response} res
    */
   async update(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to update library`)
-      return res.sendStatus(403)
-    }
 
     // Validation
     const updatePayload = {}
@@ -494,10 +486,6 @@ class LibraryController {
    * @param {Response} res
    */
   async delete(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to delete library`)
-      return res.sendStatus(403)
-    }
 
     // Remove library watcher
     Watcher.removeLibrary(req.library)
@@ -605,10 +593,6 @@ class LibraryController {
    * @param {Response} res
    */
   async removeLibraryItemsWithIssues(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to delete library items missing or invalid`)
-      return res.sendStatus(403)
-    }
 
     const libraryItemsWithIssues = await Database.libraryItemModel.findAll({
       where: {
@@ -854,10 +838,6 @@ class LibraryController {
    * @param {Response} res
    */
   async reorder(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryController] Non-admin user "${req.user}" attempted to reorder libraries`)
-      return res.sendStatus(403)
-    }
 
     const libraries = await Database.libraryModel.getAllWithFolders()
 
@@ -1355,10 +1335,6 @@ class LibraryController {
    * @param {Response} res
    */
   async matchAll(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryController] Non-root user "${req.user.username}" attempted to match library items`)
-      return res.sendStatus(403)
-    }
     Scanner.matchLibraryItems(this, req.library)
     res.sendStatus(200)
   }
@@ -1372,10 +1348,6 @@ class LibraryController {
    * @param {Response} res
    */
   async scan(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to scan library`)
-      return res.sendStatus(403)
-    }
     res.sendStatus(200)
 
     const forceRescan = req.query.force === '1'
@@ -1393,10 +1365,6 @@ class LibraryController {
    * @param {Response} res
    */
   async removeAllMetadataFiles(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to remove all metadata files`)
-      return res.sendStatus(403)
-    }
 
     const fileExt = req.query.ext === 'abs' ? 'abs' : 'json'
     const metadataFilename = `metadata.${fileExt}`

@@ -129,10 +129,6 @@ class MiscController {
    * @param {Response} res
    */
   async updateServerSettings(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`User "${req.user.username}" other than admin attempting to update server settings`)
-      return res.sendStatus(403)
-    }
     const settingsUpdate = req.body
     if (!isObject(settingsUpdate)) {
       return res.status(400).send('Invalid settings update object')
@@ -166,10 +162,6 @@ class MiscController {
    * @param {Response} res
    */
   async updateSortingPrefixes(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`User "${req.user.username}" other than admin attempting to update server sorting prefixes`)
-      return res.sendStatus(403)
-    }
     let sortingPrefixes = req.body.sortingPrefixes
     if (!sortingPrefixes?.length || !Array.isArray(sortingPrefixes)) {
       return res.status(400).send('Invalid request body')
@@ -258,10 +250,6 @@ class MiscController {
    * @param {Response} res
    */
   async getAllTags(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to getAllTags`)
-      return res.sendStatus(403)
-    }
 
     const tags = []
     const books = await Database.bookModel.findAll({
@@ -290,10 +278,6 @@ class MiscController {
    * @param {Response} res
    */
   async renameTag(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to renameTag`)
-      return res.sendStatus(403)
-    }
 
     const tag = req.body.tag
     const newTag = req.body.newTag
@@ -345,10 +329,6 @@ class MiscController {
    * @param {Response} res
    */
   async deleteTag(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to deleteTag`)
-      return res.sendStatus(403)
-    }
 
     const tag = Buffer.from(decodeURIComponent(req.params.tag), 'base64').toString()
 
@@ -385,10 +365,6 @@ class MiscController {
    * @param {Response} res
    */
   async getAllGenres(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to getAllGenres`)
-      return res.sendStatus(403)
-    }
     const genres = []
     const books = await Database.bookModel.findAll({
       attributes: ['genres'],
@@ -416,10 +392,6 @@ class MiscController {
    * @param {Response} res
    */
   async renameGenre(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to renameGenre`)
-      return res.sendStatus(403)
-    }
 
     const genre = req.body.genre
     const newGenre = req.body.newGenre
@@ -471,10 +443,6 @@ class MiscController {
    * @param {Response} res
    */
   async deleteGenre(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to deleteGenre`)
-      return res.sendStatus(403)
-    }
 
     const genre = Buffer.from(decodeURIComponent(req.params.genre), 'base64').toString()
 
@@ -516,10 +484,6 @@ class MiscController {
    * @param {Response} res
    */
   updateWatchedPath(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to updateWatchedPath`)
-      return res.sendStatus(403)
-    }
 
     const libraryId = req.body.libraryId
     const path = req.body.path
@@ -573,10 +537,6 @@ class MiscController {
    * @param {Response} res
    */
   getAuthSettings(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to get auth settings`)
-      return res.sendStatus(403)
-    }
     return res.json(Database.serverSettings.authenticationSettings)
   }
 
@@ -588,10 +548,6 @@ class MiscController {
    * @param {Response} res
    */
   async updateAuthSettings(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to update auth settings`)
-      return res.sendStatus(403)
-    }
 
     const settingsUpdate = req.body
     if (!isObject(settingsUpdate)) {
@@ -693,10 +649,6 @@ class MiscController {
    * @param {Response} res
    */
   async getAdminStatsForYear(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to get admin stats for year`)
-      return res.sendStatus(403)
-    }
     const year = Number(req.params.year)
     if (isNaN(year) || year < 2000 || year > 9999) {
       Logger.error(`[MiscController] Invalid year "${year}"`)
@@ -714,10 +666,6 @@ class MiscController {
    * @param {Response} res
    */
   async getLoggerData(req, res) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[MiscController] Non-admin user "${req.user.username}" attempted to get logger data`)
-      return res.sendStatus(403)
-    }
 
     res.json({
       currentDailyLogs: Logger.logManager.getMostRecentCurrentDailyLogs()

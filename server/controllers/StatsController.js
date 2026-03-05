@@ -53,19 +53,5 @@ class StatsController {
     res.json(stats)
   }
 
-  /**
-   *
-   * @param {RequestWithUser} req
-   * @param {Response} res
-   * @param {NextFunction} next
-   */
-  async middleware(req, res, next) {
-    if (!req.user.isAdminOrUp) {
-      Logger.error(`[StatsController] Non-admin user "${req.user.username}" attempted to access stats route`)
-      return res.sendStatus(403)
-    }
-
-    next()
-  }
 }
 module.exports = new StatsController()
