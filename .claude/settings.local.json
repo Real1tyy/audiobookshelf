@@ -18,7 +18,8 @@
       "Bash(npm run:*)",
       "Bash(timeout 10 npx tsx:*)",
       "Bash(wc:*)",
-      "Bash(shopt:*)"
+      "Bash(shopt:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
