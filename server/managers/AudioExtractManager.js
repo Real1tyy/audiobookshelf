@@ -1,7 +1,7 @@
 const Path = require('path')
 const SocketAuthority = require('../SocketAuthority')
 const Logger = require('../Logger')
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 const ffmpegHelpers = require('../utils/ffmpegHelpers')
 const TaskManager = require('./TaskManager')
 const Task = require('../objects/Task')
@@ -209,7 +209,7 @@ class AudioExtractManager {
         await fs.writeFile(concatFilePath, concatContent)
 
         await new Promise((resolve, reject) => {
-          const Ffmpeg = require('../libs/fluentFfmpeg')
+          const Ffmpeg = require('fluent-ffmpeg')
           const ffmpeg = Ffmpeg()
           ffmpeg
             .input(concatFilePath)

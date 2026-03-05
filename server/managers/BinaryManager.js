@@ -4,11 +4,11 @@ const exec = promisify(child_process.exec)
 const os = require('os')
 const axios = require('axios')
 const path = require('path')
-const which = require('../libs/which')
-const fs = require('../libs/fsExtra')
+const which = require('which')
+const fs = require('fs-extra')
 const Logger = require('../Logger')
 const fileUtils = require('../utils/fileUtils')
-const StreamZip = require('../libs/nodeStreamZip')
+const StreamZip = require('node-stream-zip')
 
 class ZippedAssetDownloader {
   constructor() {

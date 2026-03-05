@@ -1,7 +1,7 @@
 const { expect } = require('chai')
 const sinon = require('sinon')
 const fileUtils = require('../../../server/utils/fileUtils')
-const fs = require('../../../server/libs/fsExtra')
+const fs = require('fs-extra')
 const EventEmitter = require('events')
 
 const { generateFFMetadata, addCoverAndMetadataToFile } = require('../../../server/utils/ffmpegHelpers')

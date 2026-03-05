@@ -2,7 +2,7 @@ const { DataTypes, QueryInterface } = require('sequelize')
 const Path = require('path')
 const uuidv4 = require('uuid').v4
 const Logger = require('../../Logger')
-const fs = require('../../libs/fsExtra')
+const fs = require('fs-extra')
 const oldDbFiles = require('./oldDbFiles')
 const parseNameString = require('../parsers/parseNameString')
 

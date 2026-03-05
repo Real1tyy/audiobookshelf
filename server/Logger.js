@@ -1,4 +1,4 @@
-const date = require('./libs/dateAndTime')
+const date = require('date-and-time')
 const { LogLevel } = require('./utils/constants')
 const util = require('util')
 

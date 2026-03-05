@@ -1,4 +1,4 @@
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 const Logger = require('../Logger')
 const Path = require('path')
 const Audnexus = require('../providers/Audnexus')

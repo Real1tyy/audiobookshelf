@@ -1,5 +1,5 @@
 const Path = require('path')
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 const stream = require('stream')
 const Logger = require('../Logger')
 const { resizeImage } = require('../utils/ffmpegHelpers')

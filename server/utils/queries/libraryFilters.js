@@ -2,7 +2,7 @@ const Sequelize = require('sequelize')
 const Logger = require('../../Logger')
 const Database = require('../../Database')
 const libraryItemsBookFilters = require('./libraryItemsBookFilters')
-const { createNewSortInstance } = require('../../libs/fastSort')
+const { createNewSortInstance } = require('fast-sort')
 const { profile } = require('../../utils/profiler')
 const naturalSort = createNewSortInstance({
   comparer: new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare

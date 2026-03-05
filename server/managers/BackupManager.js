@@ -4,10 +4,10 @@ const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
 
-const cron = require('../libs/nodeCron')
-const fs = require('../libs/fsExtra')
-const archiver = require('../libs/archiver')
-const StreamZip = require('../libs/nodeStreamZip')
+const cron = require('node-cron')
+const fs = require('fs-extra')
+const archiver = require('archiver')
+const StreamZip = require('node-stream-zip')
 const fileUtils = require('../utils/fileUtils')
 
 // Utils

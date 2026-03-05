@@ -1,7 +1,7 @@
 const Path = require('path')
 const { Response } = require('express')
 const Logger = require('../Logger')
-const archiver = require('../libs/archiver')
+const archiver = require('archiver')
 
 module.exports.zipDirectoryPipe = (path, filename, res) => {
   return new Promise((resolve, reject) => {

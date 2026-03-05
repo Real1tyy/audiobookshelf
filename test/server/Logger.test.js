@@ -2,7 +2,7 @@ const { expect } = require('chai')
 const sinon = require('sinon')
 const Logger = require('../../server/Logger') // Adjust the path as needed
 const { LogLevel } = require('../../server/utils/constants')
-const date = require('../../server/libs/dateAndTime')
+const date = require('date-and-time')
 const util = require('util')
 
 describe('Logger', function () {

@@ -1,6 +1,6 @@
 const Path = require('path')
 const EventEmitter = require('events')
-const Watcher = require('./libs/watcher/watcher')
+const Watcher = require('watcher')
 const Logger = require('./Logger')
 const Task = require('./objects/Task')
 const TaskManager = require('./managers/TaskManager')

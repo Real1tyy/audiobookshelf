@@ -1,4 +1,4 @@
-const date = require('../libs/dateAndTime')
+const date = require('date-and-time')
 const uuidv4 = require('uuid').v4
 const serverVersion = require('../../package.json').version
 const DeviceInfo = require('./DeviceInfo')

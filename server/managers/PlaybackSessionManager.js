@@ -5,10 +5,10 @@ const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
 
-const date = require('../libs/dateAndTime')
-const fs = require('../libs/fsExtra')
-const uaParserJs = require('../libs/uaParser')
-const requestIp = require('../libs/requestIp')
+const date = require('date-and-time')
+const fs = require('fs-extra')
+const uaParserJs = require('ua-parser-js')
+const requestIp = require('request-ip')
 
 const { PlayMethod } = require('../utils/constants')
 

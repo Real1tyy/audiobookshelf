@@ -1,6 +1,6 @@
 const Path = require('path')
-const date = require('../libs/dateAndTime')
-const fs = require('../libs/fsExtra')
+const date = require('date-and-time')
+const fs = require('fs-extra')
 const fileUtils = require('../utils/fileUtils')
 const Logger = require('../Logger')
 

@@ -1,7 +1,7 @@
 const { Request, Response } = require('express')
 const Path = require('path')
 const Logger = require('../Logger')
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 const { toNumber } = require('../utils/index')
 const fileUtils = require('../utils/fileUtils')
 const Database = require('../Database')

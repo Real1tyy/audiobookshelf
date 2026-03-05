@@ -1,5 +1,5 @@
 const Logger = require('../Logger')
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 
 const loggerPrefix = '[TranscriptIndexer]'
 

@@ -2,7 +2,7 @@ const { Request, Response } = require('express')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
-const { sort } = require('../libs/fastSort')
+const { sort } = require('fast-sort')
 const { toNumber, isNullOrNaN } = require('../utils/index')
 const userStats = require('../utils/queries/userStats')
 

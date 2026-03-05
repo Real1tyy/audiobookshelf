@@ -1,10 +1,10 @@
 const passport = require('passport')
-const LocalStrategy = require('../libs/passportLocal')
+const LocalStrategy = require('passport-local')
 const Database = require('../Database')
 const Logger = require('../Logger')
 
-const bcrypt = require('../libs/bcryptjs')
-const requestIp = require('../libs/requestIp')
+const bcrypt = require('bcryptjs')
+const requestIp = require('request-ip')
 
 /**
  * Local authentication strategy using username/password

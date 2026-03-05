@@ -1,14 +1,14 @@
 const Sequelize = require('sequelize')
 const Path = require('path')
 const { Request, Response } = require('express')
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
 const Watcher = require('../Watcher')
 
 const libraryItemFilters = require('../utils/queries/libraryItemFilters')
-const patternValidation = require('../libs/nodeCron/pattern-validation')
+const cron = require('node-cron')
 const { isObject, getTitleIgnorePrefix } = require('../utils/index')
 const { sanitizeFilename } = require('../utils/fileUtils')
 
@@ -558,12 +558,11 @@ class MiscController {
       return res.sendStatus(400)
     }
 
-    try {
-      patternValidation(expression)
+    if (cron.validate(expression)) {
       res.sendStatus(200)
-    } catch (error) {
-      Logger.warn(`[MiscController] Invalid cron expression ${expression}`, error.message)
-      res.status(400).send(error.message)
+    } else {
+      Logger.warn(`[MiscController] Invalid cron expression ${expression}`)
+      res.status(400).send('Invalid cron expression')
     }
   }
 

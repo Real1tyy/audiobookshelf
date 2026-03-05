@@ -2,7 +2,7 @@ const Path = require('path')
 const { Sequelize, Op } = require('sequelize')
 
 const packageJson = require('../package.json')
-const fs = require('./libs/fsExtra')
+const fs = require('fs-extra')
 const Logger = require('./Logger')
 
 const dbMigration = require('./utils/migrations/dbMigration')

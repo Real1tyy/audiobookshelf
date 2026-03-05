@@ -3,15 +3,15 @@ const Sequelize = require('sequelize')
 const express = require('express')
 const http = require('http')
 const util = require('util')
-const fs = require('./libs/fsExtra')
-const fileUpload = require('./libs/expressFileupload')
+const fs = require('fs-extra')
+const fileUpload = require('express-fileupload')
 const cookieParser = require('cookie-parser')
 const axios = require('axios')
 
 const { version } = require('../package.json')
 
 // Utils
-const is = require('./libs/requestIp/isJs')
+const net = require('net')
 const fileUtils = require('./utils/fileUtils')
 const { toNumber } = require('./utils/index')
 const Logger = require('./Logger')
@@ -43,7 +43,7 @@ const LibraryScanner = require('./scanner/LibraryScanner')
 //Import the main Passport and Express-Session library
 const passport = require('passport')
 const expressSession = require('express-session')
-const MemoryStore = require('./libs/memorystore')
+const MemoryStore = require('memorystore')
 
 class Server {
   constructor(SOURCE, PORT, HOST, CONFIG_PATH, METADATA_PATH, ROUTER_BASE_PATH) {
@@ -397,7 +397,7 @@ class Server {
       })
     } else {
       this.server.listen(this.Port, this.Host, () => {
-        if (this.Host) Logger.info(`Listening on http://${is.ipv6(this.Host) ? `[${this.Host}]` : this.Host}:${this.Port}`)
+        if (this.Host) Logger.info(`Listening on http://${net.isIPv6(this.Host) ? `[${this.Host}]` : this.Host}:${this.Port}`)
         else Logger.info(`Listening on port :${this.Port}`)
       })
     }

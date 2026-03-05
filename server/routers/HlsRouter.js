@@ -4,7 +4,7 @@ const Path = require('path')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 
 
 class HlsRouter {

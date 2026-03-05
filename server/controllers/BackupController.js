@@ -1,6 +1,6 @@
 const { Request, Response, NextFunction } = require('express')
 const Path = require('path')
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 const Logger = require('../Logger')
 const Database = require('../Database')
 const fileUtils = require('../utils/fileUtils')

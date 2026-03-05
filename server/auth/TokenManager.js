@@ -3,8 +3,8 @@ const { Op } = require('sequelize')
 const Database = require('../Database')
 const Logger = require('../Logger')
 
-const requestIp = require('../libs/requestIp')
-const jwt = require('../libs/jsonwebtoken')
+const requestIp = require('request-ip')
+const jwt = require('jsonwebtoken')
 
 class TokenManager {
   /** @type {string} JWT secret key */

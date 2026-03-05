@@ -1,7 +1,7 @@
 const { Request, Response, NextFunction } = require('express')
 const Sequelize = require('sequelize')
 const Path = require('path')
-const fs = require('../libs/fsExtra')
+const fs = require('fs-extra')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const libraryHelpers = require('../utils/libraryHelpers')
@@ -9,7 +9,7 @@ const libraryItemsBookFilters = require('../utils/queries/libraryItemsBookFilter
 const libraryItemFilters = require('../utils/queries/libraryItemFilters')
 const seriesFilters = require('../utils/queries/seriesFilters')
 const fileUtils = require('../utils/fileUtils')
-const { createNewSortInstance } = require('../libs/fastSort')
+const { createNewSortInstance } = require('fast-sort')
 const naturalSort = createNewSortInstance({
   comparer: new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare
 })

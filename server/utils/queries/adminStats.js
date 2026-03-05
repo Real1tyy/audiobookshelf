@@ -1,7 +1,7 @@
 const Sequelize = require('sequelize')
 const Database = require('../../Database')
 const PlaybackSession = require('../../models/PlaybackSession')
-const fsExtra = require('../../libs/fsExtra')
+const fsExtra = require('fs-extra')
 
 module.exports = {
   /**

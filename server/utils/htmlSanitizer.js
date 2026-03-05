@@ -1,4 +1,4 @@
-const sanitizeHtml = require('../libs/sanitizeHtml')
+const sanitizeHtml = require('sanitize-html')
 const { entities } = require('./htmlEntities')
 
 /**

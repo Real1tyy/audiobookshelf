@@ -1,4 +1,4 @@
-const { createNewSortInstance } = require('../libs/fastSort')
+const { createNewSortInstance } = require('fast-sort')
 const Database = require('../Database')
 const { getTitlePrefixAtEnd, isNullOrNaN, getTitleIgnorePrefix } = require('../utils/index')
 const naturalSort = createNewSortInstance({

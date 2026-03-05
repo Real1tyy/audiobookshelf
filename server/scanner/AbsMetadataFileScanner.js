@@ -1,5 +1,5 @@
 const Path = require('path')
-const fsExtra = require('../libs/fsExtra')
+const fsExtra = require('fs-extra')
 const { readTextFile } = require('../utils/fileUtils')
 const { LogLevel } = require('../utils/constants')
 const abmetadataGenerator = require('../utils/generators/abmetadataGenerator')

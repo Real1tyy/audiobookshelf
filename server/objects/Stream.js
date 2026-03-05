@@ -3,8 +3,8 @@ const Path = require('path')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 
-const fs = require('../libs/fsExtra')
-const Ffmpeg = require('../libs/fluentFfmpeg')
+const fs = require('fs-extra')
+const Ffmpeg = require('fluent-ffmpeg')
 
 const { secondsToTimestamp } = require('../utils/index')
 const { writeConcatFile } = require('../utils/ffmpegHelpers')
@@ -226,7 +226,7 @@ class Stream extends EventEmitter {
   async start() {
     Logger.info(`[STREAM] START STREAM - Num Segments: ${this.numSegments}`)
 
-    /** @type {import('../libs/fluentFfmpeg/index').FfmpegCommand} */
+    /** @type {import('fluent-ffmpeg').FfmpegCommand} */
     this.ffmpeg = Ffmpeg()
     this.furthestSegmentCreated = 0
 

@@ -2,9 +2,9 @@ const { once } = require('events')
 const { createInterface } = require('readline')
 const Path = require('path')
 const Logger = require('../../Logger')
-const fs = require('../../libs/fsExtra')
-const archiver = require('../../libs/archiver')
-const StreamZip = require('../../libs/nodeStreamZip')
+const fs = require('fs-extra')
+const archiver = require('archiver')
+const StreamZip = require('node-stream-zip')
 
 async function processDbFile(filepath) {
   if (!fs.pathExistsSync(filepath)) {

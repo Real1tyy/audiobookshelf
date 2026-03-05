@@ -1,7 +1,7 @@
 const { Request, Response, NextFunction } = require('express')
 const sequelize = require('sequelize')
-const fs = require('../libs/fsExtra')
-const { createNewSortInstance } = require('../libs/fastSort')
+const fs = require('fs-extra')
+const { createNewSortInstance } = require('fast-sort')
 
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')

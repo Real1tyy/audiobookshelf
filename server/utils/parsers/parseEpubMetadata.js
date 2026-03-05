@@ -1,6 +1,6 @@
 const Path = require('path')
 const Logger = require('../../Logger')
-const StreamZip = require('../../libs/nodeStreamZip')
+const StreamZip = require('node-stream-zip')
 const parseOpfMetadata = require('./parseOpfMetadata')
 const { xmlToJSON } = require('../index')
 

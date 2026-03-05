@@ -1,7 +1,7 @@
 import { DataTypes, Model, InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey, NonAttribute, Sequelize } from 'sequelize'
 
 const Path = require('path')
-const fsExtra = require('../libs/fsExtra')
+const fsExtra = require('fs-extra')
 const Logger = require('../Logger')
 const libraryFilters = require('../utils/queries/libraryFilters')
 const { filePathToPOSIX, getFileTimestampsWithIno } = require('../utils/fileUtils')
