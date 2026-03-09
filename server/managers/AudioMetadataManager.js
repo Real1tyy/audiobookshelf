@@ -3,9 +3,9 @@ const SocketAuthority = require('../SocketAuthority')
 const Logger = require('../Logger')
 const fs = require('fs-extra')
 const ffmpegHelpers = require('../utils/ffmpegHelpers')
-const TaskManager = require('./TaskManager')
 const Task = require('../objects/Task')
 const fileUtils = require('../utils/fileUtils')
+const BaseTaskManager = require('./BaseTaskManager')
 
 /**
  * @typedef UpdateMetadataOptions
@@ -13,38 +13,20 @@ const fileUtils = require('../utils/fileUtils')
  * @property {boolean} [backup=false] - Whether to backup the files.
  */
 
-class AudioMetadataMangaer {
+class AudioMetadataManager extends BaseTaskManager {
   constructor() {
+    super('AudioMetadataManager')
     this.itemsCacheDir = Path.join(global.MetadataPath, 'cache/items')
-
-    this.MAX_CONCURRENT_TASKS = 1
-    this.tasksRunning = []
-    this.tasksQueued = []
   }
 
   /**
-   * Get queued task data
-   * @return {Array}
-   */
-  getQueuedTaskData() {
-    return this.tasksQueued.map((t) => t.data)
-  }
-
-  getIsLibraryItemQueuedOrProcessing(libraryItemId) {
-    return this.tasksQueued.some((t) => t.data.libraryItemId === libraryItemId) || this.tasksRunning.some((t) => t.data.libraryItemId === libraryItemId)
-  }
-
-  /**
-   *
    * @param {import('../models/LibraryItem')} libraryItem
-   * @returns
    */
   getMetadataObjectForApi(libraryItem) {
     return ffmpegHelpers.getFFMetadataObject(libraryItem, libraryItem.media.includedAudioFiles.length)
   }
 
   /**
-   *
    * @param {string} userId
    * @param {import('../models/LibraryItem')[]} libraryItems
    * @param {UpdateMetadataOptions} options
@@ -56,7 +38,6 @@ class AudioMetadataMangaer {
   }
 
   /**
-   *
    * @param {string} userId
    * @param {import('../models/LibraryItem')} libraryItem
    * @param {UpdateMetadataOptions} [options={}]
@@ -114,25 +95,20 @@ class AudioMetadataMangaer {
     }
     task.setData('embed-metadata', taskTitleString, taskDescriptionString, false, taskData)
 
-    if (this.tasksRunning.length >= this.MAX_CONCURRENT_TASKS) {
-      Logger.info(`[AudioMetadataManager] Queueing embed metadata for audiobook "${libraryItem.media.title}"`)
+    const queued = this.enqueueTask(task, `"${libraryItem.media.title}"`)
+    if (queued) {
       SocketAuthority.adminEmitter('metadata_embed_queue_update', {
         libraryItemId: libraryItem.id,
         queued: true
       })
-      this.tasksQueued.push(task)
-    } else {
-      this.runMetadataEmbed(task)
     }
   }
 
   /**
-   *
    * @param {import('../objects/Task')} task
    */
-  async runMetadataEmbed(task) {
-    this.tasksRunning.push(task)
-    TaskManager.addTask(task)
+  async runTask(task) {
+    this.startTask(task)
 
     Logger.info(`[AudioMetadataManager] Starting metadata embed task`, task.description)
 
@@ -141,11 +117,7 @@ class AudioMetadataMangaer {
     Logger.debug(`[AudioMetadataManager] Target directory ${task.data.libraryItemDir} writable: ${targetDirWritable}`)
     if (!targetDirWritable) {
       Logger.error(`[AudioMetadataManager] Target directory is not writable: ${task.data.libraryItemDir}`)
-      const taskFailedString = {
-        text: 'Target directory is not writable',
-        key: 'MessageTaskTargetDirectoryNotWritable'
-      }
-      task.setFailed(taskFailedString)
+      task.setFailed({ text: 'Target directory is not writable', key: 'MessageTaskTargetDirectoryNotWritable' })
       this.handleTaskFinished(task)
       return
     }
@@ -156,12 +128,11 @@ class AudioMetadataMangaer {
         await fs.access(af.path, fs.constants.W_OK)
       } catch (err) {
         Logger.error(`[AudioMetadataManager] Audio file is not writable: ${af.path}`)
-        const taskFailedString = {
+        task.setFailed({
           text: `Audio file "${Path.basename(af.path)}" is not writable`,
           key: 'MessageTaskAudioFileNotWritable',
           subs: [Path.basename(af.path)]
-        }
-        task.setFailed(taskFailedString)
+        })
         this.handleTaskFinished(task)
         return
       }
@@ -175,11 +146,7 @@ class AudioMetadataMangaer {
         cacheDirCreated = true
       } catch (err) {
         Logger.error(`[AudioMetadataManager] Failed to create cache directory ${task.data.itemCachePath}`, err)
-        const taskFailedString = {
-          text: 'Failed to create cache directory',
-          key: 'MessageTaskFailedToCreateCacheDirectory'
-        }
-        task.setFailed(taskFailedString)
+        task.setFailed({ text: 'Failed to create cache directory', key: 'MessageTaskFailedToCreateCacheDirectory' })
         this.handleTaskFinished(task)
         return
       }
@@ -190,17 +157,13 @@ class AudioMetadataMangaer {
     const success = await ffmpegHelpers.writeFFMetadataFile(task.data.metadataObject, task.data.chapters, ffmetadataPath)
     if (!success) {
       Logger.error(`[AudioMetadataManager] Failed to write ffmetadata file for audiobook "${task.data.libraryItemId}"`)
-      const taskFailedString = {
-        text: 'Failed to write metadata file',
-        key: 'MessageTaskFailedToWriteMetadataFile'
-      }
-      task.setFailed(taskFailedString)
+      task.setFailed({ text: 'Failed to write metadata file', key: 'MessageTaskFailedToWriteMetadataFile' })
       this.handleTaskFinished(task)
       return
     }
 
     // Tag audio files
-    let cummulativeProgress = 0
+    let cumulativeProgress = 0
     for (const af of task.data.audioFiles) {
       const audioFileRelativeDuration = af.duration / task.data.duration
       SocketAuthority.adminEmitter('track_started', {
@@ -216,12 +179,11 @@ class AudioMetadataMangaer {
           Logger.debug(`[AudioMetadataManager] Backed up audio file at "${backupFilePath}"`)
         } catch (err) {
           Logger.error(`[AudioMetadataManager] Failed to backup audio file "${af.path}"`, err)
-          const taskFailedString = {
+          task.setFailed({
             text: `Failed to backup audio file "${Path.basename(af.path)}"`,
             key: 'MessageTaskFailedToBackupAudioFile',
             subs: [Path.basename(af.path)]
-          }
-          task.setFailed(taskFailedString)
+          })
           this.handleTaskFinished(task)
           return
         }
@@ -229,18 +191,17 @@ class AudioMetadataMangaer {
 
       try {
         await ffmpegHelpers.addCoverAndMetadataToFile(af.path, task.data.coverPath, ffmetadataPath, af.index, task.data.mimeType, (progress) => {
-          SocketAuthority.adminEmitter('task_progress', { libraryItemId: task.data.libraryItemId, progress: cummulativeProgress + progress * audioFileRelativeDuration })
+          SocketAuthority.adminEmitter('task_progress', { libraryItemId: task.data.libraryItemId, progress: cumulativeProgress + progress * audioFileRelativeDuration })
           SocketAuthority.adminEmitter('track_progress', { libraryItemId: task.data.libraryItemId, ino: af.ino, progress })
         })
         Logger.info(`[AudioMetadataManager] Successfully tagged audio file "${af.path}"`)
       } catch (err) {
         Logger.error(`[AudioMetadataManager] Failed to tag audio file "${af.path}"`, err)
-        const taskFailedString = {
+        task.setFailed({
           text: `Failed to embed metadata in file "${Path.basename(af.path)}"`,
           key: 'MessageTaskFailedToEmbedMetadataInFile',
           subs: [Path.basename(af.path)]
-        }
-        task.setFailed(taskFailedString)
+        })
         this.handleTaskFinished(task)
         return
       }
@@ -250,12 +211,11 @@ class AudioMetadataMangaer {
         ino: af.ino
       })
 
-      cummulativeProgress += audioFileRelativeDuration * 100
+      cumulativeProgress += audioFileRelativeDuration * 100
     }
 
     // Remove temp cache file/folder if not backing up
     if (!task.data.options.backupFiles) {
-      // If cache dir was created from this then remove it
       if (cacheDirCreated) {
         await fs.remove(task.data.itemCachePath)
       } else {
@@ -267,23 +227,12 @@ class AudioMetadataMangaer {
     this.handleTaskFinished(task)
   }
 
-  handleTaskFinished(task) {
-    TaskManager.taskFinished(task)
-    this.tasksRunning = this.tasksRunning.filter((t) => t.id !== task.id)
-
-    if (this.tasksRunning.length < this.MAX_CONCURRENT_TASKS && this.tasksQueued.length) {
-      Logger.info(`[AudioMetadataManager] Task finished and dequeueing next task. ${this.tasksQueued} tasks queued.`)
-      const nextTask = this.tasksQueued.shift()
-      SocketAuthority.emitter('metadata_embed_queue_update', {
-        libraryItemId: nextTask.data.libraryItemId,
-        queued: false
-      })
-      this.runMetadataEmbed(nextTask)
-    } else if (this.tasksRunning.length > 0) {
-      Logger.debug(`[AudioMetadataManager] Task finished but not dequeueing. Currently running ${this.tasksRunning.length} tasks. ${this.tasksQueued.length} tasks queued.`)
-    } else {
-      Logger.debug(`[AudioMetadataManager] Task finished and no tasks remain in queue`)
-    }
+  onTaskDequeued(task) {
+    SocketAuthority.emitter('metadata_embed_queue_update', {
+      libraryItemId: task.data.libraryItemId,
+      queued: false
+    })
   }
 }
-module.exports = AudioMetadataMangaer
+
+module.exports = AudioMetadataManager

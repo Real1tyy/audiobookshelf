@@ -2,28 +2,12 @@ const Sequelize = require('sequelize')
 const Logger = require('../../Logger')
 const Database = require('../../Database')
 const libraryItemsBookFilters = require('./libraryItemsBookFilters')
-const { createNewSortInstance } = require('fast-sort')
 const { profile } = require('../../utils/profiler')
-const naturalSort = createNewSortInstance({
-  comparer: new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare
-})
+const naturalSort = require('../naturalSort')
+const { decodeFilterValue, appendUserPermissionSql, getHideSingleBookSeriesLiteral } = require('./queryHelpers')
 
 module.exports = {
-  decode(text) {
-    // Values may be URI-encoded once (preferred), but can also end up double-encoded
-    // when already-encoded tokens are passed through URLSearchParams.
-    // Decode up to 2 times to be resilient.
-    let v = text
-    try {
-      v = decodeURIComponent(v)
-      if (/%[0-9A-Fa-f]{2}/.test(v)) {
-        v = decodeURIComponent(v)
-      }
-    } catch (e) {
-      // keep original
-    }
-    return Buffer.from(v, 'base64').toString()
-  },
+  decode: decodeFilterValue,
 
   /**
    * Parse one-or-many filter tokens (comma-separated) for AND semantics.
@@ -210,25 +194,14 @@ module.exports = {
     // Handle library setting to hide single book series
     // TODO: Merge with existing query
     if (library.settings.hideSingleBookSeries) {
-      seriesWhere.push(
-        Sequelize.literal(`(SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id) > 1`)
-      )
+      seriesWhere.push(getHideSingleBookSeriesLiteral())
     }
 
     // Handle user permissions to only include series with at least 1 book
     // TODO: Simplify to a single query
     if (userPermissionBookWhere.bookWhere.length) {
       let attrQuery = 'SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id'
-      if (!user.canAccessExplicitContent) {
-        attrQuery += ' AND b.explicit = 0'
-      }
-      if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
-        if (user.permissions.selectedTagsNotAccessible) {
-          attrQuery += ' AND (SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected)) = 0'
-        } else {
-          attrQuery += ' AND (SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected)) > 0'
-        }
-      }
+      attrQuery += appendUserPermissionSql(user)
       seriesWhere.push(
         Sequelize.literal(`(${attrQuery}) > 0`)
       )

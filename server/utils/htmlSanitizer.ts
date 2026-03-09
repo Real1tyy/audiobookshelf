@@ -1,13 +1,7 @@
-const sanitizeHtml = require('sanitize-html')
-const { entities } = require('./htmlEntities')
+const sanitizeHtml: (dirty: string, options?: object) => string = require('sanitize-html')
+const { entities }: { entities: Record<string, string> } = require('./htmlEntities')
 
-/**
- *
- * @param {string} html
- * @returns {string}
- * @throws {Error} if input is not a string
- */
-function sanitize(html) {
+function sanitize(html: string): string {
   if (typeof html !== 'string') {
     throw new Error('sanitizeHtml: input must be a string')
   }
@@ -24,20 +18,18 @@ function sanitize(html) {
 
   return sanitizeHtml(html, sanitizerOptions)
 }
-module.exports.sanitize = sanitize
 
-function stripAllTags(html, shouldDecodeEntities = true) {
+function stripAllTags(html: string, shouldDecodeEntities = true): string {
   const sanitizerOptions = {
-    allowedTags: [],
+    allowedTags: [] as string[],
     disallowedTagsMode: 'discard'
   }
 
   let sanitized = sanitizeHtml(html, sanitizerOptions)
   return shouldDecodeEntities ? decodeHTMLEntities(sanitized) : sanitized
 }
-module.exports.stripAllTags = stripAllTags
 
-function decodeHTMLEntities(strToDecode) {
+function decodeHTMLEntities(strToDecode: string): string {
   return strToDecode.replace(/\&([^;]+);?/g, function (entity) {
     if (entity in entities) {
       return entities[entity]
@@ -45,3 +37,5 @@ function decodeHTMLEntities(strToDecode) {
     return entity
   })
 }
+
+module.exports = { sanitize, stripAllTags }

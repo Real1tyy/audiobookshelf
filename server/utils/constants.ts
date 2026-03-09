@@ -1,22 +1,22 @@
-module.exports.ScanResult = {
+export const ScanResult = {
   NOTHING: 0,
   ADDED: 1,
   UPDATED: 2,
   REMOVED: 3,
   UPTODATE: 4
-}
+} as const
 
-module.exports.BookCoverAspectRatio = {
+export const BookCoverAspectRatio = {
   STANDARD: 0, // 1.6:1
   SQUARE: 1
-}
+} as const
 
-module.exports.BookshelfView = {
+export const BookshelfView = {
   STANDARD: 0,
   DETAIL: 1
-}
+} as const
 
-module.exports.LogLevel = {
+export const LogLevel = {
   TRACE: 0,
   DEBUG: 1,
   INFO: 2,
@@ -24,16 +24,16 @@ module.exports.LogLevel = {
   ERROR: 4,
   FATAL: 5,
   NOTE: 6
-}
+} as const
 
-module.exports.PlayMethod = {
+export const PlayMethod = {
   DIRECTPLAY: 0,
   DIRECTSTREAM: 1,
   TRANSCODE: 2,
   LOCAL: 3
-}
+} as const
 
-module.exports.AudioMimeType = {
+export const AudioMimeType: Record<string, string> = {
   MP3: 'audio/mpeg',
   M4B: 'audio/mp4',
   M4A: 'audio/mp4',
@@ -53,4 +53,4 @@ module.exports.AudioMimeType = {
   CAF: 'audio/x-caf',
   MPEG: 'audio/mpeg',
   MPG: 'audio/mpeg'
-}
+} as const

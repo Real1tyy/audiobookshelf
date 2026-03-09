@@ -3,7 +3,7 @@ const Path = require('path')
 const sequelize = require('sequelize')
 
 const Logger = require('../Logger')
-const { requireAdmin } = require('../middleware')
+const { requireAdmin, requirePermission } = require('../middleware')
 const Database = require('../Database')
 const SocketAuthority = require('../SocketAuthority')
 
@@ -87,7 +87,7 @@ class ApiRouter {
     this.router.post('/libraries/:id/scan', requireAdmin, LibraryController.middleware.bind(this), LibraryController.scan.bind(this))
     this.router.post('/libraries/order', requireAdmin, LibraryController.reorder.bind(this))
     this.router.post('/libraries/:id/remove-metadata', requireAdmin, LibraryController.middleware.bind(this), LibraryController.removeAllMetadataFiles.bind(this))
-    this.router.get('/libraries/:id/download', LibraryController.middleware.bind(this), LibraryController.downloadMultiple.bind(this))
+    this.router.get('/libraries/:id/download', requirePermission('canDownload'), LibraryController.middleware.bind(this), LibraryController.downloadMultiple.bind(this))
 
     //
     // YouTube Routes
@@ -98,7 +98,7 @@ class ApiRouter {
     // Item Routes
     //
     this.router.post('/items', LibraryItemController.create.bind(this))
-    this.router.post('/items/batch/delete', LibraryItemController.batchDelete.bind(this))
+    this.router.post('/items/batch/delete', requirePermission('canDelete'), LibraryItemController.batchDelete.bind(this))
     this.router.post('/items/batch/update', LibraryItemController.batchUpdate.bind(this))
     this.router.post('/items/batch/get', LibraryItemController.batchGet.bind(this))
     this.router.post('/items/batch/quickmatch', requireAdmin, LibraryItemController.batchQuickMatch.bind(this))
@@ -106,10 +106,10 @@ class ApiRouter {
 
     this.router.get('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.findOne.bind(this))
     this.router.delete('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.delete.bind(this))
-    this.router.get('/items/:id/download', LibraryItemController.middleware.bind(this), LibraryItemController.download.bind(this))
+    this.router.get('/items/:id/download', requirePermission('canDownload'), LibraryItemController.middleware.bind(this), LibraryItemController.download.bind(this))
     this.router.patch('/items/:id/media', LibraryItemController.middleware.bind(this), LibraryItemController.updateMedia.bind(this))
     this.router.get('/items/:id/cover', LibraryItemController.getCover.bind(this))
-    this.router.post('/items/:id/cover', LibraryItemController.middleware.bind(this), LibraryItemController.uploadCover.bind(this))
+    this.router.post('/items/:id/cover', requirePermission('canUpload'), LibraryItemController.middleware.bind(this), LibraryItemController.uploadCover.bind(this))
     this.router.patch('/items/:id/cover', LibraryItemController.middleware.bind(this), LibraryItemController.updateCover.bind(this))
     this.router.delete('/items/:id/cover', LibraryItemController.middleware.bind(this), LibraryItemController.removeCover.bind(this))
     this.router.post('/items/:id/match', LibraryItemController.middleware.bind(this), LibraryItemController.match.bind(this))
@@ -121,7 +121,7 @@ class ApiRouter {
     this.router.get('/items/:id/ffprobe/:fileid', requireAdmin, LibraryItemController.middleware.bind(this), LibraryItemController.getFFprobeData.bind(this))
     this.router.get('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getLibraryFile.bind(this))
     this.router.delete('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.deleteLibraryFile.bind(this))
-    this.router.get('/items/:id/file/:fileid/download', LibraryItemController.middleware.bind(this), LibraryItemController.downloadLibraryFile.bind(this))
+    this.router.get('/items/:id/file/:fileid/download', requirePermission('canDownload'), LibraryItemController.middleware.bind(this), LibraryItemController.downloadLibraryFile.bind(this))
     this.router.get('/items/:id/ebook/:fileid?', LibraryItemController.middleware.bind(this), LibraryItemController.getEBookFile.bind(this))
     this.router.patch('/items/:id/ebook/:fileid/status', LibraryItemController.middleware.bind(this), LibraryItemController.updateEbookFileStatus.bind(this))
 
@@ -181,7 +181,7 @@ class ApiRouter {
     // File System Routes
     //
     this.router.get('/filesystem', requireAdmin, FileSystemController.getPaths.bind(this))
-    this.router.post('/filesystem/pathexists', FileSystemController.checkPathExists.bind(this))
+    this.router.post('/filesystem/pathexists', requirePermission('canUpload'), FileSystemController.checkPathExists.bind(this))
 
     //
     // Author Routes
@@ -192,7 +192,7 @@ class ApiRouter {
     this.router.post('/authors/:id/match', AuthorController.middleware.bind(this), AuthorController.match.bind(this))
     this.router.get('/authors/:id/listening-stats', AuthorController.middleware.bind(this), AuthorController.getListeningStats.bind(this))
     this.router.get('/authors/:id/image', AuthorController.getImage.bind(this))
-    this.router.post('/authors/:id/image', AuthorController.middleware.bind(this), AuthorController.uploadImage.bind(this))
+    this.router.post('/authors/:id/image', requirePermission('canUpload'), AuthorController.middleware.bind(this), AuthorController.uploadImage.bind(this))
     this.router.delete('/authors/:id/image', AuthorController.middleware.bind(this), AuthorController.deleteImage.bind(this))
 
     //
@@ -203,7 +203,7 @@ class ApiRouter {
     this.router.delete('/series/:id', SeriesController.middleware.bind(SeriesController), SeriesController.delete.bind(SeriesController))
     this.router.patch('/series/:id/books', SeriesController.middleware.bind(SeriesController), SeriesController.updateBooks.bind(SeriesController))
     this.router.delete('/series/:id/books/:bookId', SeriesController.middleware.bind(SeriesController), SeriesController.removeBook.bind(SeriesController))
-    this.router.post('/series/:id/cover', SeriesController.middleware.bind(SeriesController), SeriesController.uploadCover.bind(SeriesController))
+    this.router.post('/series/:id/cover', requirePermission('canUpload'), SeriesController.middleware.bind(SeriesController), SeriesController.uploadCover.bind(SeriesController))
     this.router.delete('/series/:id/cover', SeriesController.middleware.bind(SeriesController), SeriesController.deleteCover.bind(SeriesController))
     this.router.get('/series/:id/cover', SeriesController.getCover.bind(SeriesController))
 
@@ -286,7 +286,7 @@ class ApiRouter {
     //
     // Misc Routes
     //
-    this.router.post('/upload', MiscController.handleUpload.bind(this))
+    this.router.post('/upload', requirePermission('canUpload'), MiscController.handleUpload.bind(this))
     this.router.get('/tasks', MiscController.getTasks.bind(this))
     this.router.patch('/settings', requireAdmin, MiscController.updateServerSettings.bind(this))
     this.router.patch('/sorting-prefixes', requireAdmin, MiscController.updateSortingPrefixes.bind(this))

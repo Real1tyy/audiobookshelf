@@ -304,10 +304,6 @@ class LibraryItemController {
    * @param {Response} res
    */
   async download(req, res) {
-    if (!req.user.canDownload) {
-      Logger.warn(`User "${req.user.username}" attempted to download without permission`)
-      return res.sendStatus(403)
-    }
     if (!req.libraryItem.path) {
       return res.status(400).json({ error: 'Virtual items cannot be downloaded' })
     }
@@ -435,11 +431,6 @@ class LibraryItemController {
    * @param {boolean} [updateAndReturnJson=true] - Allows the function to be used for both direct API calls and internally
    */
   async uploadCover(req, res, updateAndReturnJson = true) {
-    if (!req.user.canUpload) {
-      Logger.warn(`User "${req.user.username}" attempted to upload a cover without permission`)
-      return res.sendStatus(403)
-    }
-
     let result = null
     if (req.body?.url) {
       Logger.debug(`[LibraryItemController] Requesting download cover from url "${req.body.url}"`)
@@ -666,10 +657,6 @@ class LibraryItemController {
    * @param {Response} res
    */
   async batchDelete(req, res) {
-    if (!req.user.canDelete) {
-      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to delete without permission`)
-      return res.sendStatus(403)
-    }
     const hardDelete = req.query.hard == 1 // Delete files from filesystem
 
     const { libraryItemIds } = req.body
@@ -1120,11 +1107,6 @@ class LibraryItemController {
   async downloadLibraryFile(req, res) {
     const libraryFile = req.libraryFile
     const ua = uaParserJs(req.headers['user-agent'])
-
-    if (!req.user.canDownload) {
-      Logger.error(`[LibraryItemController] User "${req.user.username}" without download permission attempted to download file "${libraryFile.metadata.path}"`)
-      return res.sendStatus(403)
-    }
 
     Logger.info(`[LibraryItemController] User "${req.user.username}" requested download for item "${req.libraryItem.media.title}" file at "${libraryFile.metadata.path}"`)
 

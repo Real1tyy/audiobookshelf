@@ -1,8 +1,6 @@
 const { Request, Response, NextFunction } = require('express')
 const sequelize = require('sequelize')
 const fs = require('fs-extra')
-const { createNewSortInstance } = require('fast-sort')
-
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
@@ -13,10 +11,7 @@ const AuthorFinder = require('../finders/AuthorFinder')
 
 const { reqSupportsWebp, isValidASIN } = require('../utils/index')
 const { filterAndSortLibraryItems, parseFilterSortQuery } = require('../utils/itemFilters')
-
-const naturalSort = createNewSortInstance({
-  comparer: new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare
-})
+const naturalSort = require('../utils/naturalSort')
 
 /**
  * @typedef RequestUserObject
@@ -278,10 +273,6 @@ class AuthorController {
    * @param {Response} res
    */
   async uploadImage(req, res) {
-    if (!req.user.canUpload) {
-      Logger.warn(`User "${req.user.username}" attempted to upload an image without permission`)
-      return res.sendStatus(403)
-    }
     if (!req.body.url) {
       Logger.error(`[AuthorController] Invalid request payload. 'url' not in request body`)
       return res.status(400).send(`Invalid request payload. 'url' not in request body`)

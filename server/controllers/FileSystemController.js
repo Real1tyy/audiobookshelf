@@ -78,11 +78,6 @@ class FileSystemController {
    * @param {Response} res
    */
   async checkPathExists(req, res) {
-    if (!req.user.canUpload) {
-      Logger.error(`[FileSystemController] User "${req.user.username}" without upload permissions attempting to check path exists`)
-      return res.sendStatus(403)
-    }
-
     const { directory, folderPath } = req.body
     if (!directory?.length || typeof directory !== 'string' || !folderPath?.length || typeof folderPath !== 'string') {
       Logger.error(`[FileSystemController] Invalid request body: ${JSON.stringify(req.body)}`)

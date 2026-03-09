@@ -1,22 +1,28 @@
-const { performance, createHistogram } = require('perf_hooks')
-const util = require('util')
+import { performance, createHistogram, RecordableHistogram } from 'perf_hooks'
+import util from 'util'
 const Logger = require('../Logger')
 
-const histograms = new Map()
+type HistogramWithValues = RecordableHistogram & { values: number[] }
 
-function profile(asyncFunc, isFindQuery = true, funcName = asyncFunc.name) {
+const histograms = new Map<string, HistogramWithValues>()
+
+function profile<T extends (...args: any[]) => Promise<any>>(
+  asyncFunc: T,
+  isFindQuery = true,
+  funcName = asyncFunc.name
+): (...args: Parameters<T>) => ReturnType<T> {
   if (!histograms.has(funcName)) {
-    const histogram = createHistogram()
+    const histogram = createHistogram() as HistogramWithValues
     histogram.values = []
     histograms.set(funcName, histogram)
   }
-  const histogram = histograms.get(funcName)
+  const histogram = histograms.get(funcName)!
 
-  return async (...args) => {
+  return (async (...args: Parameters<T>) => {
     if (isFindQuery) {
       const findOptions = args[0]
       Logger.info(`[${funcName}] findOptions:`, util.inspect(findOptions, { depth: null }))
-      findOptions.logging = (query, time) => Logger.info(`[${funcName}] ${query} Elapsed time: ${time}ms`)
+      findOptions.logging = (query: string, time: number) => Logger.info(`[${funcName}] ${query} Elapsed time: ${time}ms`)
       findOptions.benchmark = true
     }
     const start = performance.now()
@@ -35,7 +41,7 @@ function profile(asyncFunc, isFindQuery = true, funcName = asyncFunc.name) {
       Logger.info(`[${funcName}] histogram values:`, histogram.values)
       Logger.info(`[${funcName}] histogram:`, histogram)
     }
-  }
+  }) as (...args: Parameters<T>) => ReturnType<T>
 }
 
 module.exports = { profile }

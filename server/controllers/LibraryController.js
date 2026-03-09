@@ -9,10 +9,7 @@ const libraryItemsBookFilters = require('../utils/queries/libraryItemsBookFilter
 const libraryItemFilters = require('../utils/queries/libraryItemFilters')
 const seriesFilters = require('../utils/queries/seriesFilters')
 const fileUtils = require('../utils/fileUtils')
-const { createNewSortInstance } = require('fast-sort')
-const naturalSort = createNewSortInstance({
-  comparer: new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare
-})
+const naturalSort = require('../utils/naturalSort')
 
 const LibraryScanner = require('../scanner/LibraryScanner')
 const Scanner = require('../scanner/Scanner')
@@ -21,6 +18,7 @@ const Watcher = require('../Watcher')
 const libraryFilters = require('../utils/queries/libraryFilters')
 const authorFilters = require('../utils/queries/authorFilters')
 const zipHelpers = require('../utils/zipHelpers')
+const { handleDownloadError } = require('../utils/responseHelpers')
 const { filterAndSortLibraryItems, parseFilterSortQuery } = require('../utils/itemFilters')
 
 /**
@@ -1410,11 +1408,6 @@ class LibraryController {
    * @param {Response} res
    */
   async downloadMultiple(req, res) {
-    if (!req.user.canDownload) {
-      Logger.warn(`User "${req.user.username}" attempted to download without permission`)
-      return res.sendStatus(403)
-    }
-
     if (!req.query.ids || typeof req.query.ids !== 'string') {
       res.status(400).send('Invalid request. ids must be a string')
       return
@@ -1444,7 +1437,7 @@ class LibraryController {
       Logger.info(`[LibraryController] Downloaded ${pathObjects.length} items "${filename}"`)
     } catch (error) {
       Logger.error(`[LibraryController] Download failed for items "${filename}" at ${pathObjects.map((po) => po.path).join(', ')}`, error)
-      zipHelpers.handleDownloadError(error, res)
+      handleDownloadError(error, res)
     }
   }
 

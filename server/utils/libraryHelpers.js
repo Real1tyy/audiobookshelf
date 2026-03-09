@@ -1,9 +1,6 @@
-const { createNewSortInstance } = require('fast-sort')
 const Database = require('../Database')
 const { getTitlePrefixAtEnd, isNullOrNaN, getTitleIgnorePrefix } = require('../utils/index')
-const naturalSort = createNewSortInstance({
-  comparer: new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare
-})
+const naturalSort = require('./naturalSort')
 
 module.exports = {
   /**

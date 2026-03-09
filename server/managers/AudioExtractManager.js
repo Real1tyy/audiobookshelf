@@ -3,21 +3,15 @@ const SocketAuthority = require('../SocketAuthority')
 const Logger = require('../Logger')
 const fs = require('fs-extra')
 const ffmpegHelpers = require('../utils/ffmpegHelpers')
-const TaskManager = require('./TaskManager')
 const Task = require('../objects/Task')
 const fileUtils = require('../utils/fileUtils')
 const Database = require('../Database')
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
+const BaseTaskManager = require('./BaseTaskManager')
 
-class AudioExtractManager {
+class AudioExtractManager extends BaseTaskManager {
   constructor() {
-    this.MAX_CONCURRENT_TASKS = 1
-    this.tasksRunning = []
-    this.tasksQueued = []
-  }
-
-  getIsLibraryItemQueuedOrProcessing(libraryItemId) {
-    return this.tasksQueued.some((t) => t.data.libraryItemId === libraryItemId) || this.tasksRunning.some((t) => t.data.libraryItemId === libraryItemId)
+    super('AudioExtractManager')
   }
 
   /**
@@ -100,20 +94,14 @@ class AudioExtractManager {
     }
     task.setData('extract-highlight', taskTitleString, taskDescriptionString, false, taskData)
 
-    if (this.tasksRunning.length >= this.MAX_CONCURRENT_TASKS) {
-      Logger.info(`[AudioExtractManager] Queueing extract for "${title}"`)
-      this.tasksQueued.push(task)
-    } else {
-      this.runExtractTask(task)
-    }
+    this.enqueueTask(task, `"${title}"`)
   }
 
   /**
    * @param {import('../objects/Task')} task
    */
-  async runExtractTask(task) {
-    this.tasksRunning.push(task)
-    TaskManager.addTask(task)
+  async runTask(task) {
+    this.startTask(task)
 
     const { startTime, endTime, title, audioFiles, libraryItemId, libraryId } = task.data
 
@@ -240,7 +228,6 @@ class AudioExtractManager {
     }
 
     // Let the library scanner discover the new folder as a proper library item
-    // This ensures audio files, duration, and all metadata are populated correctly
     try {
       const sourceAuthorName = task.data.sourceAuthorName
       const sourceTags = task.data.sourceTags
@@ -260,7 +247,6 @@ class AudioExtractManager {
       const outputDirPosix = fileUtils.filePathToPOSIX(outputDir)
       let folder = library.libraryFolders.find((f) => outputDirPosix.startsWith(fileUtils.filePathToPOSIX(f.path)))
       if (!folder) {
-        // Fallback to the source item's folder or first folder
         folder = library.libraryFolders.find((f) => f.id === sourceItem.libraryFolderId) || library.libraryFolders[0]
       }
 
@@ -307,7 +293,7 @@ class AudioExtractManager {
           Database.addTagsToFilterData(libraryId, sourceTags)
         }
 
-        // Add bidirectional relatedBooks link on the source item (uses book/media IDs)
+        // Add bidirectional relatedBooks link on the source item
         const sourceBook = sourceItem.media
         const sourceRelated = sourceBook.relatedBooks || []
         if (!sourceRelated.includes(media.id)) {
@@ -333,17 +319,6 @@ class AudioExtractManager {
 
     task.setFinished()
     this.handleTaskFinished(task)
-  }
-
-  handleTaskFinished(task) {
-    TaskManager.taskFinished(task)
-    this.tasksRunning = this.tasksRunning.filter((t) => t.id !== task.id)
-
-    if (this.tasksRunning.length < this.MAX_CONCURRENT_TASKS && this.tasksQueued.length) {
-      Logger.info(`[AudioExtractManager] Task finished, dequeueing next task. ${this.tasksQueued.length} tasks queued.`)
-      const nextTask = this.tasksQueued.shift()
-      this.runExtractTask(nextTask)
-    }
   }
 }
 

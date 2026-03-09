@@ -208,11 +208,6 @@ class SeriesController {
    * @param {Response} res
    */
   async uploadCover(req, res) {
-    if (!req.user.canUpload) {
-      Logger.warn(`User "${req.user.username}" attempted to upload a cover without permission`)
-      return res.sendStatus(403)
-    }
-
     let coverPath = null
 
     if (req.body.url) {

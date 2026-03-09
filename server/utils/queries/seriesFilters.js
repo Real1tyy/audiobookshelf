@@ -2,11 +2,10 @@ const Sequelize = require('sequelize')
 const Logger = require('../../Logger')
 const Database = require('../../Database')
 const libraryItemsBookFilters = require('./libraryItemsBookFilters')
+const { decodeFilterValue, appendUserPermissionSql, getHideSingleBookSeriesLiteral } = require('./queryHelpers')
 
 module.exports = {
-  decode(text) {
-    return Buffer.from(decodeURIComponent(text), 'base64').toString()
-  },
+  decode: decodeFilterValue,
 
   /**
    * Get series filtered and sorted
@@ -54,9 +53,7 @@ module.exports = {
     // Handle library setting to hide single book series
     // TODO: Merge with existing query
     if (library.settings.hideSingleBookSeries) {
-      seriesWhere.push(
-        Sequelize.literal(`(SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id) > 1`)
-      )
+      seriesWhere.push(getHideSingleBookSeriesLiteral())
     }
 
     // Handle filters
@@ -93,17 +90,7 @@ module.exports = {
     // TODO: Simplify to a single query
     if (userPermissionBookWhere.bookWhere.length) {
       if (!attrQuery) attrQuery = 'SELECT count(*) FROM books b, bookSeries bs WHERE bs.seriesId = series.id AND bs.bookId = b.id'
-
-      if (!user.canAccessExplicitContent) {
-        attrQuery += ' AND b.explicit = 0'
-      }
-      if (!user.permissions?.accessAllTags && user.permissions?.itemTagsSelected?.length) {
-        if (user.permissions.selectedTagsNotAccessible) {
-          attrQuery += ' AND (SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected)) = 0'
-        } else {
-          attrQuery += ' AND (SELECT count(*) FROM json_each(tags) WHERE json_valid(tags) AND json_each.value IN (:userTagsSelected)) > 0'
-        }
-      }
+      attrQuery += appendUserPermissionSql(user)
     }
 
     if (attrQuery) {

@@ -15,12 +15,13 @@
  License: Free to use anywhere by anyone, as-is, no guarantees of any kind.
  @param value1 First item to compare
  @param value2 Other item to compare
+ @param numToString Convert numbers to strings before comparing
  @param stack Used internally to track circular refs - don't set it
  */
-module.exports = function areEquivalent(value1, value2, numToString = false, stack = []) {
+function areEquivalent(value1: unknown, value2: unknown, numToString = false, stack: unknown[] = []): boolean {
   if (numToString) {
-    if (value1 !== null && !isNaN(value1)) value1 = String(value1)
-    if (value2 !== null && !isNaN(value2)) value2 = String(value2)
+    if (value1 !== null && !isNaN(value1 as number)) value1 = String(value1)
+    if (value2 !== null && !isNaN(value2 as number)) value2 = String(value2)
   }
 
   // Numbers, strings, null, undefined, symbols, functions, booleans.
@@ -32,7 +33,6 @@ module.exports = function areEquivalent(value1, value2, numToString = false, sta
 
   // Truthy check to handle value1=null, value2=Object
   if ((value1 && !value2) || (!value1 && value2)) {
-    // console.log('value1/value2 falsy mismatch', value1, value2)
     return false
   }
 
@@ -40,7 +40,6 @@ module.exports = function areEquivalent(value1, value2, numToString = false, sta
 
   // Ensure types match
   if (type1 !== typeof value2) {
-    // console.log('type diff', type1, typeof value2)
     return false
   }
 
@@ -48,43 +47,32 @@ module.exports = function areEquivalent(value1, value2, numToString = false, sta
   // (only way they can still be equivalent but not equal)
   if (type1 === 'number') {
     // Failed initial equals test, but could still both be NaN
-    return (isNaN(value1) && isNaN(value2));
+    return (isNaN(value1 as number) && isNaN(value2 as number))
   }
 
   // Special case for function: check for toString() equivalence
   if (type1 === 'function') {
-    // Failed initial equals test, but could still have equivalent
-    // implementations - note, will match on functions that have same name
-    // and are native code: `function abc() { [native code] }`
-    return value1.toString() === value2.toString()
+    return (value1 as Function).toString() === (value2 as Function).toString()
   }
 
   // For these types, cannot still be equal at this point, so fast-fail
   if (type1 === 'bigint' || type1 === 'boolean' ||
-    type1 === 'function' || type1 === 'string' ||
-    type1 === 'symbol') {
-    // console.log('no match for values', value1, value2)
+    type1 === 'string' || type1 === 'symbol') {
     return false
   }
 
-  // For dates, cast to number and ensure equal or both NaN (note, if same
-  // exact instance then we're not here - that was checked above)
+  // For dates, cast to number and ensure equal or both NaN
   if (value1 instanceof Date) {
     if (!(value2 instanceof Date)) {
       return false
     }
-    // Convert to number to compare
     const asNum1 = +value1, asNum2 = +value2
-    // Check if both invalid (NaN) or are same value
     return asNum1 === asNum2 || (isNaN(asNum1) && isNaN(asNum2))
   }
 
-  // At this point, it's a reference type and could be circular, so
-  // make sure we haven't been here before... note we only need to track value1
-  // since value1 being un-circular means value2 will either be equal (and not
-  // circular too) or unequal whether circular or not.
+  // At this point, it's a reference type and could be circular
   if (stack.includes(value1)) {
-    throw new Error(`areEquivalent value1 is circular`);
+    throw new Error(`areEquivalent value1 is circular`)
   }
 
   // breadcrumb
@@ -111,47 +99,39 @@ module.exports = function areEquivalent(value1, value2, numToString = false, sta
   }
 
   // Final case: object
+  const obj1 = value1 as Record<string, unknown>
+  const obj2 = value2 as Record<string, unknown>
 
-  // get both key lists and check length
-  const keys1 = Object.keys(value1)
-  const keys2 = Object.keys(value2)
+  const keys1 = Object.keys(obj1)
+  const keys2 = Object.keys(obj2)
   const numKeys = keys1.length
 
   if (keys2.length !== numKeys) {
     return false
   }
 
-  // Empty object on both sides?
   if (numKeys === 0) {
     return true
   }
 
-  // sort is a native call so it's very fast - much faster than comparing the
-  // values at each key if it can be avoided, so do the sort and then
-  // ensure every key matches at every index
   keys1.sort()
   keys2.sort()
 
-  // Ensure perfect match across all keys
   for (let i = 0; i < numKeys; i++) {
     if (keys1[i] !== keys2[i]) {
-      // console.log('object key is not equiv', keys1[i], keys2[i])
       return false
     }
   }
 
-  // Ensure perfect match across all values
   for (let i = 0; i < numKeys; i++) {
-    if (!areEquivalent(value1[keys1[i]], value2[keys1[i]], numToString, stack)) {
-      // console.log('2 subobjects not equiv', keys1[i], value1[keys1[i]], value2[keys1[i]])
+    if (!areEquivalent(obj1[keys1[i]], obj2[keys1[i]], numToString, stack)) {
       return false
     }
   }
 
   // back up
-  stack.pop();
+  stack.pop()
 
-  // Walk the same, talk the same - matching ducks. Quack.
-  // 🦆🦆
-  return true;
+  return true
 }
+export = areEquivalent

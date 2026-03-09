@@ -3,11 +3,11 @@ const Path = require('path')
 const { Request, Response } = require('express')
 const fs = require('fs-extra')
 const Logger = require('../Logger')
-const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
 const Watcher = require('../Watcher')
 
 const libraryItemFilters = require('../utils/queries/libraryItemFilters')
+const { renameArrayAttribute, deleteArrayAttribute } = require('../utils/arrayAttributeHelpers')
 const cron = require('node-cron')
 const { isObject, getTitleIgnorePrefix } = require('../utils/index')
 const { sanitizeFilename } = require('../utils/fileUtils')
@@ -33,10 +33,6 @@ class MiscController {
    * @param {Response} res
    */
   async handleUpload(req, res) {
-    if (!req.user.canUpload) {
-      Logger.warn(`User "${req.user.username}" attempted to upload without permission`)
-      return res.sendStatus(403)
-    }
     if (!req.files || !Object.values(req.files).length) {
       Logger.error('Invalid request, no files')
       return res.sendStatus(400)
@@ -278,7 +274,6 @@ class MiscController {
    * @param {Response} res
    */
   async renameTag(req, res) {
-
     const tag = req.body.tag
     const newTag = req.body.newTag
     if (!tag || !newTag) {
@@ -286,38 +281,14 @@ class MiscController {
       return res.sendStatus(400)
     }
 
-    let tagMerged = false
-    let numItemsUpdated = 0
+    const { merged: tagMerged, numItemsUpdated } = await renameArrayAttribute({
+      field: 'tags',
+      getAllItemsWith: libraryItemFilters.getAllLibraryItemsWithTags,
+      replaceInFilterData: Database.replaceTagInFilterData.bind(Database),
+      removeFromFilterData: Database.removeTagFromFilterData.bind(Database)
+    }, tag, newTag)
 
-    // Update filter data
-    Database.replaceTagInFilterData(tag, newTag)
-
-    const libraryItemsWithTag = await libraryItemFilters.getAllLibraryItemsWithTags([tag, newTag])
-    for (const libraryItem of libraryItemsWithTag) {
-      if (libraryItem.media.tags.includes(newTag)) {
-        tagMerged = true // new tag is an existing tag so this is a merge
-      }
-
-      if (libraryItem.media.tags.includes(tag)) {
-        libraryItem.media.tags = libraryItem.media.tags.filter((t) => t !== tag) // Remove old tag
-        if (!libraryItem.media.tags.includes(newTag)) {
-          libraryItem.media.tags.push(newTag)
-        }
-        Logger.debug(`[MiscController] Rename tag "${tag}" to "${newTag}" for item "${libraryItem.media.title}"`)
-        await libraryItem.media.update({
-          tags: libraryItem.media.tags
-        })
-        await libraryItem.saveMetadataFile()
-
-        SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
-        numItemsUpdated++
-      }
-    }
-
-    res.json({
-      tagMerged,
-      numItemsUpdated
-    })
+    res.json({ tagMerged, numItemsUpdated })
   }
 
   /**
@@ -329,32 +300,16 @@ class MiscController {
    * @param {Response} res
    */
   async deleteTag(req, res) {
-
     const tag = Buffer.from(decodeURIComponent(req.params.tag), 'base64').toString()
 
-    // Get all items with tag
-    const libraryItemsWithTag = await libraryItemFilters.getAllLibraryItemsWithTags([tag])
+    const { numItemsUpdated } = await deleteArrayAttribute({
+      field: 'tags',
+      getAllItemsWith: libraryItemFilters.getAllLibraryItemsWithTags,
+      replaceInFilterData: Database.replaceTagInFilterData.bind(Database),
+      removeFromFilterData: Database.removeTagFromFilterData.bind(Database)
+    }, tag)
 
-    // Update filterdata
-    Database.removeTagFromFilterData(tag)
-
-    let numItemsUpdated = 0
-    // Remove tag from items
-    for (const libraryItem of libraryItemsWithTag) {
-      Logger.debug(`[MiscController] Remove tag "${tag}" from item "${libraryItem.media.title}"`)
-      libraryItem.media.tags = libraryItem.media.tags.filter((t) => t !== tag)
-      await libraryItem.media.update({
-        tags: libraryItem.media.tags
-      })
-      await libraryItem.saveMetadataFile()
-
-      SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
-      numItemsUpdated++
-    }
-
-    res.json({
-      numItemsUpdated
-    })
+    res.json({ numItemsUpdated })
   }
 
   /**
@@ -392,7 +347,6 @@ class MiscController {
    * @param {Response} res
    */
   async renameGenre(req, res) {
-
     const genre = req.body.genre
     const newGenre = req.body.newGenre
     if (!genre || !newGenre) {
@@ -400,38 +354,14 @@ class MiscController {
       return res.sendStatus(400)
     }
 
-    let genreMerged = false
-    let numItemsUpdated = 0
+    const { merged: genreMerged, numItemsUpdated } = await renameArrayAttribute({
+      field: 'genres',
+      getAllItemsWith: libraryItemFilters.getAllLibraryItemsWithGenres,
+      replaceInFilterData: Database.replaceGenreInFilterData.bind(Database),
+      removeFromFilterData: Database.removeGenreFromFilterData.bind(Database)
+    }, genre, newGenre)
 
-    // Update filter data
-    Database.replaceGenreInFilterData(genre, newGenre)
-
-    const libraryItemsWithGenre = await libraryItemFilters.getAllLibraryItemsWithGenres([genre, newGenre])
-    for (const libraryItem of libraryItemsWithGenre) {
-      if (libraryItem.media.genres.includes(newGenre)) {
-        genreMerged = true // new genre is an existing genre so this is a merge
-      }
-
-      if (libraryItem.media.genres.includes(genre)) {
-        libraryItem.media.genres = libraryItem.media.genres.filter((t) => t !== genre) // Remove old genre
-        if (!libraryItem.media.genres.includes(newGenre)) {
-          libraryItem.media.genres.push(newGenre)
-        }
-        Logger.debug(`[MiscController] Rename genre "${genre}" to "${newGenre}" for item "${libraryItem.media.title}"`)
-        await libraryItem.media.update({
-          genres: libraryItem.media.genres
-        })
-        await libraryItem.saveMetadataFile()
-
-        SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
-        numItemsUpdated++
-      }
-    }
-
-    res.json({
-      genreMerged,
-      numItemsUpdated
-    })
+    res.json({ genreMerged, numItemsUpdated })
   }
 
   /**
@@ -443,32 +373,16 @@ class MiscController {
    * @param {Response} res
    */
   async deleteGenre(req, res) {
-
     const genre = Buffer.from(decodeURIComponent(req.params.genre), 'base64').toString()
 
-    // Update filter data
-    Database.removeGenreFromFilterData(genre)
+    const { numItemsUpdated } = await deleteArrayAttribute({
+      field: 'genres',
+      getAllItemsWith: libraryItemFilters.getAllLibraryItemsWithGenres,
+      replaceInFilterData: Database.replaceGenreInFilterData.bind(Database),
+      removeFromFilterData: Database.removeGenreFromFilterData.bind(Database)
+    }, genre)
 
-    // Get all items with genre
-    const libraryItemsWithGenre = await libraryItemFilters.getAllLibraryItemsWithGenres([genre])
-
-    let numItemsUpdated = 0
-    // Remove genre from items
-    for (const libraryItem of libraryItemsWithGenre) {
-      Logger.debug(`[MiscController] Remove genre "${genre}" from item "${libraryItem.media.title}"`)
-      libraryItem.media.genres = libraryItem.media.genres.filter((g) => g !== genre)
-      await libraryItem.media.update({
-        genres: libraryItem.media.genres
-      })
-      await libraryItem.saveMetadataFile()
-
-      SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
-      numItemsUpdated++
-    }
-
-    res.json({
-      numItemsUpdated
-    })
+    res.json({ numItemsUpdated })
   }
 
   /**

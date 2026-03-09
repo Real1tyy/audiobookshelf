@@ -3,21 +3,15 @@ const SocketAuthority = require('../SocketAuthority')
 const Logger = require('../Logger')
 const fs = require('fs-extra')
 const ffmpegHelpers = require('../utils/ffmpegHelpers')
-const TaskManager = require('./TaskManager')
 const Task = require('../objects/Task')
 const fileUtils = require('../utils/fileUtils')
 const Database = require('../Database')
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
+const BaseTaskManager = require('./BaseTaskManager')
 
-class AudioTrimManager {
+class AudioTrimManager extends BaseTaskManager {
   constructor() {
-    this.MAX_CONCURRENT_TASKS = 1
-    this.tasksRunning = []
-    this.tasksQueued = []
-  }
-
-  getIsLibraryItemQueuedOrProcessing(libraryItemId) {
-    return this.tasksQueued.some((t) => t.data.libraryItemId === libraryItemId) || this.tasksRunning.some((t) => t.data.libraryItemId === libraryItemId)
+    super('AudioTrimManager')
   }
 
   /**
@@ -56,21 +50,15 @@ class AudioTrimManager {
     }
     task.setData('trim-audio', taskTitleString, taskDescriptionString, false, taskData)
 
-    if (this.tasksRunning.length >= this.MAX_CONCURRENT_TASKS) {
-      Logger.info(`[AudioTrimManager] Queueing trim for "${libraryItem.media.title}"`)
-      this.tasksQueued.push(task)
-    } else {
-      this.runTrimTask(task)
-    }
+    this.enqueueTask(task, `"${libraryItem.media.title}"`)
   }
 
   /**
    * Map global timeline sections to per-file local sections.
-   * Each audio file has a cumulative start offset on the global timeline.
    *
    * @param {Array<{start: number, end: number}>} globalSections
    * @param {Array<{index: number, duration: number, path: string, ino: string, filename: string}>} audioFiles
-   * @returns {Map<number, Array<{start: number, end: number}>>} Map of file index to local sections
+   * @returns {Map<number, Array<{start: number, end: number}>>}
    */
   mapSectionsToFiles(globalSections, audioFiles) {
     const fileLocalSections = new Map()
@@ -82,7 +70,6 @@ class AudioTrimManager {
       const localSections = []
 
       for (const section of globalSections) {
-        // Check if this section overlaps with this file's range
         if (section.start < fileEnd && section.end > fileStart) {
           const localStart = Math.max(0, section.start - fileStart)
           const localEnd = Math.min(af.duration, section.end - fileStart)
@@ -105,9 +92,8 @@ class AudioTrimManager {
   /**
    * @param {import('../objects/Task')} task
    */
-  async runTrimTask(task) {
-    this.tasksRunning.push(task)
-    TaskManager.addTask(task)
+  async runTask(task) {
+    this.startTask(task)
 
     Logger.info(`[AudioTrimManager] Starting trim task`, task.description)
 
@@ -158,7 +144,6 @@ class AudioTrimManager {
         ino: af.ino
       })
 
-      // Trim the audio file
       try {
         await ffmpegHelpers.trimAudioFile(af.path, localSections, af.duration, (progress) => {
           SocketAuthority.adminEmitter('task_progress', {
@@ -195,8 +180,6 @@ class AudioTrimManager {
     } catch (err) {
       Logger.error(`[AudioTrimManager] Failed to rescan library item ${task.data.libraryItemId}`, err)
 
-      // Rescan failed (e.g. FK constraint error) — manually emit item_updated
-      // so the client still gets the updated duration
       try {
         const expandedItem = await Database.libraryItemModel.getExpandedById(task.data.libraryItemId)
         if (expandedItem) {
@@ -210,17 +193,6 @@ class AudioTrimManager {
 
     task.setFinished()
     this.handleTaskFinished(task)
-  }
-
-  handleTaskFinished(task) {
-    TaskManager.taskFinished(task)
-    this.tasksRunning = this.tasksRunning.filter((t) => t.id !== task.id)
-
-    if (this.tasksRunning.length < this.MAX_CONCURRENT_TASKS && this.tasksQueued.length) {
-      Logger.info(`[AudioTrimManager] Task finished, dequeueing next task. ${this.tasksQueued.length} tasks queued.`)
-      const nextTask = this.tasksQueued.shift()
-      this.runTrimTask(nextTask)
-    }
   }
 }
 
