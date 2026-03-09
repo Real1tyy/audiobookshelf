@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Offline Downloads</title>
+<style>
+  :root {
+    --bg: #1a1a1a;
+    --card: #262626;
+    --card-hover: #2e2e2e;
+    --text: #e5e5e5;
+    --text-muted: #999;
+    --text-dim: #666;
+    --accent: #4ade80;
+    --accent-dim: #22c55e;
+    --border: #333;
+    --input-bg: #1f1f1f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-text-size-adjust: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .container {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 12px 16px;
+    padding-bottom: 200px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  h1 { font-size: 22px; font-weight: 700; }
+
+  .count {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* Sticky search + filters bar */
+  .filters {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    padding: 6px 0 10px;
+  }
+
+  .search-wrap {
+    position: relative;
+  }
+
+  .search-wrap input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 16px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  .search-wrap input:focus {
+    border-color: var(--accent-dim);
+  }
+
+  .search-wrap input::placeholder {
+    color: var(--text-dim);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    font-size: 16px;
+    pointer-events: none;
+  }
+
+  .search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 6px;
+    display: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .search-clear.visible { display: block; }
+
+  /* Author filter chips */
+  .author-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px 0 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .author-chips::-webkit-scrollbar { display: none; }
+
+  .chip {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+
+  .chip:active { opacity: 0.7; }
+
+  .chip.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .chip .chip-count {
+    margin-left: 4px;
+    opacity: 0.6;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .empty-sub {
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--card);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+
+  .item:active, .item.active {
+    background: var(--card-hover);
+  }
+
+  .item-icon {
+    width: 48px;
+    height: 48px;
+    background: #333;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 22px;
+    color: var(--text-dim);
+  }
+
+  .item-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .item-title {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-author {
+    font-size: 13px;
+    color: var(--accent-dim);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .play-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .play-btn:active { opacity: 0.8; }
+
+  /* Player */
+  .player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #222;
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    z-index: 100;
+    display: none;
+  }
+
+  .player.visible { display: block; }
+
+  .player-title {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+
+  .player-track {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .player-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .player-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 42px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .player-time.right { text-align: right; }
+
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #444;
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.2s linear;
+  }
+
+  .player-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .ctrl-btn {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 6px;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .ctrl-btn:active { opacity: 0.6; }
+
+  .ctrl-btn.main {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #000;
+    font-size: 28px;
+  }
+
+  .ctrl-btn.small {
+    font-size: 18px;
+    color: var(--text-muted);
+  }
+
+  .speed-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 4px 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    font-weight: 600;
+    min-width: 36px;
+    min-height: 36px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Offline Downloads</h1>
+    <span class="count" id="count"></span>
+  </header>
+
+  <div class="filters">
+    <div class="search-wrap">
+      <span class="search-icon">&#x1F50D;</span>
+      <input type="search" id="search" placeholder="Search by title or author..." autocomplete="off" />
+      <button class="search-clear" id="searchClear" title="Clear">&times;</button>
+    </div>
+    <div class="author-chips" id="authorChips"></div>
+  </div>
+
+  <div id="list"></div>
+  <div id="empty" class="empty" style="display:none">
+    <span class="empty-icon">&#x1F4E5;</span>
+    <p id="emptyText">No downloads found</p>
+    <p class="empty-sub" id="emptySub"></p>
+  </div>
+</div>
+
+<div class="player" id="player">
+  <div class="player-title" id="playerTitle"></div>
+  <div class="player-track" id="playerTrack"></div>
+  <div class="player-progress">
+    <span class="player-time" id="timeCurrent">0:00</span>
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <span class="player-time right" id="timeTotal">0:00</span>
+  </div>
+  <div class="player-controls">
+    <button class="speed-btn" id="speedBtn" title="Playback speed">1x</button>
+    <button class="ctrl-btn small" id="prevBtn" title="Previous track">&#x23EE;</button>
+    <button class="ctrl-btn" id="rew30" title="Back 30s">-30</button>
+    <button class="ctrl-btn main" id="playPause" title="Play/Pause">&#x25B6;</button>
+    <button class="ctrl-btn" id="fwd30" title="Forward 30s">+30</button>
+    <button class="ctrl-btn small" id="nextBtn" title="Next track">&#x23ED;</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const STORAGE_KEY = 'abs-offline-items';
+  const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+
+  // State
+  let allItems = [];
+  let activeAuthor = null; // null = show all
+  let currentItem = null;
+  let currentTrackIdx = 0;
+  let speedIdx = 1;
+  const audio = new Audio();
+
+  // DOM refs
+  const $ = (id) => document.getElementById(id);
+  const $list = $('list');
+  const $empty = $('empty');
+  const $emptyText = $('emptyText');
+  const $emptySub = $('emptySub');
+  const $count = $('count');
+  const $search = $('search');
+  const $searchClear = $('searchClear');
+  const $authorChips = $('authorChips');
+  const $player = $('player');
+  const $playerTitle = $('playerTitle');
+  const $playerTrack = $('playerTrack');
+  const $timeCurrent = $('timeCurrent');
+  const $timeTotal = $('timeTotal');
+  const $progressFill = $('progressFill');
+  const $progressBar = $('progressBar');
+  const $playPause = $('playPause');
+  const $speedBtn = $('speedBtn');
+
+  // ── Data ──
+
+  function loadItems() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const obj = JSON.parse(raw);
+      return Object.values(obj).sort((a, b) => (b.downloadedAt || 0) - (a.downloadedAt || 0));
+    } catch {
+      return [];
+    }
+  }
+
+  function getAuthors(items) {
+    const counts = {};
+    for (const item of items) {
+      const a = (item.author || '').trim();
+      if (!a) continue;
+      counts[a] = (counts[a] || 0) + 1;
+    }
+    // Sort by count desc, then name
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count }));
+  }
+
+  // ── Formatting ──
+
+  function formatSize(bytes) {
+    if (!bytes) return '';
+    const u = ['B', 'KB', 'MB', 'GB'];
+    let i = 0, v = bytes;
+    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+    return v.toFixed(i === 0 ? 0 : 1) + ' ' + u[i];
+  }
+
+  function formatTime(secs) {
+    if (!secs || !isFinite(secs)) return '0:00';
+    const s = Math.floor(secs);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+    return m + ':' + String(sec).padStart(2, '0');
+  }
+
+  function formatDuration(item) {
+    if (!item.tracks || !item.tracks.length) return '';
+    const total = item.tracks.reduce((s, t) => s + (t.duration || 0), 0);
+    if (total <= 0) return '';
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    if (h > 0) return h + 'h ' + m + 'm';
+    return m + 'm';
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // ── Rendering ──
+
+  function renderAuthorChips() {
+    const authors = getAuthors(allItems);
+    if (authors.length <= 1) {
+      $authorChips.innerHTML = '';
+      return;
+    }
+
+    let html = '<button class="chip' + (!activeAuthor ? ' active' : '') + '" data-author="">All<span class="chip-count">' + allItems.length + '</span></button>';
+    for (const a of authors) {
+      const isActive = activeAuthor === a.name;
+      html += '<button class="chip' + (isActive ? ' active' : '') + '" data-author="' + esc(a.name) + '">'
+        + esc(a.name) + '<span class="chip-count">' + a.count + '</span></button>';
+    }
+    $authorChips.innerHTML = html;
+  }
+
+  function getFilteredItems() {
+    const q = ($search.value || '').toLowerCase().trim();
+    let items = allItems;
+
+    // Author chip filter
+    if (activeAuthor) {
+      items = items.filter(i => (i.author || '').trim() === activeAuthor);
+    }
+
+    // Text search
+    if (q) {
+      items = items.filter(i =>
+        (i.title || '').toLowerCase().includes(q) ||
+        (i.author || '').toLowerCase().includes(q)
+      );
+    }
+
+    return items;
+  }
+
+  function renderList() {
+    const items = getFilteredItems();
+    const q = ($search.value || '').trim();
+
+    $count.textContent = items.length + ' item' + (items.length === 1 ? '' : 's');
+    $searchClear.classList.toggle('visible', q.length > 0);
+
+    if (!items.length) {
+      $list.innerHTML = '';
+      if (!allItems.length) {
+        $emptyText.textContent = 'No downloads yet';
+        $emptySub.textContent = 'Download items from the library for offline listening.';
+      } else {
+        $emptyText.textContent = 'No matches';
+        $emptySub.textContent = q
+          ? 'Nothing matches "' + q + '"' + (activeAuthor ? ' by ' + activeAuthor : '')
+          : activeAuthor ? 'No items by ' + activeAuthor : '';
+      }
+      $empty.style.display = '';
+      return;
+    }
+
+    $empty.style.display = 'none';
+    $list.innerHTML = items.map(item => {
+      const trackCount = (item.tracks || []).length;
+      const isActive = currentItem && currentItem.id === item.id;
+      const dur = formatDuration(item);
+      const size = formatSize(item.totalSize);
+      const meta = [trackCount + ' track' + (trackCount === 1 ? '' : 's'), dur, size].filter(Boolean).join(' \u00B7 ');
+      return '<div class="item' + (isActive ? ' active' : '') + '" data-id="' + item.id + '">' +
+        '<div class="item-icon">&#x1F3B5;</div>' +
+        '<div class="item-info">' +
+          '<div class="item-title">' + esc(item.title || 'Untitled') + '</div>' +
+          (item.author ? '<div class="item-author">' + esc(item.author) + '</div>' : '') +
+          '<div class="item-meta">' + meta + '</div>' +
+        '</div>' +
+        '<button class="play-btn" data-play="' + item.id + '">&#x25B6;</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  // ── Playback ──
+
+  function playItem(item, trackIdx) {
+    currentItem = item;
+    currentTrackIdx = trackIdx || 0;
+    loadTrack();
+    $player.classList.add('visible');
+    renderList();
+  }
+
+  function loadTrack() {
+    if (!currentItem || !currentItem.tracks || !currentItem.tracks[currentTrackIdx]) return;
+    const track = currentItem.tracks[currentTrackIdx];
+    audio.src = track.cacheKey;
+    audio.playbackRate = SPEEDS[speedIdx];
+    audio.play().catch(() => {});
+    updatePlayerUI();
+  }
+
+  function updatePlayerUI() {
+    if (!currentItem) return;
+    const track = currentItem.tracks[currentTrackIdx];
+    $playerTitle.textContent = currentItem.title || 'Untitled';
+    $playerTrack.textContent = 'Track ' + (currentTrackIdx + 1) + '/' + currentItem.tracks.length +
+      (track && track.title ? ' \u2014 ' + track.title : '');
+    $playPause.innerHTML = audio.paused ? '&#x25B6;' : '&#x23F8;';
+  }
+
+  // ── Audio events ──
+
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration) return;
+    $progressFill.style.width = (audio.currentTime / audio.duration) * 100 + '%';
+    $timeCurrent.textContent = formatTime(audio.currentTime);
+    $timeTotal.textContent = formatTime(audio.duration);
+  });
+
+  audio.addEventListener('ended', () => {
+    if (currentItem && currentTrackIdx < currentItem.tracks.length - 1) {
+      currentTrackIdx++;
+      loadTrack();
+    } else {
+      $playPause.innerHTML = '&#x25B6;';
+    }
+  });
+
+  audio.addEventListener('play', updatePlayerUI);
+  audio.addEventListener('pause', updatePlayerUI);
+
+  // ── Controls ──
+
+  $('playPause').addEventListener('click', () => {
+    if (!currentItem) return;
+    if (audio.paused) audio.play().catch(() => {});
+    else audio.pause();
+  });
+
+  $('rew30').addEventListener('click', () => {
+    audio.currentTime = Math.max(0, audio.currentTime - 30);
+  });
+
+  $('fwd30').addEventListener('click', () => {
+    audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 30);
+  });
+
+  $('prevBtn').addEventListener('click', () => {
+    if (!currentItem) return;
+    if (audio.currentTime > 3 || currentTrackIdx === 0) {
+      audio.currentTime = 0;
+    } else {
+      currentTrackIdx--;
+      loadTrack();
+    }
+  });
+
+  $('nextBtn').addEventListener('click', () => {
+    if (!currentItem || currentTrackIdx >= currentItem.tracks.length - 1) return;
+    currentTrackIdx++;
+    loadTrack();
+  });
+
+  $progressBar.addEventListener('click', (e) => {
+    if (!audio.duration) return;
+    const rect = $progressBar.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+  });
+
+  $speedBtn.addEventListener('click', () => {
+    speedIdx = (speedIdx + 1) % SPEEDS.length;
+    audio.playbackRate = SPEEDS[speedIdx];
+    $speedBtn.textContent = SPEEDS[speedIdx] + 'x';
+  });
+
+  // ── Search ──
+
+  $search.addEventListener('input', () => renderList());
+
+  $searchClear.addEventListener('click', () => {
+    $search.value = '';
+    $search.focus();
+    renderList();
+  });
+
+  // ── Author chips ──
+
+  $authorChips.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const author = chip.dataset.author;
+    activeAuthor = author || null;
+    renderAuthorChips();
+    renderList();
+  });
+
+  // ── List click ──
+
+  $list.addEventListener('click', (e) => {
+    const playBtn = e.target.closest('[data-play]');
+    const itemEl = e.target.closest('.item');
+    const id = playBtn ? playBtn.dataset.play : (itemEl ? itemEl.dataset.id : null);
+    if (!id) return;
+    const item = allItems.find(i => i.id === id);
+    if (item) playItem(item, 0);
+  });
+
+  // ── Init ──
+
+  allItems = loadItems();
+  renderAuthorChips();
+  renderList();
+})();
+</script>
+</body>
+</html>

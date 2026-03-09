@@ -9,11 +9,19 @@
  * entries (chunks) to avoid crashing mobile browsers. When the audio element requests
  * a chunked file, this service worker transparently streams from the right chunks,
  * including proper Range request handling for seeking.
+ *
+ * OFFLINE PAGE: The /offline.html page is precached on install so it's available
+ * without any network connection. Failed navigation requests also fall back to it.
  */
 
 const CACHE_NAME = 'abs-audio-v1'
+const SHELL_CACHE = 'abs-offline-shell-v1'
+const OFFLINE_PAGE = '/offline.html'
 
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(SHELL_CACHE).then((cache) => cache.add(OFFLINE_PAGE))
+  )
   self.skipWaiting()
 })
 
@@ -24,10 +32,31 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
 
-  // Only intercept offline audio requests
-  if (!url.pathname.startsWith('/offline/items/')) return
+  // Serve cached offline page
+  if (url.pathname === OFFLINE_PAGE || url.pathname === '/offline') {
+    event.respondWith(
+      caches.open(SHELL_CACHE).then((cache) => cache.match(OFFLINE_PAGE)).then((resp) => {
+        return resp || fetch(event.request)
+      })
+    )
+    return
+  }
 
-  event.respondWith(handleOfflineRequest(event.request, url))
+  // Intercept offline audio requests
+  if (url.pathname.startsWith('/offline/items/')) {
+    event.respondWith(handleOfflineRequest(event.request, url))
+    return
+  }
+
+  // For navigation requests (HTML pages), try network first, fall back to offline page
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.open(SHELL_CACHE).then((cache) => cache.match(OFFLINE_PAGE))
+      })
+    )
+    return
+  }
 })
 
 async function handleOfflineRequest(request, url) {
